@@ -2,10 +2,17 @@ import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
+import { Wifi } from "./wifi.js";
 
-export function Done({ wifi, status }) {
+export function Done({ status }) {
   const [live, setLive] = useState(null);
   const [err, setErr] = useState(null);
+  const [showWifi, setShowWifi] = useState(false);
+  const [wifiVal, setWifiVal] = useState({
+    ssid: status?.wifi?.ssid || "",
+    psk: "",
+    result: status?.wifi?.connected ? status.wifi : null,
+  });
 
   useEffect(() => {
     let stop = false;
@@ -18,8 +25,13 @@ export function Done({ wifi, status }) {
     return () => { stop = true; };
   }, []);
 
+  if (showWifi) {
+    return html`<${Wifi} value=${wifiVal} onChange=${setWifiVal}
+      onBack=${() => setShowWifi(false)} onNext=${() => setShowWifi(false)} />`;
+  }
+
   const host = status?.hostname ? `http://${status.hostname}.local/` : null;
-  const ip = wifi?.result?.ip ? `http://${wifi.result.ip}/` : null;
+  const ip = wifiVal.result?.ip ? `http://${wifiVal.result.ip}/` : status?.wifi?.ip ? `http://${status.wifi.ip}/` : null;
   const age = live?.age;
   const badge = live?.key_invalid ? ["err", S.keyWrong]
     : age == null ? ["warn", S.waitingData]
@@ -34,6 +46,7 @@ export function Done({ wifi, status }) {
         <div class="s">${S.reachable}</div>
         ${host && html`<div><a class="mono" href=${host}>${host}</a></div>`}
         ${ip && html`<div><a class="mono" href=${ip}>${ip}</a></div>`}
+        <p><button onClick=${() => setShowWifi(true)}>${S.changeWifi}</button></p>
       </div>`}
     <div class="card">
       <div class="row" style="justify-content:space-between">

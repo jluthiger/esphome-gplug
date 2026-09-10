@@ -6,10 +6,14 @@ import { api } from "./api.js";
 import { Welcome } from "./steps/welcome.js";
 import { Hardware } from "./steps/hardware.js";
 import { Meter } from "./steps/meter.js";
-import { Wifi } from "./steps/wifi.js";
 import { Done } from "./steps/done.js";
 
-const STEPS = ["welcome", "hardware", "meter", "wifi", "done"];
+// No "wifi" step: this SPA is only ever reachable after the device has already joined WiFi
+// (the stock captive_portal handles that first join, before gplug_smi's own handler -- and
+// thus this SPA -- resumes serving "/"). A "connect to your network" step here would always be
+// a no-op re-confirmation of a connection that already exists. Changing to a *different* network
+// later is still possible, from the Done step's "WLAN ändern" panel.
+const STEPS = ["welcome", "hardware", "meter", "done"];
 
 function App() {
   const [step, setStep] = useState(0);
@@ -20,7 +24,6 @@ function App() {
 
   const [hw, setHw] = useState(null);                 // {variant, pins}
   const [meter, setMeter] = useState({ preset: null, key: "" });
-  const [wifi, setWifi] = useState({ ssid: "", psk: "", result: null });
 
   async function load() {
     setErr(null);
@@ -58,8 +61,7 @@ function App() {
       onBack=${back} onNext=${() => commit("hardware")} />`;
   else if (name === "meter") body = html`<${Meter} presets=${data.presets} variant=${hw?.variant} value=${meter}
       onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
-  else if (name === "wifi") body = html`<${Wifi} value=${wifi} onChange=${setWifi} onBack=${back} onNext=${() => setStep(4)} />`;
-  else body = html`<${Done} wifi=${wifi} status=${status} />`;
+  else body = html`<${Done} status=${status} />`;
 
   return html`
     <div class="brand">${S.brand}</div>

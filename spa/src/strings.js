@@ -46,6 +46,7 @@ export const S = {
   connecting: "Verbinde…",
   connected: "Verbunden",
   connectFailed: "Verbindung fehlgeschlagen. Passwort prüfen.",
+  changeWifi: "WLAN ändern",
 
   done: "Abschluss",
   doneText: "Der gPlug ist eingerichtet.",
