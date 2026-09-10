@@ -20,12 +20,12 @@ file the same build step generates lists the correct `0x20000` offset.
 
 Workaround — flash each real partition file at its own offset from `flasher_args.json`, **not**
 `firmware.factory.bin`. That merged image is a single contiguous blob from `0x0` through the end of
-`app0`; it has no entry for `nvs` (`0x9000`–`0xf000`, in the middle of that span) because nvs isn't a
-flashable file, so the merge silently pads the gap with erased bytes. Writing it as one blob therefore
-**wipes the nvs partition — the saved WiFi credentials and the SPA-configured hw/meter JSON — on every
-single flash**, even a plain firmware update with no `partitions.csv` change. Found 2026-09-10 after it
-silently erased a real device's just-completed onboarding on what should have been a routine reflash;
-the earlier version of this doc recommended `firmware.factory.bin` directly and was wrong.
+`app0`; it has no entry for `nvs` (in the middle of that span) because nvs isn't a flashable file, so
+the merge silently pads the gap with erased bytes. Writing it as one blob therefore **wipes the nvs
+partition — the saved WiFi credentials and the SPA-configured hw/meter JSON — on every single flash**,
+even a plain firmware update with no `partitions.csv` change. Found 2026-09-10 after it silently erased
+a real device's just-completed onboarding on what should have been a routine reflash; the earlier
+version of this doc recommended `firmware.factory.bin` directly and was wrong.
 
 ```
 cd .esphome/build/gplug/.pioenvs/gplug
@@ -33,7 +33,7 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX --baud 460800 write-flash \
   --flash_mode dio --flash_freq 80m --flash_size 4MB \
   0x0 bootloader.bin \
   0x8000 partitions.bin \
-  0xf000 ota_data_initial.bin \
+  0x19000 ota_data_initial.bin \
   0x20000 firmware.bin
 esphome logs gplug.yaml --device /dev/cu.usbmodemXXXX   # watch boot
 ```
@@ -41,17 +41,32 @@ esphome logs gplug.yaml --device /dev/cu.usbmodemXXXX   # watch boot
 Verified 2026-09-10: clean boot on a real gPlugK, correct partition table, `gplug_smi` initializes,
 and — unlike the merged-image method — nvs contents survive the flash.
 
+**A second, separate cause of the same symptom (config silently gone after a boot, not a flash):**
+ESPHome's own `esp32::ESP32Preferences::open()` runs at `app_main()`, before the logger even starts.
+If `nvs_open("esphome", NVS_READWRITE, ...)` fails for any reason -- most plausibly
+`ESP_ERR_NVS_NOT_ENOUGH_SPACE` once the partition gets tight -- it "recovers" by calling
+`nvs_flash_erase()`, which wipes the **entire** nvs partition, every namespace, not just ESPHome's own.
+`gplug_smi`'s "gplug" namespace (the `hw`/`meter` JSON, including a ~3 KB blob for a real 22-entry
+DLMS descriptor) shares that same partition with ESPHome's own preferences and the WiFi credentials --
+at the original 24 kB it doesn't take much churn to trip this. This is almost certainly what caused the
+handful of "config vanished after a completely unrelated flash" incidents on 2026-09-10 that the
+per-partition-write fix above didn't fully explain (confirmed via `esptool read-flash 0x9000 0x6000`:
+nvs wasn't blank, but `gplug`'s blobs and other content kept shrinking across otherwise-safe flashes).
+Fixed by growing `nvs` from 24 kB to 64 kB (`partitions.csv`) using the ~56 kB gap that was already
+sitting unused between `phy_init` and `app0` (system partitions before app0 must fall in a 128 kB-aligned
+block; they only used 36 kB of it) -- `app0`/`app1`/`data` offsets are unchanged, no OTA-slot impact.
+
 **Reset into AP mode**: hold the hardware AP button >= 3 s (wired to GND, `hw.pins.button` in the
 stored hw config) — clears the saved WiFi STA credentials and reboots; device comes back up
 broadcasting its setup AP. Equivalent manual fallback (e.g. no button wired, or NVS is corrupt):
 
 ```
-esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x6000   # nvs partition
+esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x10000   # nvs partition
 ```
 
 | File | Purpose |
 |---|---|
-| `partitions.csv` | nvs 24 kB, otadata 8 kB, phy 4 kB, app0/app1 1664 kB each (OTA), data 640 kB (history, unused yet) |
+| `partitions.csv` | nvs 64 kB, otadata 8 kB, phy 4 kB, app0/app1 1664 kB each (OTA), data 640 kB (history, unused yet) |
 | `base.yaml` | skeleton without the component, for size reference |
 | `gplug.yaml` | real config: wifi AP + captive portal, api, ota, sntp, uart, status LED, `gplug_smi` |
 | `components/gplug_smi/` | external component (see below) |
