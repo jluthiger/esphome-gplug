@@ -21,14 +21,24 @@ state change, not a page reload:
   handles that first join before `gplug_smi`'s handler, and thus this SPA, resumes serving `/`).
   Everything is saved to the device as each step is left, so an interrupted wizard doesn't lose
   earlier steps.
-- **`#live`** – the live view (`src/steps/live.js`): current power, import/export counters,
-  per-phase power (hidden on single-phase installs), a 1 h sparkline, and the reachable
-  address / "WLAN ändern" panel (`src/steps/wifi.js`, reused from the wizard).
+- **`#live`** – the day-to-day app (`src/live/`), four tabs behind a fixed bottom nav, with its own
+  chrome (clock + WiFi strength, screen title, data-freshness pill). The tab is component state,
+  deliberately *not* in the hash: only the two top-level screens are worth bookmarking.
+
+| Tab | File | What |
+|---|---|---|
+| Live | `live/live-tab.js` | current power with direction, 1 h area chart from `/api/ring`, import/export counters, per-phase bars with V/A (hidden when the preset has no per-phase registers) |
+| Verlauf | `live/hist-tab.js` | 60 Min from the RAM ring (10 s resolution), plus Tag/Woche/Monat/Jahr from `/api/history` – power for the short ranges, energy per bucket for the long ones. History is fetched once per range and cached, never on the 10 s poll, because it reads flash on the device |
+| Datenstrom | `live/stream-tab.js` | the last 5 captured raw DLMS frames: CRC verdict, hex body (raw ciphertext or decrypted), copy/download, multi-select export. DLMS only – a DSMR device gets an explanatory empty state |
+| Setup | `live/setup-tab.js` | reachable addresses, WLAN ändern (reuses `steps/wifi.js`), GUEK status (masked, never fetched), night mode |
 
 With no hash yet (first load), the app picks a screen once `/api/status` answers: live view if
 the device already has hardware + meter configured and is connected to WiFi, wizard otherwise. The
-wizard's last step links to the live view; the live view's "Einrichtung" button links back to the
-wizard (variant/preset change, or a WiFi network switch).
+wizard's last step links to the live view; the wizard stays reachable at `#setup`.
+
+Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
+Its Google Fonts are deliberately not loaded – the SPA is a single self-contained blob served by a
+device that may have no WAN – so the mockup's own fallback stacks are used instead.
 
 Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows "Schlüssel ungültig".
 
@@ -36,15 +46,18 @@ Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows "Schl�
 
 | Method | Path | Body / result |
 |---|---|---|
-| GET | `/api/status` | `{version, hostname, hardware?, meter?, wifi:{connected, ssid, ip, rssi, error}}` |
+| GET | `/api/status` | `{version, hostname, uptime, heap, hardware?, meter?, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}` |
 | GET | `/api/presets` | `{variants:[…], presets:[…]}` (see `../firmware/components/gplug_smi/presets.json`) |
 | GET | `/api/wifi/scan` | `[{ssid, rssi, secure}]` |
 | POST | `/api/config/wifi` | `{ssid, psk}` |
 | POST | `/api/config/hardware` | `{variant, pins:{rx, red, green, blue, button}}` |
 | POST | `/api/config/meter` | `{preset, key?, descriptor:{schema, protocol, mode, baud, rx, serial_flags, buffer, obis[]}}` |
-| GET | `/api/live` | `{smid, age, no_data, p, ei, eo, key_invalid?}` — no per-phase field; the live view takes that from `/api/ring`'s latest sample instead |
+| GET | `/api/live` | `{smid, age, no_data, p, pi, po, ei, eo, key_invalid?, values:{…}, last_qh:{qh, values:{…}}}` — no per-phase power field; the Live tab takes that from `/api/ring`'s latest sample. `last_qh` is every register the meter sent as of the last stored quarter hour |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}`, 360 samples = 1 h at 10 s resolution |
 | GET | `/api/history?range=day\|week\|month\|year` | flash-backed 15-min history, downsampled server-side to ≤365 points: `{period:900, bucket, qh_epoch, epoch_valid, now_qh, count, pts:[[qh, d_ei_wh, d_eo_wh, p_min, p_max, p_avg, flags],…]}`. `qh` = quarter-hours since 2020-01-01Z, `null` when the record predates a clock sync; the energy deltas are `null` when a counter is absent or the chain is broken (meter swap, config change) |
+| GET | `/api/frames` | `{protocol, cap, len, count, frames:[{i, age, ok, raw_len, raw_trunc, plain_len, plain_trunc},…]}` — metadata only, newest first; `protocol` is `dlms`/`dsmr`/`none` and only `dlms` ever fills the ring |
+| GET | `/api/frames/<i>/raw\|plain` | `text/plain` hex dump of one captured frame (ciphertext or decrypted plaintext); 404 when the slot or that half is empty |
 
-Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js`,
-`src/api.js`, `src/strings.js` (German UI text), `src/style.css`.
+Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js` (wizard),
+`src/live/*.js` (the four tabs), `src/api.js`, `src/fmt.js` (German numbers + quarter-hour dates),
+`src/strings.js` (German UI text), `src/style.css`.

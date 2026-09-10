@@ -104,7 +104,7 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
 
 | File | Purpose |
 |---|---|
-| `gplug.yaml` | the package: wifi AP + captive portal, api, ota, sntp, uart, `gplug_smi`, project + dashboard_import, git component source, inline partitions (ESPHome's standard ESP-IDF layout: otadata, phy_init, app0 @ 0x10000 / app1 1408 kB each, nvs 448 kB, plus `data` 704 kB appended for history, unused yet) |
+| `gplug.yaml` | the package: wifi AP + captive portal, api, ota, sntp, uart, `gplug_smi`, project + dashboard_import, git component source, inline partitions (ESPHome's standard ESP-IDF layout: otadata, phy_init, app0 @ 0x10000 / app1 1408 kB each, nvs 448 kB, plus `data` 704 kB appended for the 15-min history) |
 | `dev.yaml` | `gplug.yaml` + local component source; what you build and flash while developing |
 | `base.yaml` | skeleton without the component, for size reference |
 | `components/gplug_smi/` | external component (see below) |
@@ -273,8 +273,9 @@ pass `ESP_INTR_FLAG_IRAM` anyway).
 
 ### Known gaps (PoC)
 
-- Firmware is 962 kB flash / 51 kB static RAM (up from 890 kB before adopting mbedtls — a real crypto
-  library is bigger than the hand-rolled one it replaced; still well under the 1664 kB app-slot budget).
+- Firmware is 1007 kB flash / 60 kB static RAM of a 1408 kB app slot and 320 kB SRAM (890 kB before
+  adopting mbedtls — a real crypto library is bigger than the hand-rolled one it replaced; +8 kB RAM
+  for the raw-frame capture ring, +0.6 kB for the history store).
 - Full pipeline (HDLC framing, AES-128-GCM decrypt, OBIS decode) validated end-to-end against **real**
   gPlugK captures (`test/captures/`, gitignored, not committed — raw frames + device key):
   `test_raw.cpp` decrypts 3 consecutive live frames with the real key, checks frame-counter continuity,
@@ -295,6 +296,8 @@ pass `ESP_INTR_FLAG_IRAM` anyway).
   underlying theory; see the two 2026-09-10 entries in `intent/intent.md` for the full trail.
   `dbg_structure.cpp <hex files...>` remains for dumping any future capture's descriptors/values with
   byte offsets.
-- LEDs: only ESPHome `status_led` on GPIO7; RGB behaviour from the descriptor not wired yet.
+- History is verified by host tests and a mock-server walkthrough only: real sector rotation, recovery
+  from a power cut mid-append, and a 24 h run still need the device. A dev build with
+  `HIST_INTERVAL_S = 60` exercises rotation in ~3.5 h.
 - WiFi scan endpoint returns whatever the wifi component last scanned; may be empty right after boot.
 - Config writes are applied immediately from the HTTP task; UART reconfiguration is not yet deferred to the main loop.

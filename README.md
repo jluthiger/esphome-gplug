@@ -9,8 +9,8 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 
 | Path | What |
 |---|---|
-| [`firmware/`](firmware/README.md) | ESPHome external component (`gplug_smi`): DSMR/P1, DLMS/COSEM + HDLC, AES-GCM decoding, host-side test suite |
-| [`spa/`](spa/README.md) | Setup wizard (Preact, no build framework), bundled into the firmware image and served from the device |
+| [`firmware/`](firmware/README.md) | ESPHome external component (`gplug_smi`): DSMR/P1, DLMS/COSEM + HDLC, AES-GCM decoding, 15-min history on flash, host-side test suite |
+| [`spa/`](spa/README.md) | Setup wizard + live app (Preact, no build framework), bundled into the firmware image and served from the device |
 | [`gplug/`](gplug) | Existing Tasmota scripts per variant/provider, source of the SPA's presets (`gPlugD`, `gPlugD-E`, `gPlugK`, `gPlugM`) |
 | [`intent/`](intent) | Intent doc: goal, scope, constraints |
 
@@ -37,8 +37,11 @@ this repo as a package, no clone needed.
 First boot: the device has no WiFi yet, so it opens the `gPlug-Setup` access point. Join it from a
 phone, the captive portal asks for your home WiFi, the device reboots into it, and the setup wizard
 is then at `http://gplug.local/` (pins, meter preset). From then on that address opens the live
-view instead (current power, counters, 1 h sparkline) — the wizard is still one tap away from
-there. Re-entering setup directly: hold the AP button >= 3 s.
+app instead — four tabs: **Live** (current power, 1 h chart, counters, per-phase), **Verlauf**
+(60 min from RAM, plus Tag/Woche/Monat/Jahr from the device's own 15-min flash history, ~374 days),
+**Datenstrom** (the last captured raw DLMS frames, with hex export, for diagnosing a meter that
+won't decode) and **Setup** (addresses, WLAN ändern, key status, night mode). The wizard stays one
+tap away. Re-entering setup directly: hold the AP button >= 3 s.
 
 Dev loop without hardware: `cd spa && npm run dev` serves the wizard against a mock device API on
 http://localhost:8080. Host-side decoder tests: see [`firmware/README.md`](firmware/README.md).
