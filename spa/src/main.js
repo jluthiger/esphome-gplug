@@ -1,0 +1,87 @@
+import { render } from "preact";
+import { useEffect, useState } from "preact/hooks";
+import { html } from "./h.js";
+import { S } from "./strings.js";
+import { api } from "./api.js";
+import { Welcome } from "./steps/welcome.js";
+import { Hardware } from "./steps/hardware.js";
+import { Meter } from "./steps/meter.js";
+import { Wifi } from "./steps/wifi.js";
+import { Done } from "./steps/done.js";
+
+const STEPS = ["welcome", "hardware", "meter", "wifi", "done"];
+
+function App() {
+  const [step, setStep] = useState(0);
+  const [status, setStatus] = useState(null);
+  const [data, setData] = useState(null); // {variants, presets}
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const [hw, setHw] = useState(null);                 // {variant, pins}
+  const [meter, setMeter] = useState({ preset: null, key: "" });
+  const [wifi, setWifi] = useState({ ssid: "", psk: "", result: null });
+
+  async function load() {
+    setErr(null);
+    try {
+      const [st, d] = await Promise.all([api.status(), api.presets()]);
+      setStatus(st); setData(d);
+      // Pre-select what the device already knows
+      if (st.hardware?.variant && !hw) setHw({ variant: st.hardware.variant, pins: st.hardware.pins });
+      if (st.meter?.preset) setMeter((m) => ({ ...m, preset: st.meter.preset }));
+    } catch (e) { setErr(String(e.message || e)); }
+  }
+  useEffect(() => { load(); }, []);
+
+  // Persist each step to the device as the user leaves it.
+  async function commit(from) {
+    setBusy(true); setErr(null);
+    try {
+      if (from === "hardware") await api.setHardware(hw);
+      if (from === "meter") {
+        const p = data.presets.find((x) => x.id === meter.preset);
+        await api.setMeter({ preset: p.id, key: p.encrypted ? meter.key : undefined, descriptor: toDescriptor(p, hw) });
+      }
+      setStep((s) => s + 1);
+    } catch (e) { setErr(String(e.message || e)); }
+    setBusy(false);
+  }
+  const back = () => setStep((s) => Math.max(0, s - 1));
+
+  const name = STEPS[step];
+  let body;
+  if (err && !data) body = html`<div class="err">${err}</div><button onClick=${load}>${S.retry}</button>`;
+  else if (!data) body = html`<p><span class="spin"></span> ${S.loading}</p>`;
+  else if (name === "welcome") body = html`<${Welcome} status=${status} onNext=${() => setStep(1)} />`;
+  else if (name === "hardware") body = html`<${Hardware} variants=${data.variants} value=${hw} onChange=${setHw}
+      onBack=${back} onNext=${() => commit("hardware")} />`;
+  else if (name === "meter") body = html`<${Meter} presets=${data.presets} variant=${hw?.variant} value=${meter}
+      onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
+  else if (name === "wifi") body = html`<${Wifi} value=${wifi} onChange=${setWifi} onBack=${back} onNext=${() => setStep(4)} />`;
+  else body = html`<${Done} wifi=${wifi} status=${status} />`;
+
+  return html`
+    <div class="brand">${S.brand}</div>
+    <h1>${S.title}</h1>
+    <div class="steps">${STEPS.map((_, i) => html`<i class=${i < step ? "done" : i === step ? "cur" : ""}></i>`)}</div>
+    ${body}
+    ${busy && html`<p style="text-align:center"><span class="spin"></span></p>`}
+    ${err && data && html`<div class="err">${err}</div>`}`;
+}
+
+// Device-side descriptor: preset minus SPA-only fields, pins from hardware step.
+function toDescriptor(p, hw) {
+  return {
+    schema: 1,
+    protocol: p.protocol,
+    mode: p.mode,
+    baud: p.baud,
+    rx: hw?.pins?.rx ?? p.rx,
+    serial_flags: p.serial_flags,
+    buffer: p.buffer,
+    obis: p.obis,
+  };
+}
+
+render(html`<${App} />`, document.getElementById("app"));

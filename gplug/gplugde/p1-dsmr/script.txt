@@ -1,0 +1,194 @@
+>D 25
+; gPlugD-E P1-DSRM (6.9.26)
+upH=0
+sr=0
+ss=0
+d=750
+
+; for SMID conversion
+SMID=""
+idx=0
+smID=""
+
+; define pins
+rL=5
+gL=6
+bL=7
+; butA=9
+; rxPin=4
+
+; shared var within local network
+g:Pi=0
+g:Po=0
+
+>B
+; at boot
+
+; disable publishing at MQTT teleperiod, on boot
+smlj=0
+
+; allow 0 values (bit 3), needed for >= v15.5.0
+smlj|=8
+
+; activate data parsing
+-> sensor53 r
+
+; indicate serial activity (pin 6)
+-> sensor53 l6
+
+>BS
+; enable mDNS
+-> setOption55 1
+
+; disable Wifi, use Ethernet instead
+-> Wifi OFF
+
+; reduce CPU freq from 160 to 80 MHz saves 1/3 power
+sf(80)
+
+; MQTT publish rate 1/10 Hz
+-> teleperiod 10
+
+; dynamic sleep: reduce power consumption
+; See https://tasmota.github.io/docs/Dynamic-Sleep/
+-> setOption127 OFF
+-> sleep 50
+
+; referrer check
+-> setOption128 ON
+
+; Boot loop defaults restoration control
+; See https://tasmota.github.io/docs/Commands/#setoptions
+-> SetOption36 10
+
+; show CPU temperature in webUI
+; -> setOption146 1
+
+; configure GPIO
+spinm(rL O)
+spinm(gL O)
+spinm(bL O)
+; spinm(butA P)
+
+; lightshow at startup
+spin(rL 1)
+delay(d)
+spin(gL 1)
+; r + g = y
+delay(d)
+spin(rL 0)
+delay(d)
+spin(gL 0)
+spin(bL 1)
+delay(d)
+spin(bL 0)
+
+>M 1
+; DSMR rxPin=4, o=obis
++1,4,o,0,115200,z
+
+; OBIS Codes (IEC 62056-61):
+; See https://cdn.standards.iteh.ai/samples/104764/8356233bf80942e9ba6d5ac9cbdf3af0/IEC-62056-6-1-2023.pdf
+;     media: abstract=0, electricity=1, heat=6, gas=7, water=8)
+; "-" channel: =0 (if not more than 1 available)
+; ":" physical unit in=1, out=2,
+;      phase current=31,51,71, voltage=31,51,71,
+;      phase power in=21,41,61, out=22,42,62
+; "." measurement type instant=7, counter=8, peak-hold=6
+; "." tarif (0=total, 1=day, 2=night)
+
+; 1,0-0:1.0.0(@#),SM-Time,S,TS,16
+1,0-0:96.1.1(@#),*,,SMid,0
+
+; P=Power, i=in, o=out, V=Voltage, I=Current, E=Energy
+1,=h<hr/>
+1,=h<h4>Real Power In & Out<h4/>
+1,1-0:1.7.0(@1,Pi ___ 1.7.0,kW,Pi,3
+1,1-0:2.7.0(@1,Po ___ 2.7.0,kW,Po,3
+
+; Note: adding +16 to the last value (precision)
+; will generate an immediate MQTT telegram
+; See https://tasmota.github.io/docs/Smart-Meter-Interface/#meter-metrics
+
+1,=h<hr/>
+1,=h<h4>Phase Power In & Out<h4/
+1,1-0:21.7.0(@0.001,P1i ___ 21.7.0,W,P1i,0
+1,1-0:41.7.0(@0.001,P2i ___ 41.7.0,W,P2i,0
+1,1-0:61.7.0(@0.001,P3i ___ 61.7.0,W,P3i,0
+;
+1,1-0:22.7.0(@0.001,P1o ___ 22_7_0,W,P1o,0
+1,1-0:42.7.0(@0.001,P2o ___ 42_7_0,W,P2o,0
+1,1-0:62.7.0(@0.001,P3o ___ 62_7_0,W,P3o,0
+
+1,=h<hr/>
+1,=h<h4>Phase Voltage & Current<h4/>
+1,1-0:32.7.0(@1,V1 ___ 32.7.0,V,V1,1
+1,1-0:52.7.0(@1,V2 ___ 52.7.0,V,V2,1
+1,1-0:72.7.0(@1,V3 ___ 72.7.0,V,V3,1
+;
+1,1-0:31.7.0(@100,I1 ___ 31.7.0,A,I1,2
+1,1-0:51.7.0(@100,I2 ___ 51.7.0,A,I2,2
+1,1-0:71.7.0(@100,I3 ___ 71.7.0,A,I3,2
+
+1,=h<hr/>
+1,=h<h4>Real Energy Counters<h4/>
+1,1-0:1.8.0(@1,Ei ___ 1.8.0,kWh,Ei,3
+1,1-0:1.8.1(@1,Ei1 ___ 1.8.1,kWh,Ei1,3
+1,1-0:1.8.2(@1,Ei2 ___ 1.8.2,kWh,Ei2,3
+;
+1,1-0:2.8.0(@1,Eo ___ 2.8.0,kWh,Eo,3
+1,1-0:2.8.1(@1,Eo1 ___ 2.8.1,kWh,Eo1,3
+1,1-0:2.8.2(@1,Eo2 ___ 2.8.2,kWh,Eo2,3
+#
+
+>T
+SMID=z#SMid
+Pi=z#Pi
+Po=z#Po
+
+>S
+; every sec
+
+upH=uptime/60
+sr=sunrise/60
+ss=sunset/60
+
+; enable MQTT 10 seconds after boot
+if upsecs>9 {
+ smlj|=1
+}
+
+; convert SMID to smID only once at startup
+if smlj>8
+ and sl(smID)<5 {
+ smID=""
+ for idx 1 sl(SMID) 2
+  smID+=sb(SMID idx 1)
+  ; print idx = %0idx% smID = %smID%
+ next
+}
+
+; share latest Pi & Po (replaced by >T)
+; Pi=sml[2]
+; Po=sml[3]
+
+>F
+; every 100 ms
+
+; blink green on (1_7_0) reception
+; if smlv[2]==1 {
+;   spin(gL 1)
+;   smlv[0]
+; } else {
+;   spin(gL 0)
+; }
+
+
+>W
+@<style>h4{margin-block-end: 0;color: cyan}td th{font-weight: normal;}tr th:first-child{text-align: left;}tr td:nth-child(2){text-align: right;color: lime;font-weight:normal;}table{width:100\%;}</style>
+@<table><tbody>
+ <tr><th>P1-DSMR, data freq. </th><td>1/10 Hz</td></tr>
+ <tr><th>SMid</th><td>(%SMID%) %smID%</td></tr>
+ <tr><th>Date \& Time</th><td>%tstamp%</td></tr>
+ <tr><th>Uptime</th><td>%1upH% h</td></tr>
+</tbody></table>

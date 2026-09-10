@@ -1,0 +1,225 @@
+>D 25
+; gPlugD v1.11 P1-HDLC/DLMS (6.9.26)
+; {ISKRA AM550, M+C FLEXY, L+G E360 EKS}
+
+; set your decryption key (len 32 hex char), if encrypted
+;dKEY="12345678123456781234567812345678"
+dKEY=""
+
+upH=0
+sr=0
+ss=0
+
+; define LED pins green, red, blue
+gL=5
+rL=6
+bL=7
+; butA=9
+; rxPin=4
+
+; state vars
+noWifi=0
+rBlink=0
+d=750
+; bu=0
+
+; shared var within local network
+g:Pi=0
+g:Po=0
+
+>B
+; at boot
+
+; disable publishing at MQTT teleperiod, on boot (bit 1)
+smlj=0
+
+; allow 0 values (bit 3), needed for >= v15.5.0
+smlj|=8
+
+; activate data parsing
+-> sensor53 r
+
+; show data receive with green led (pin 5)
+-> sensor53 l5
+
+>BS
+; enable mDNS
+-> setOption55 1
+
+; reduce CPU freq from 160 to 80 MHz saves 1/3 power
+sf(80)
+
+; MQTT rate 1/10 Hz
+-> teleperiod 10
+
+; dynamic wifi Tx power
+-> wifipower 0
+
+; disable Wifi rescan (1/44 minutes) to reduce power consumption
+-> setOption57 OFF
+
+; reduce power consumption
+; See https://tasmota.github.io/docs/Dynamic-Sleep/
+-> setOption127 OFF
+-> sleep 100
+
+; referrer check
+-> setOption128 ON
+
+; Boot loop defaults restoration control
+; See https://tasmota.github.io/docs/Commands/#setoptions
+-> SetOption36 10
+
+; show CPU temperature in webUI
+; -> setOption146 1
+
+;configure GPIO
+spinm(rL O)
+spinm(gL O)
+spinm(bL O)
+; spinm(butA P)
+
+; lightshow at startup
+spin(rL 1)
+delay(d)
+spin(gL 1)
+; r + g = y
+delay(d)
+spin(rL 0)
+delay(d)
+spin(gL 0)
+spin(bL 1)
+delay(d)
+spin(bL 0)
+
+>M 1
+; rxPin=4, raw=r
++1,4,r,0,115200,z
+
+; your 32 char HEX Key from var dKEY is set here.
+; if data is not encrypted, "1,=so4," is set
+;1,=so4,DECR-KEY
+1,=so4,%dKEY%
+
+; EKS E360 might need larger rxBuf to hold a whole frame
+; 1,=so3,750
+
+
+; OBIS Codes (IEC 62056-61):
+; See https://cdn.standards.iteh.ai/samples/104764/8356233bf80942e9ba6d5ac9cbdf3af0/IEC-62056-6-1-2023.pdf
+;     media: abstract=0, electricity=1, heat=6, gas=7, water=8)
+; "-" channel: =0 (if not more than 1 available)
+; ":" physical unit (in=1, out=2,
+;      phase current=31,51,71, voltage=31,51,71,
+;      phase power in=21,41,61, out=22,42,62)
+; "." measurement type (instant=7, counter=8, peak-hold=6)
+; "." tarif (0=total, 1=day, 2=night)
+
+; only one string (@#) can be decoded per meter
+1,pm(96.1.0)@#,*,,SMid,0
+
+; P=Power, i=in, o=out, V=Voltage, I=Current, E=Energy
+1,=h<hr/>
+1,=h<h4>Real Power In & Out<h4/>
+1,pm(1.7.0)@1000,Pi ___ 1.7.0,kW,Pi,3
+1,pm(2.7.0)@1000,Po ___ 2.7.0,kW,Po,3
+
+; Note: adding +16 to the last value (precision)
+; will generate an immediate MQTT telegram
+; See https://tasmota.github.io/docs/Smart-Meter-Interface/#meter-metrics
+; For some SM-CII, adjust scaling and precision
+; according the technical CII docu. of your DSO/VNB/GRD
+
+;1,=h<hr/>
+;1,=h<h4>Phase Power In & Out<h4/>
+; not provided by RE
+; sml[4]
+;1,pm(21.7.0)@1,P1i ___ 21.7.0,W,P1i,0
+;1,pm(41.7.0)@1,P2i ___ 41.7.0,W,P2i,0
+;1,pm(61.7.0)@1,P3i ___ 61.7.0,W,P3i,0
+;
+;1,pm(22.7.0)@1,P1o ___ 22.7.0,W,P1o,0
+;1,pm(42.7.0)@1,P2o ___ 42.7.0,W,P2o,0
+;1,pm(62.7.0)@1,P3o ___ 62.7.0,W,P3o,0
+
+1,=h<hr/>
+1,=h<h4>Phase Voltage & Current<h4/>
+; sml[4]
+1,pm(32.7.0)@10,V1 ___ 32.7.0,V,V1,1
+1,pm(52.7.0)@10,V2 ___ 52.7.0,V,V2,1
+1,pm(72.7.0)@10,V3 ___ 72.7.0,V,V3,1
+;
+1,pm(31.7.0)@100,I1 ___ 31.7.0,A,I1,2
+1,pm(51.7.0)@100,I2 ___ 51.7.0,A,I2,2
+1,pm(71.7.0)@100,I3 ___ 71.7.0,A,I3,2
+
+1,=h<hr/>
+1,=h<h4>Real Energy Counters<h4/>
+; sml[10]
+1,pm(1.8.0)@1000,Ei ___ 1.8.0,kWh,Ei,3
+1,pm(1.8.1)@1000,Ei1 ___ 1.8.1,kWh,Ei1,3
+1,pm(1.8.2)@1000,Ei2 ___ 1.8.2,kWh,Ei2,3
+; out
+1,pm(2.8.0)@1000,Eo ___ 2.8.0,kWh,Eo,3
+1,pm(2.8.1)@1000,Eo1 ___ 2.8.1,kWh,Eo1,3
+1,pm(2.8.2)@1000,Eo2 ___ 2.8.2,kWh,Eo2,3
+
+>S
+; every second
+upH=uptime/60
+sr=sunrise/60
+ss=sunset/60
+
+; share latest Pi & Po
+Pi=sml[2]
+Po=sml[3]
+
+; enable MQTT after grace period after boot
+if upsecs>9 {
+ smlj|=1
+}
+
+; if no wifi connection after 10 sec, blink red
+if wifis==0 {
+  noWifi+=1
+}
+if noWifi>10 {
+  rBlink=3
+}
+
+; if pin[butA]==0 {
+;   bu+=1
+; }
+; if bu>2 {
+;   rBlink=1
+;   bu=0
+; }
+
+>F
+; every 100 ms
+
+if rBlink>0 {
+  spin(rL 1)
+  rBlink-=1
+  noWifi=0
+} else {
+  spin(rL 0)
+}
+
+; blink green on (1_7_0) reception
+; if smlv[2]==1 {
+;   spin(gL 1)
+;   smlv[0]
+; } else {
+;   spin(gL 0)
+; }
+
+>W
+@<style>body{font-family: monospace}h4,h2{margin: 0;color: #1fa3ec}td th{font-weight: normal;}tr th:first-child{text-align: left;}tr td:nth-child(2){text-align: right;color: lime;font-weight:normal;}table{width:100\%;}</style>
+
+@<table><tbody>
+    <tr><th>HDLC/DLMS (ISKRA, FLEXY) RE, data freq: </th><td>1/5 Hz</td></tr>
+    <tr><th>SM-ID</th><td>%smls[1]%</td></tr>
+    <tr><th>Date \& Time</th><td>%tstamp%</td></tr>
+    <tr><th>Uptime</th><td> %1upH%h</td></tr>
+</tbody></table>

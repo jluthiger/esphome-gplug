@@ -1,0 +1,5 @@
+Die Meter-Metriken können leicht gemäss dem VSE Branchendokument [1] Tabellen 1 + 2 angepasst werden, falls der SM Ihres VNB die Daten in dieser Form via die CII ausgibt.
+Die Tasmota Dokumentation zu den Meter-Metirken ist hier [2] verfügbar.
+
+[1] https://www.strom.ch/de/media/15467/download
+[2] https://tasmota.github.io/docs/Smart-Meter-Interface/#meter-metrics

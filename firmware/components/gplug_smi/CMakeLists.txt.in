@@ -1,0 +1,15 @@
+# Copied to <build>/src/CMakeLists.txt by gplug_smi/__init__.py (esp32.add_extra_build_file).
+#
+# gplug_smi needs ESP-IDF's mbedtls component for mbedtls_gcm_* (AES-128-GCM decrypt of DLMS
+# frames -- see components/gplug_smi/aes_gcm.h). On this platformio-espressif32 (pioarduino)
+# build, ESPHome's generated project puts every component's sources into one flat "src"
+# pseudo-component with no REQUIRES at all (PlatformIO's own fallback CMakeLists.txt, used
+# "for projects without a default CMakeLists.txt"). mbedtls is never excluded and its archive
+# (libmbedcrypto.a) is already built for WiFi/TLS elsewhere in the same firmware, but without
+# an explicit REQUIRES here the linker never searches it, so mbedtls_gcm_init/setkey/
+# crypt_and_tag/free come back as undefined references even though nothing else is wrong.
+# Providing this file ourselves (present before PlatformIO would generate its default) fixes
+# that with no other effect on the build -- confirmed: bootloader (a separate, unrelated
+# ESP-IDF subproject) still links fine since REQUIRES here only affects this one component.
+FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
+idf_component_register(SRCS ${app_sources} REQUIRES mbedtls)

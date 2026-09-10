@@ -1,0 +1,60 @@
+# gPlug ESPHome firmware – PoC. One image for gPlugD / D-E / K / M; pins and meter descriptor are runtime data.
+substitutions:
+  name: gplug
+  friendly_name: gPlug
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.6.0
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  flash_size: 4MB
+  partitions: partitions.csv
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: components
+
+logger:
+  level: INFO
+  baud_rate: 115200
+
+wifi:
+  power_save_mode: light
+  ap:
+    ssid: "gPlug-Setup"
+
+captive_portal:
+
+api:
+  # Encryption pulls in mbedtls (Noise protocol), which gplug_smi also needs for AES-GCM.
+  # Without this, ESP-IDF never links mbedtls and mbedtls_gcm_* is an undefined reference at link
+  # time (found by trying to compile without it first). Placeholder key -- replace per deployment.
+  encryption:
+    key: "jxc9G0UKLtu5pAfuNeTDpDU58d/jtLPkX1L7QEeKY0E="
+
+ota:
+  - platform: esphome
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+# HAN input. Pin/baud are defaults only; gplug_smi reconfigures at runtime from the stored descriptor.
+uart:
+  id: han_uart
+  rx_pin: GPIO4
+  baud_rate: 115200
+  rx_buffer_size: 2048
+
+status_led:
+  pin: GPIO7
+
+gplug_smi:
+  uart_id: han_uart
+  spa: ../spa/dist/index.html.gz
+  presets: ../spa/mock/presets.json

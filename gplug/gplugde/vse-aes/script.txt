@@ -1,0 +1,3 @@
+Die Meter-Metriken können leicht gemäss dem VSE Branchendokument [*] Tabellen 1 + 2 angepasst werden, falls der SM Ihres VNB die Daten in dieser Form via die CII ausgibt.
+
+[*] https://www.strom.ch/de/media/15467/download

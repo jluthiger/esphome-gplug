@@ -1,0 +1,1441 @@
+{
+ "variants": [
+  {
+   "id": "gplugd",
+   "name": "gPlugD",
+   "interface": "P1 (DSMR ASCII or HDLC/DLMS)",
+   "pins": {
+    "rx": 4,
+    "red": 6,
+    "green": 5,
+    "blue": 7,
+    "button": 9
+   },
+   "baud": 115200
+  },
+  {
+   "id": "gplugde",
+   "name": "gPlugD-E",
+   "interface": "P1 (DSMR ASCII or HDLC/DLMS)",
+   "pins": {
+    "rx": 4,
+    "red": 5,
+    "green": 6,
+    "blue": 7,
+    "button": 9
+   },
+   "baud": 115200
+  },
+  {
+   "id": "gplugk",
+   "name": "gPlugK",
+   "interface": "Kamstrup DLMS push",
+   "pins": {
+    "rx": 4,
+    "red": 5,
+    "green": 6,
+    "blue": 7,
+    "button": 9
+   },
+   "baud": 2400
+  },
+  {
+   "id": "gplugm",
+   "name": "gPlugM",
+   "interface": "CII / M-Bus HDLC/DLMS",
+   "pins": {
+    "rx": 7,
+    "red": 1,
+    "green": 4,
+    "blue": 3,
+    "button": 9
+   },
+   "baud": 2400
+  }
+ ],
+ "presets": [
+  {
+   "id": "gplugd/p1-dsmr",
+   "variant": "gplugd",
+   "name": "P1 DSMR (unverschlüsselt)",
+   "protocol": "dsmr",
+   "mode": "o",
+   "baud": 115200,
+   "rx": 4,
+   "encrypted": false,
+   "serial_flags": 0,
+   "buffer": null,
+   "obis": [
+    {
+     "obis": "0-0:96.1.1",
+     "type": "string",
+     "scale": null,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:1.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Pi ___ 1.7.0",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Po ___ 2.7.0",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:21.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P1i ___ 21.7.0",
+     "unit": "W",
+     "name": "P1i",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:41.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P2i ___ 41.7.0",
+     "unit": "W",
+     "name": "P2i",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:61.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P3i ___ 61.7.0",
+     "unit": "W",
+     "name": "P3i",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:22.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P1o ___ 22.7.0",
+     "unit": "W",
+     "name": "P1o",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:42.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P2o ___ 42.7.0",
+     "unit": "W",
+     "name": "P2o",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:62.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P3o ___ 62.7.0",
+     "unit": "W",
+     "name": "P3o",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:32.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V1 ___ 32.7.0",
+     "unit": "V",
+     "name": "V1",
+     "precision": 1
+    },
+    {
+     "obis": "1-0:52.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V2 ___ 52.7.0",
+     "unit": "V",
+     "name": "V2",
+     "precision": 1
+    },
+    {
+     "obis": "1-0:72.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V3 ___ 72.7.0",
+     "unit": "V",
+     "name": "V3",
+     "precision": 1
+    },
+    {
+     "obis": "1-0:31.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "I1 ___ 31.7.0",
+     "unit": "A",
+     "name": "I1",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:51.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "I2 ___ 51.7.0",
+     "unit": "A",
+     "name": "I2",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:71.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "I3 ___ 71.7.0",
+     "unit": "A",
+     "name": "I3",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:1.8.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Ei ___ 1_8_0",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:1.8.1",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Ei1 ___ 1_8_1",
+     "unit": "kWh",
+     "name": "Ei1",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:1.8.2",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Ei2 ___ 1_8_2",
+     "unit": "kWh",
+     "name": "Ei2",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.8.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Eo ___ 2_8_0",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.8.1",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Eo1 ___ 2_8_1",
+     "unit": "kWh",
+     "name": "Eo1",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.8.2",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Eo2 ___ 2_8_2",
+     "unit": "kWh",
+     "name": "Eo2",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugd/p1-dsmr/script.txt"
+  },
+  {
+   "id": "gplugd/p1-hdlc_dlms",
+   "variant": "gplugd",
+   "name": "P1 HDLC/DLMS (verschlüsselt)",
+   "protocol": "dlms",
+   "mode": "r",
+   "baud": 115200,
+   "rx": 4,
+   "encrypted": true,
+   "serial_flags": 0,
+   "buffer": null,
+   "obis": [
+    {
+     "obis": "96.1.0",
+     "type": "string",
+     "scale": null,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi ___ 1.7.0",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "2.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po ___ 2.7.0",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "32.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "V1 ___ 32.7.0",
+     "unit": "V",
+     "name": "V1",
+     "precision": 1
+    },
+    {
+     "obis": "52.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "V2 ___ 52.7.0",
+     "unit": "V",
+     "name": "V2",
+     "precision": 1
+    },
+    {
+     "obis": "72.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "V3 ___ 72.7.0",
+     "unit": "V",
+     "name": "V3",
+     "precision": 1
+    },
+    {
+     "obis": "31.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I1 ___ 31.7.0",
+     "unit": "A",
+     "name": "I1",
+     "precision": 2
+    },
+    {
+     "obis": "51.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I2 ___ 51.7.0",
+     "unit": "A",
+     "name": "I2",
+     "precision": 2
+    },
+    {
+     "obis": "71.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I3 ___ 71.7.0",
+     "unit": "A",
+     "name": "I3",
+     "precision": 2
+    },
+    {
+     "obis": "1.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei ___ 1.8.0",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei1 ___ 1.8.1",
+     "unit": "kWh",
+     "name": "Ei1",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei2 ___ 1.8.2",
+     "unit": "kWh",
+     "name": "Ei2",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo ___ 2.8.0",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo1 ___ 2.8.1",
+     "unit": "kWh",
+     "name": "Eo1",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo2 ___ 2.8.2",
+     "unit": "kWh",
+     "name": "Eo2",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugd/p1-hdlc_dlms/script.txt"
+  },
+  {
+   "id": "gplugde/p1-dsmr",
+   "variant": "gplugde",
+   "name": "P1 DSMR (unverschlüsselt)",
+   "protocol": "dsmr",
+   "mode": "o",
+   "baud": 115200,
+   "rx": 4,
+   "encrypted": false,
+   "serial_flags": 0,
+   "buffer": null,
+   "obis": [
+    {
+     "obis": "0-0:96.1.1",
+     "type": "string",
+     "scale": null,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:1.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Pi ___ 1.7.0",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Po ___ 2.7.0",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:21.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P1i ___ 21.7.0",
+     "unit": "W",
+     "name": "P1i",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:41.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P2i ___ 41.7.0",
+     "unit": "W",
+     "name": "P2i",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:61.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P3i ___ 61.7.0",
+     "unit": "W",
+     "name": "P3i",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:22.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P1o ___ 22_7_0",
+     "unit": "W",
+     "name": "P1o",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:42.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P2o ___ 42_7_0",
+     "unit": "W",
+     "name": "P2o",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:62.7.0",
+     "type": "number",
+     "scale": 0.001,
+     "label": "P3o ___ 62_7_0",
+     "unit": "W",
+     "name": "P3o",
+     "precision": 0
+    },
+    {
+     "obis": "1-0:32.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V1 ___ 32.7.0",
+     "unit": "V",
+     "name": "V1",
+     "precision": 1
+    },
+    {
+     "obis": "1-0:52.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V2 ___ 52.7.0",
+     "unit": "V",
+     "name": "V2",
+     "precision": 1
+    },
+    {
+     "obis": "1-0:72.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V3 ___ 72.7.0",
+     "unit": "V",
+     "name": "V3",
+     "precision": 1
+    },
+    {
+     "obis": "1-0:31.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I1 ___ 31.7.0",
+     "unit": "A",
+     "name": "I1",
+     "precision": 2
+    },
+    {
+     "obis": "1-0:51.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I2 ___ 51.7.0",
+     "unit": "A",
+     "name": "I2",
+     "precision": 2
+    },
+    {
+     "obis": "1-0:71.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I3 ___ 71.7.0",
+     "unit": "A",
+     "name": "I3",
+     "precision": 2
+    },
+    {
+     "obis": "1-0:1.8.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Ei ___ 1.8.0",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:1.8.1",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Ei1 ___ 1.8.1",
+     "unit": "kWh",
+     "name": "Ei1",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:1.8.2",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Ei2 ___ 1.8.2",
+     "unit": "kWh",
+     "name": "Ei2",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.8.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Eo ___ 2.8.0",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.8.1",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Eo1 ___ 2.8.1",
+     "unit": "kWh",
+     "name": "Eo1",
+     "precision": 3
+    },
+    {
+     "obis": "1-0:2.8.2",
+     "type": "number",
+     "scale": 1.0,
+     "label": "Eo2 ___ 2.8.2",
+     "unit": "kWh",
+     "name": "Eo2",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugde/p1-dsmr/script.txt"
+  },
+  {
+   "id": "gplugde/p1-hdlc_dlms",
+   "variant": "gplugde",
+   "name": "P1 HDLC/DLMS Romande Energie",
+   "protocol": "dlms",
+   "mode": "r",
+   "baud": 115200,
+   "rx": 4,
+   "encrypted": true,
+   "serial_flags": 0,
+   "buffer": null,
+   "obis": [
+    {
+     "obis": "96.1.0",
+     "type": "string",
+     "scale": null,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi ___ 1.7.0",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "2.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po ___ 2.7.0",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "32.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "V1 ___ 32.7.0",
+     "unit": "V",
+     "name": "V1",
+     "precision": 1
+    },
+    {
+     "obis": "52.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "V2 ___ 52.7.0",
+     "unit": "V",
+     "name": "V2",
+     "precision": 1
+    },
+    {
+     "obis": "72.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "V3 ___ 72.7.0",
+     "unit": "V",
+     "name": "V3",
+     "precision": 1
+    },
+    {
+     "obis": "31.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I1 ___ 31.7.0",
+     "unit": "A",
+     "name": "I1",
+     "precision": 2
+    },
+    {
+     "obis": "51.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I2 ___ 51.7.0",
+     "unit": "A",
+     "name": "I2",
+     "precision": 2
+    },
+    {
+     "obis": "71.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I3 ___ 71.7.0",
+     "unit": "A",
+     "name": "I3",
+     "precision": 2
+    },
+    {
+     "obis": "1.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei ___ 1.8.0",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei1 ___ 1.8.1",
+     "unit": "kWh",
+     "name": "Ei1",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei2 ___ 1.8.2",
+     "unit": "kWh",
+     "name": "Ei2",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo ___ 2.8.0",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo1 ___ 2.8.1",
+     "unit": "kWh",
+     "name": "Eo1",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo2 ___ 2.8.2",
+     "unit": "kWh",
+     "name": "Eo2",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugde/p1-hdlc_dlms/script.txt"
+  },
+  {
+   "id": "gplugk/dlms-push-1",
+   "variant": "gplugk",
+   "name": "Kamstrup DLMS Push",
+   "protocol": "dlms",
+   "mode": "r",
+   "baud": 2400,
+   "rx": 4,
+   "encrypted": true,
+   "serial_flags": 0,
+   "buffer": 512,
+   "obis": [
+    {
+     "obis": "0.0.1",
+     "type": "number",
+     "scale": 1.0,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi ___ 1.7.0",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "2.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po ___ 2.7.0",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "21.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "P1i ___ 21.7.0",
+     "unit": "W",
+     "name": "P1i",
+     "precision": 0
+    },
+    {
+     "obis": "41.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "P2i ___ 41.7.0",
+     "unit": "W",
+     "name": "P2i",
+     "precision": 0
+    },
+    {
+     "obis": "61.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "P3i ___ 61.7.0",
+     "unit": "W",
+     "name": "P3i",
+     "precision": 0
+    },
+    {
+     "obis": "22.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "P1o ___ 22.7.0",
+     "unit": "W",
+     "name": "P1o",
+     "precision": 0
+    },
+    {
+     "obis": "42.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "P2o ___ 42.7.0",
+     "unit": "W",
+     "name": "P2o",
+     "precision": 0
+    },
+    {
+     "obis": "62.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "P3o ___ 62.7.0",
+     "unit": "W",
+     "name": "P3o",
+     "precision": 0
+    },
+    {
+     "obis": "32.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V1 ___ 32.7.0",
+     "unit": "V",
+     "name": "V1",
+     "precision": 1
+    },
+    {
+     "obis": "52.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V2 ___ 52.7.0",
+     "unit": "V",
+     "name": "V2",
+     "precision": 1
+    },
+    {
+     "obis": "72.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "V3 ___ 72.7.0",
+     "unit": "V",
+     "name": "V3",
+     "precision": 1
+    },
+    {
+     "obis": "31.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I1 ___ 31.7.0",
+     "unit": "A",
+     "name": "I1",
+     "precision": 2
+    },
+    {
+     "obis": "51.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I2 ___ 51.7.0",
+     "unit": "A",
+     "name": "I2",
+     "precision": 2
+    },
+    {
+     "obis": "71.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I3 ___ 71.7.0",
+     "unit": "A",
+     "name": "I3",
+     "precision": 2
+    },
+    {
+     "obis": "3.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "rPi ___ 3.7.0",
+     "unit": "VAr",
+     "name": "rPi",
+     "precision": 0
+    },
+    {
+     "obis": "4.7.0",
+     "type": "number",
+     "scale": 1.0,
+     "label": "rPo ___ 4.7.0",
+     "unit": "VAr",
+     "name": "rPo",
+     "precision": 0
+    },
+    {
+     "obis": "33.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "pf1 ___ 33.7.0",
+     "unit": null,
+     "name": "pf1",
+     "precision": 2
+    },
+    {
+     "obis": "1.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei ___ 1.8.0",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo ___ 2.8.0",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "3.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "rEi ___ 3.8.0",
+     "unit": "kVArh",
+     "name": "rEi",
+     "precision": 3
+    },
+    {
+     "obis": "4.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "rEo ___ 4.8.0",
+     "unit": "kVArh",
+     "name": "rEo",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugk/dlms-push-1/script.txt"
+  },
+  {
+   "id": "gplugm/romande-energie",
+   "variant": "gplugm",
+   "name": "CII HDLC/DLMS Romande Energie",
+   "protocol": "dlms",
+   "mode": "rE1",
+   "baud": 2400,
+   "rx": 7,
+   "encrypted": true,
+   "serial_flags": 12,
+   "buffer": 600,
+   "obis": [
+    {
+     "obis": "96.1.0",
+     "type": "string",
+     "scale": null,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi ___ 1_7",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "2.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po ___ 2_7",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "31.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "I1 ___ 31_7",
+     "unit": "A",
+     "name": "I1",
+     "precision": 3
+    },
+    {
+     "obis": "51.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "I2 ___ 51_7",
+     "unit": "A",
+     "name": "I2",
+     "precision": 3
+    },
+    {
+     "obis": "71.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "I3 ___ 51_7",
+     "unit": "A",
+     "name": "I3",
+     "precision": 3
+    },
+    {
+     "obis": "32.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "U1 ___ I1 32_7",
+     "unit": "V",
+     "name": "U1",
+     "precision": 3
+    },
+    {
+     "obis": "52.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "U2 ___ I2 52_7",
+     "unit": "V",
+     "name": "U2",
+     "precision": 3
+    },
+    {
+     "obis": "72.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "U3 ___ I3 52_7",
+     "unit": "V",
+     "name": "U3",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei ___ 1_8",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo ___ 2_8",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei1 ___ 1_8_1",
+     "unit": "kWh",
+     "name": "Ei1",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei2 ___ 1_8_2",
+     "unit": "kWh",
+     "name": "Ei2",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo1 ___ 2_8_1",
+     "unit": "kWh",
+     "name": "Eo1",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo2 ___ 2_8_2",
+     "unit": "kWh",
+     "name": "Eo2",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugm/romande-energie/script.txt"
+  },
+  {
+   "id": "gplugm/universal",
+   "variant": "gplugm",
+   "name": "CII HDLC/DLMS universal (L+G E450)",
+   "protocol": "dlms",
+   "mode": "rE1",
+   "baud": 2400,
+   "rx": 7,
+   "encrypted": true,
+   "serial_flags": 12,
+   "buffer": 700,
+   "obis": [
+    {
+     "obis": "96.1.0",
+     "type": "string",
+     "scale": null,
+     "label": "*",
+     "unit": null,
+     "name": "SMid",
+     "precision": 0
+    },
+    {
+     "obis": "1.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi ___ 1.7.0",
+     "unit": "kW",
+     "name": "Pi",
+     "precision": 3
+    },
+    {
+     "obis": "2.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po ___ 2.7.0",
+     "unit": "kW",
+     "name": "Po",
+     "precision": 3
+    },
+    {
+     "obis": "21.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi1 ___ 21.7.0",
+     "unit": "W",
+     "name": "Pi1",
+     "precision": 3
+    },
+    {
+     "obis": "41.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi2 ___ 41.7.0",
+     "unit": "W",
+     "name": "Pi2",
+     "precision": 3
+    },
+    {
+     "obis": "61.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Pi3 ___ 61.7.0",
+     "unit": "W",
+     "name": "Pi3",
+     "precision": 3
+    },
+    {
+     "obis": "22.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po1 ___ 22.7.0",
+     "unit": "W",
+     "name": "Po1",
+     "precision": 3
+    },
+    {
+     "obis": "42.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po2 ___ 42.7.0",
+     "unit": "W",
+     "name": "Po2",
+     "precision": 3
+    },
+    {
+     "obis": "62.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Po3 ___ 62.7.0",
+     "unit": "W",
+     "name": "Po3",
+     "precision": 3
+    },
+    {
+     "obis": "32.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "U1 ___ 32.7.0",
+     "unit": "V",
+     "name": "U1",
+     "precision": 1
+    },
+    {
+     "obis": "52.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "U2 ___ 52.7.0",
+     "unit": "V",
+     "name": "U2",
+     "precision": 1
+    },
+    {
+     "obis": "72.7.0",
+     "type": "number",
+     "scale": 10.0,
+     "label": "U3 ___ 72.7.0",
+     "unit": "V",
+     "name": "U3",
+     "precision": 1
+    },
+    {
+     "obis": "31.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I1 ___ 31.7.0",
+     "unit": "A",
+     "name": "I1",
+     "precision": 2
+    },
+    {
+     "obis": "51.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I2 ___ 51.7.0",
+     "unit": "A",
+     "name": "I2",
+     "precision": 2
+    },
+    {
+     "obis": "71.7.0",
+     "type": "number",
+     "scale": 100.0,
+     "label": "I3 ___ 71.7.0",
+     "unit": "A",
+     "name": "I3",
+     "precision": 2
+    },
+    {
+     "obis": "1.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei ___ 1.8.0",
+     "unit": "kWh",
+     "name": "Ei",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo ___ 2.8.0",
+     "unit": "kWh",
+     "name": "Eo",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei1 ___ 1.8.1",
+     "unit": "kWh",
+     "name": "Ei1",
+     "precision": 3
+    },
+    {
+     "obis": "1.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Ei2 ___ 1.8.2",
+     "unit": "kWh",
+     "name": "Ei2",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo1 ___ 2.8.1",
+     "unit": "kWh",
+     "name": "Eo1",
+     "precision": 3
+    },
+    {
+     "obis": "2.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Eo2 ___ 2.8.2",
+     "unit": "kWh",
+     "name": "Eo2",
+     "precision": 3
+    },
+    {
+     "obis": "5.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q5 ___ 5.8.0",
+     "unit": "kVArh",
+     "name": "Q5",
+     "precision": 3
+    },
+    {
+     "obis": "6.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q6 ___ 6.8.0",
+     "unit": "kVArh",
+     "name": "Q6",
+     "precision": 3
+    },
+    {
+     "obis": "7.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q7 ___ 7.8.0",
+     "unit": "kVArh",
+     "name": "Q7",
+     "precision": 3
+    },
+    {
+     "obis": "8.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q8 ___ 8.8.0",
+     "unit": "kVArh",
+     "name": "Q8",
+     "precision": 3
+    },
+    {
+     "obis": "5.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q51 ___ 5_8_1",
+     "unit": "kVArh",
+     "name": "Q51",
+     "precision": 3
+    },
+    {
+     "obis": "5.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q52 ___ 5_8_2",
+     "unit": "kVArh",
+     "name": "Q52",
+     "precision": 3
+    },
+    {
+     "obis": "6.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q61 ___ 6_8_1",
+     "unit": "kVArh",
+     "name": "Q61",
+     "precision": 3
+    },
+    {
+     "obis": "6.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q62 ___ 6_8_2",
+     "unit": "kVArh",
+     "name": "Q62",
+     "precision": 3
+    },
+    {
+     "obis": "7.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q71 ___ 7_8_1",
+     "unit": "kVArh",
+     "name": "Q71",
+     "precision": 3
+    },
+    {
+     "obis": "7.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q72 ___ 7_8_2",
+     "unit": "kVArh",
+     "name": "Q72",
+     "precision": 3
+    },
+    {
+     "obis": "8.8.1",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q81 ___ 8_8_1",
+     "unit": "kVArh",
+     "name": "Q81",
+     "precision": 3
+    },
+    {
+     "obis": "8.8.2",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q82 ___ 8_8_2",
+     "unit": "kVArh",
+     "name": "Q82",
+     "precision": 3
+    }
+   ],
+   "source": "gplug/gplugm/universal/script.txt"
+  }
+ ]
+}

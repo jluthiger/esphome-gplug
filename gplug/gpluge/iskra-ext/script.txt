@@ -1,0 +1,114 @@
+>D
+; gPlugE DSRM AS3000 (4.7.24)
+tSec=0
+upH=0
+sr=0
+ss=0
+
+g:Pi=0
+g:Po=0
+
+; counters today
+B1=0
+B2=0
+E1=0
+E2=0
+
+; counters yesterday
+p:yB1=0
+p:yB2=0
+p:yE1=0
+p:yE2=0
+
+; prev month 4 counters
+m:p:Mon=0 4
+
+; energy today
+dEi1=0
+dEi2=0
+dEo1=0
+dEo2=0
+
+>B
+=>sensor53 r
+; enable mDNS
+->setOption55 1
+
+>BS
+=>SerialBuffer 1024
+=>Wifi 0
+
+>M 1
++1,5,o,0,115200,z
+
+; 1,0-0:1.0.0(@#),Zeit,S,TS,16
+1,0-0:96.1.1(@1,SM-ID,,SMid,0
+1,1-0:1.7.0(@0.001,Pin,W,Pi,16
+1,1-0:2.7.0(@0.001,Pout,W,Po,16
+1,=h_Leistung pro Phase
+1,1-0:21.7.0(@0.001,P1i,W,P1i,16
+1,1-0:41.7.0(@0.001,P2i,W,P2i,16
+1,1-0:61.7.0(@0.001,P3i,W,P3i,16
+1,1-0:22.7.0(@0.001,P1o,W,P1o,16
+1,1-0:42.7.0(@0.001,P2o,W,P2o,16
+1,1-0:62.7.0(@0.001,P3o,W,P3o,16
+1,=h_Strom & Spannung
+1,1-0:31.7.0(@1,I1,A,I1,19
+1,1-0:51.7.0(@1,I2,A,I2,19
+1,1-0:71.7.0(@1,I3,A,I3,19
+1,1-0:32.7.0(@1,V1,V,U1,17
+1,1-0:52.7.0(@1,V2,V,U2,17
+1,1-0:72.7.0(@1,V3,V,U3,17
+1,=h_Energie Zähler
+1,1-0:1.8.1(@1,Ei1,kWh,B1,3
+1,1-0:1.8.2(@1,Ei2,kWh,B2,3
+1,1-0:2.8.1(@1,Eo1,kWh,E1,3
+1,1-0:2.8.2(@1,Eo2,kWh,E2,3
+#
+
+B1=z#B1
+B2=z#B2
+E1=z#E1
+E2=z#E2
+
+>S
+; today sec
+tSec=(60*time)+secs
+upH=uptime/60
+sr=sunrise/60
+ss=sunset/60
+; share latest Pi & Po
+Pi=sml[2]
+Po=sml[3]
+
+;  calc energy today
+dEi1=B1-yB1
+dEi2=B2-yB2
+dEo1=E1-yE1
+dEo2=E2-yE2
+
+; at 23:59:59
+if tSec==86399 {
+ if day==1 {
+  ; save prev months counts
+  Mon[0]=0
+  Mon=yB1
+  Mon=yB2
+  Mon=yE1
+  Mon=yE2
+ }
+
+; counters yesterday
+ yB1=B1
+ yB2=B2
+ yE1=E1
+ yE2=E2
+
+ svars
+}
+
+>W
+@%tstamp% uptime: %1upH% h sunrise: %1sr% h sunset: %1ss% h
+@_ Heute __ Bez. HT: %1dEi1% NT: %1dEi2% _ Einsp. HT: %1dEo1% NT: %1dEo2% kWh _
+@_ Z VorTag Bez. HT: %3yB1% NT: %3yB2% _ Einsp. HT: %3yE1% NT: %3yE2% kWh _
+@_ Z VorMon Bez. HT: %3Mon[1]% NT: %3Mon[2]% _ Einsp. HT: %3Mon[3]% NT: %3Mon[4]% kWh _

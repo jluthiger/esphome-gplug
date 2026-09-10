@@ -1,0 +1,249 @@
+>D 35
+; gPlugM Tasmota HDLC/DLMS (6.9.26)
+upH=0
+sr=0
+ss=0
+d=750
+
+; state vars
+i:noWifi=1
+noData=1
+rssi=0
+
+; set your decryption key (len 32), if encrypted
+;dKEY="12345678123456781234567812345678"
+dKEY=""
+
+; shared var within local network
+g:Pi=0
+g:Po=0
+
+; define Pins of colored LEDs
+redP=1
+blueP=3
+greenP=4
+; butA=9
+; rxPin=7
+
+>B
+; disable publishing at MQTT teleperiod, on boot (bit 1)
+smlj=0
+
+; allow 0 values (bit 3), needed for >= v15.5.0
+smlj|=8
+
+; activate data parsing
+-> sensor53 r
+
+; enable pin 4 (green LED) to indicate serial activity
+-> sensor53 l4
+
+>BS
+; enable mDNS
+-> setOption55 1
+
+; reduce CPU freq from 160 to 80 MHz saves 1/3 power
+sf(80)
+
+; MQTT frequenyc is set to 1/10 Hz
+-> teleperiod 10
+
+; dynamic wifi Tx power
+-> wifipower 0
+
+; wificonfig N
+; 4 = retry other AP without rebooting
+; 5 = wait until selected AP is available again without rebooting
+
+; disable Wifi Rescan (1/44 minutes) to avoid power spikes
+-> setOption57 OFF
+
+; Keep wifi in dynamic sleep mode: reduce power consumption
+; See https://tasmota.github.io/docs/Dynamic-Sleep/
+-> setOption127 OFF
+-> sleep 100
+
+; referrer check
+-> SetOption128 ON
+
+; Boot loop defaults restoration control
+; See https://tasmota.github.io/docs/Commands/#setoptions
+-> SetOption36 10
+
+; show CPU temperature in webUI
+; -> SetOption146 1
+
+; configure LED pins
+spinm(blueP O)
+spinm(greenP O)
+spinm(redP O)
+
+; lightshow at startup
+spin(redP 1)
+delay(d)
+spin(redP 0)
+spin(greenP 1)
+delay(d)
+spin(greenP 0)
+spin(blueP 1)
+delay(d)
+spin(blueP 0)
+
+
+>M 1
+; rx Pin 7, raw 8E1, Baudrate 2400
++1,7,rE1,0,2400,z
+
+; invert HW serial (4) && disable pullup (8)
+1,=so2,0C
+
+; set input buffer size (may be increased)
+1,=so3,700
+
+; your 32 char HEX Key from var dKEY is set
+; if data is not encrypted, "1,=so4," is set
+;1,=so4,DECR-KEY
+1,=so4,%dKEY%
+
+; OBIS Codes (IEC 62056-61):
+; See https://cdn.standards.iteh.ai/samples/104764/8356233bf80942e9ba6d5ac9cbdf3af0/IEC-62056-6-1-2023.pdf
+;     media: abstract=0, electricity=1, heat=6, gas=7, water=8)
+; "-" channel: =0 (if not more than 1 available)
+; ":" physical unit (in=1, out=2,
+;      phase current=31,51,71, voltage=31,51,71,
+;      phase power in=21,41,61, out=22,42,62)
+; "." measurement type (instant=7, counter=8, peak-hold=6)
+; "." tarif (0=total, 1=day, 2=night)
+
+; some DSO use 96.1.1. instead
+1,pm(96.1.0)@#),*,,SMid,0
+
+; P=Power, i=in, o=out, V=Voltage, I=Current, E=Energy
+1,=h<h4>Real Power In & Out<h4/>
+1,pm(1.7.0)@1000,Pi ___ 1.7.0,kW,Pi,3
+1,pm(2.7.0)@1000,Po ___ 2.7.0,kW,Po,3
+
+; Note: adding +16 to the last value (precision)
+; will generate an immediate MQTT telegram
+; See https://tasmota.github.io/docs/Smart-Meter-Interface/#meter-metrics
+
+1,=h<hr/>
+1,=h<h4>Instant Phase Power In & Out<h4/>
+1,pm(21.7.0)@1000,Pi1 ___ 21.7.0,W,Pi1,3
+1,pm(41.7.0)@1000,Pi2 ___ 41.7.0,W,Pi2,3
+1,pm(61.7.0)@1000,Pi3 ___ 61.7.0,W,Pi3,3
+;
+1,pm(22.7.0)@1000,Po1 ___ 22.7.0,W,Po1,3
+1,pm(42.7.0)@1000,Po2 ___ 42.7.0,W,Po2,3
+1,pm(62.7.0)@1000,Po3 ___ 62.7.0,W,Po3,3
+
+1,=h<hr/>
+1,=h<h4>Instant Phase Voltage<h4/>
+1,pm(32.7.0)@10,U1 ___ 32.7.0,V,U1,1
+1,pm(52.7.0)@10,U2 ___ 52.7.0,V,U2,1
+1,pm(72.7.0)@10,U3 ___ 72.7.0,V,U3,1
+
+1,=h<hr/>
+1,=h<h4>Instant Phase Currents<h4/>
+1,pm(31.7.0)@100,I1 ___ 31.7.0,A,I1,2
+1,pm(51.7.0)@100,I2 ___ 51.7.0,A,I2,2
+1,pm(71.7.0)@100,I3 ___ 71.7.0,A,I3,2
+
+1,=h<hr/>
+1,=h<h4>Real Energy Counters <h4/>
+
+1,pm(1.8.0)@1000,Ei ___ 1.8.0,kWh,Ei,3
+1,pm(2.8.0)@1000,Eo ___ 2.8.0,kWh,Eo,3
+
+1,=h_
+1,pm(1.8.1)@1000,Ei1 ___ 1.8.1,kWh,Ei1,3
+1,pm(1.8.2)@1000,Ei2 ___ 1.8.2,kWh,Ei2,3
+
+1,pm(2.8.1)@1000,Eo1 ___ 2.8.1,kWh,Eo1,3
+1,pm(2.8.2)@1000,Eo2 ___ 2.8.2,kWh,Eo2,3
+
+1,=h<hr/>
+1,=h<h4>Reactive Energy Counters<h4/>
+
+1,pm(5.8.0)@1000,Q5 ___ 5.8.0,kVArh,Q5,3
+1,pm(6.8.0)@1000,Q6 ___ 6.8.0,kVArh,Q6,3
+1,pm(7.8.0)@1000,Q7 ___ 7.8.0,kVArh,Q7,3
+1,pm(8.8.0)@1000,Q8 ___ 8.8.0,kVArh,Q8,3
+1,=h_
+1,pm(5.8.1)@1000,Q51 ___ 5_8_1,kVArh,Q51,3
+1,pm(5.8.2)@1000,Q52 ___ 5_8_2,kVArh,Q52,3
+
+1,pm(6.8.1)@1000,Q61 ___ 6_8_1,kVArh,Q61,3
+1,pm(6.8.2)@1000,Q62 ___ 6_8_2,kVArh,Q62,3
+
+1,pm(7.8.1)@1000,Q71 ___ 7_8_1,kVArh,Q71,3
+1,pm(7.8.2)@1000,Q72 ___ 7_8_2,kVArh,Q72,3
+
+1,pm(8.8.1)@1000,Q81 ___ 8_8_1,kVArh,Q81,3
+1,pm(8.8.2)@1000,Q82 ___ 8_8_2,kVArh,Q82,3
+#
+
+>T
+; set vars from STATE JSON
+rssi=Wifi#Signal
+; set global vars from SENSOR JSON
+Pi=z#Pi
+Po=z#Po
+
+>S
+; every second
+upH=uptime/60
+sr=sunrise/60
+ss=sunset/60
+
+; enable MQTT 15 seconds after boot
+if upsecs>15 {
+ smlj|=1
+}
+
+; _ data rx monitor
+
+; count 1/60 minute since last data reception
+noData+=0.017
+
+; if no data rec, flash blue light every 15 seconds
+if int(1000*noData)%255<17 {
+  spin(blueP 1)
+} else {
+  spin(blueP 0)
+}
+
+; _ wifi monitor
+
+; if wifi connection is ok, reset counter
+if wifis>0 {
+  noWifi=0
+}
+noWifi=int(noWifi)
+; every 9 seconds without wifi, flash red LED
+if noWifi>0
+ and noWifi%9==0 {
+  spin(redP 1)
+} else {
+  spin(redP 0)
+}
+
+
+>F
+; every 100 ms
+
+; verify LED reception activity
+if pin[greenP]==1 {
+  noData=0
+}
+
+>W
+@<style>h4{margin-block-end: 0;color: cyan}td th{font-weight: normal;}tr th:first-child{text-align: left;}tr td:nth-child(2){text-align: right;color: lime;font-weight:normal;}table{width:100\%;}</style>
+@<table><tbody>
+ <tr><th>L+G E450, data freq. (counters 1/60 Hz)</th><td>1/5 Hz</td></tr>
+ <tr><th>SM-ID</th><td>%smls[1]%</td></tr>
+ <tr><th>SM last data received:</th><td>-%0noData% Min.</td></tr>
+ <tr><th>Date \& Time</th><td>%tstamp%</td></tr>
+ <tr><th>Uptime</th><td> %1upH% h</td></tr>
+ <tr><th>Wifi RSSI</th><td> %1rssi% dBm</td></tr>
+</tbody></table>

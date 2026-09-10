@@ -1,0 +1,55 @@
+# Skeleton to measure flash/RAM budget on ESP32-C3. No meter logic yet.
+substitutions:
+  name: gplug
+  friendly_name: gPlug
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.6.0
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  flash_size: 4MB
+  partitions: partitions.csv
+  framework:
+    type: esp-idf
+
+logger:
+  level: INFO
+  baud_rate: 115200
+
+wifi:
+  ssid: "skeleton"
+  password: "skeleton-password"
+  power_save_mode: light
+  ap:
+    ssid: "gPlug-Setup"
+
+captive_portal:
+
+api:
+
+ota:
+  - platform: esphome
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+# HAN input, UART1 on a runtime-configurable pin (default gPlugD/K: GPIO4)
+uart:
+  id: han_uart
+  rx_pin: GPIO4
+  baud_rate: 115200
+  rx_buffer_size: 1024
+
+status_led:
+  pin: GPIO7
+
+# Placeholder for the SPA / API. Measured separately; may be replaced by own minimal HTTP server.
+web_server:
+  port: 80
+  version: 3
+  local: true
