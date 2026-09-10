@@ -84,6 +84,7 @@ void GplugSmi::loop() {
 void GplugSmi::on_dsmr_value_(const ::gplug_dsmr::DsmrValue &v) {
   std::lock_guard<std::mutex> lock(mutex_);
   last_frame_ms_ = millis();
+  setup_pending_ = false;
   for (uint8_t i = 0; i < desc_.n; i++) {
     if (strcmp(desc_.obis[i].obis, v.obis) != 0) continue;
     if (desc_.obis[i].is_string) {
@@ -121,6 +122,7 @@ void GplugSmi::on_dlms_apdu_() {
   std::lock_guard<std::mutex> lock(mutex_);
   last_frame_ms_ = millis();
   key_invalid_ = false;
+  setup_pending_ = false;
   const uint8_t *buf = dlms_.plaintext();
   size_t len = dlms_.plaintext_len();
 
@@ -251,6 +253,7 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
     last_frame_ms_ = 0;
     meter_applied_ms_ = millis();
     key_invalid_ = false;
+    setup_pending_ = false;
     dlms_ = ::gplug_dlms::DlmsDecoder();
     if (nd.encrypted) dlms_.set_key(nd.key);
     if (nd.has_auth_key) dlms_.set_auth_key(nd.auth_key);
@@ -335,9 +338,10 @@ void GplugSmi::poll_button_() {
 
 // RGB status LED. Mode is derived each loop from live state, not stored, so it always reflects
 // reality even across a mid-run hw/meter reconfigure: AP-fallback active -> blue blinking; WiFi
-// joined but no meter descriptor configured yet -> blue steady; meter configured and running ->
-// green steady; error (wrong DLMS decrypt key, or no meter data at all 60 s after WiFi is up and
-// a meter is configured -- "no smart meter connected") -> red steady, overriding every other mode.
+// joined but no meter descriptor configured yet, or WiFi just (re)configured via the portal and
+// the wizard hasn't committed the meter / no frame has arrived since -> blue steady; meter
+// configured and running -> green steady; error (wrong DLMS decrypt key, or no meter data at all
+// 60 s after a meter is configured -- "no smart meter connected") -> red steady. AP beats error.
 static constexpr uint32_t LED_NO_DATA_TIMEOUT_MS = 60000;
 // WiFi/captive-portal state (and therefore the computed mode) can flap for a moment during a real
 // transition, e.g. dropping into AP-fallback goes through a few STA-retry/AP-(re)start cycles
@@ -377,14 +381,26 @@ static const char *led_mode_name_(int8_t mode) {
 
 void GplugSmi::update_led_() {
   bool ap_mode = captive_portal::global_captive_portal != nullptr && captive_portal::global_captive_portal->is_active();
-  bool has_meter = desc_.protocol != Descriptor::NONE;
   uint32_t now = millis();
+  if (ap_mode != led_ap_prev_) {
+    led_ap_prev_ = ap_mode;
+    if (!ap_mode) {
+      // Just left AP-fallback: WiFi was (re)configured and the user is now in setup. Whatever
+      // error state accumulated before or during AP mode is stale -- key_invalid_ latches, and the
+      // no-data grace timer (which started at boot) has usually run out while the user was still
+      // on the portal, so without this the LED went red the instant WiFi came up. Stay in setup
+      // (blue steady) until the wizard commits the meter or the first frame arrives.
+      std::lock_guard<std::mutex> lock(mutex_);
+      key_invalid_ = false;
+      last_frame_ms_ = 0;
+      meter_applied_ms_ = now;
+      setup_pending_ = true;
+    }
+  }
+  bool has_meter = desc_.protocol != Descriptor::NONE && !setup_pending_;
   uint32_t since_data = last_frame_ms_ == 0 ? now - meter_applied_ms_ : now - last_frame_ms_;
   bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
-  // key_invalid_ latches (only cleared by a valid decode or reconfiguring the meter) and isn't
-  // gated by ap_mode, so it can outlive the run that set it -- e.g. an unconnected/floating RX
-  // pin picking up noise the decoder misreads as an encrypted frame with the wrong key. AP-
-  // fallback is the state that actually needs the user's attention, so it always wins the LED.
+  // AP-fallback is the state that actually needs the user's attention, so it always wins the LED.
   bool error = !ap_mode && (key_invalid_ || no_data);
   bool running = !ap_mode && has_meter && !error;
   int8_t candidate = ap_mode ? 0 : (error ? 3 : (running ? 2 : 1));
