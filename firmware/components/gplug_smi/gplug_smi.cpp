@@ -14,6 +14,7 @@
 #include <nvs_flash.h>
 #include <cmath>
 #include <cstring>
+#include <memory>
 
 namespace esphome {
 namespace gplug_smi {
@@ -34,6 +35,7 @@ void GplugSmi::setup() {
     if (!this->apply_meter_json_(s, err)) ESP_LOGW(TAG, "stored meter config invalid: %s", err.c_str());
   }
   this->apply_button_pin_();
+  this->apply_led_pins_();
   wifi::global_wifi_component->set_keep_scan_results(true);
   this->base_->init();
   this->base_->add_handler_without_auth(this);   // registered before captive portal → we serve "/"
@@ -48,6 +50,7 @@ void GplugSmi::dump_config() {
 
 void GplugSmi::loop() {
   this->poll_button_();
+  this->update_led_();
   uint8_t c;
   size_t budget = 512;   // bytes per loop, keep the main loop responsive
   while (budget-- && this->available() && this->read_byte(&c)) {
@@ -197,7 +200,10 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
   if (deserializeJson(doc, json)) { err = "json"; return false; }
   JsonObject d = doc["descriptor"].as<JsonObject>();
   if (d.isNull()) { err = "descriptor missing"; return false; }
-  Descriptor nd;
+  // Descriptor is ~3 KB (MAX_OBIS=48 entries) -- too big for the httpd task's small stack
+  // (a real payload panic'ed it with a stack-protection fault). Heap-allocate instead.
+  auto nd_ptr = std::unique_ptr<Descriptor>(new Descriptor());
+  Descriptor &nd = *nd_ptr;
   const char *proto = d["protocol"] | "";
   if (!strcmp(proto, "dsmr")) nd.protocol = Descriptor::DSMR;
   else if (!strcmp(proto, "dlms")) nd.protocol = Descriptor::DLMS;
@@ -242,6 +248,8 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
     desc_ = nd;
     memset(have_, 0, sizeof have_);
     smid_[0] = 0;
+    last_frame_ms_ = 0;
+    meter_applied_ms_ = millis();
     key_invalid_ = false;
     dlms_ = ::gplug_dlms::DlmsDecoder();
     if (nd.encrypted) dlms_.set_key(nd.key);
@@ -263,6 +271,15 @@ bool GplugSmi::apply_hw_json_(const std::string &json, std::string &err) {
   this->apply_uart_();
   int button = doc["pins"]["button"] | -1;
   if (button != button_pin_num_) { button_pin_num_ = (int8_t) button; this->apply_button_pin_(); }
+  int red = doc["pins"]["red"] | -1;
+  int green = doc["pins"]["green"] | -1;
+  int blue = doc["pins"]["blue"] | -1;
+  if (red != led_red_pin_num_ || green != led_green_pin_num_ || blue != led_blue_pin_num_) {
+    led_red_pin_num_ = (int8_t) red;
+    led_green_pin_num_ = (int8_t) green;
+    led_blue_pin_num_ = (int8_t) blue;
+    this->apply_led_pins_();
+  }
   return true;
 }
 
@@ -306,6 +323,78 @@ void GplugSmi::poll_button_() {
       nvs_flash_erase();
       esp_restart();
     });
+  }
+}
+
+// RGB status LED. Mode is derived each loop from live state, not stored, so it always reflects
+// reality even across a mid-run hw/meter reconfigure: AP-fallback active -> blue blinking; WiFi
+// joined but no meter descriptor configured yet -> blue steady; meter configured and running ->
+// green steady; error (wrong DLMS decrypt key, or no meter data at all 60 s after WiFi is up and
+// a meter is configured -- "no smart meter connected") -> red steady, overriding every other mode.
+static constexpr uint32_t LED_NO_DATA_TIMEOUT_MS = 60000;
+static GPIOPin *make_led_pin_(int8_t num) {
+  if (num < 0) return nullptr;
+  auto *pin = new esp32::ESP32InternalGPIOPin();   // NOLINT: lives for the rest of the runtime
+  pin->set_pin((gpio_num_t) num);
+  pin->set_inverted(false);
+  pin->set_flags(gpio::FLAG_OUTPUT);
+  pin->setup();
+  pin->digital_write(false);
+  return pin;
+}
+
+void GplugSmi::apply_led_pins_() {
+  led_red_gpio_ = make_led_pin_(led_red_pin_num_);
+  led_green_gpio_ = make_led_pin_(led_green_pin_num_);
+  led_blue_gpio_ = make_led_pin_(led_blue_pin_num_);
+  led_blink_on_ = false;
+  led_blink_last_ms_ = 0;
+}
+
+static const char *led_mode_name_(int8_t mode) {
+  switch (mode) {
+    case 0: return "AP (blue blink)";
+    case 1: return "setup (blue steady)";
+    case 2: return "running (green steady)";
+    default: return "error (red steady)";
+  }
+}
+
+void GplugSmi::update_led_() {
+  bool ap_mode = captive_portal::global_captive_portal != nullptr && captive_portal::global_captive_portal->is_active();
+  bool has_meter = desc_.protocol != Descriptor::NONE;
+  uint32_t now = millis();
+  uint32_t since_data = last_frame_ms_ == 0 ? now - meter_applied_ms_ : now - last_frame_ms_;
+  bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
+  bool error = key_invalid_ || no_data;   // overrides every other mode
+  bool running = !ap_mode && has_meter && !error;
+
+  int8_t mode = error ? 3 : (ap_mode ? 0 : (running ? 2 : 1));
+  if (mode != led_mode_) {
+    led_mode_ = mode;
+    ESP_LOGI(TAG, "led mode -> %s", led_mode_name_(mode));
+  }
+
+  if (led_red_gpio_ == nullptr && led_green_gpio_ == nullptr && led_blue_gpio_ == nullptr) return;
+  if (led_red_gpio_ != nullptr) led_red_gpio_->digital_write(error);
+  if (error) {
+    if (led_green_gpio_ != nullptr) led_green_gpio_->digital_write(false);
+    if (led_blue_gpio_ != nullptr) led_blue_gpio_->digital_write(false);
+    return;
+  }
+  if (running) {
+    if (led_green_gpio_ != nullptr) led_green_gpio_->digital_write(true);
+    if (led_blue_gpio_ != nullptr) led_blue_gpio_->digital_write(false);
+    return;
+  }
+  if (led_green_gpio_ != nullptr) led_green_gpio_->digital_write(false);
+  if (led_blue_gpio_ == nullptr) return;
+  if (!ap_mode) { led_blue_gpio_->digital_write(true); return; }   // setup mode: steady
+
+  if (now - led_blink_last_ms_ >= 500) {
+    led_blink_last_ms_ = now;
+    led_blink_on_ = !led_blink_on_;
+    led_blue_gpio_->digital_write(led_blink_on_);
   }
 }
 

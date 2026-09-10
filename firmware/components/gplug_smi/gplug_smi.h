@@ -73,6 +73,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void apply_uart_();
   void apply_button_pin_();
   void poll_button_();
+  void apply_led_pins_();
+  void update_led_();
 
   // decoding
   void on_dsmr_value_(const ::gplug_dsmr::DsmrValue &v);
@@ -101,6 +103,15 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool button_down_{false};
   uint32_t button_down_ms_{0};
   bool button_ap_triggered_{false};
+  int8_t led_red_pin_num_{-1};
+  int8_t led_green_pin_num_{-1};
+  int8_t led_blue_pin_num_{-1};
+  GPIOPin *led_red_gpio_{nullptr};
+  GPIOPin *led_green_gpio_{nullptr};
+  GPIOPin *led_blue_gpio_{nullptr};
+  bool led_blink_on_{false};
+  uint32_t led_blink_last_ms_{0};
+  int8_t led_mode_{-1};
   ::gplug_dsmr::DsmrParser dsmr_;
   ::gplug_dlms::DlmsDecoder dlms_;
 
@@ -110,6 +121,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool have_[MAX_OBIS]{};
   char smid_[40]{};
   uint32_t last_frame_ms_{0};
+  uint32_t meter_applied_ms_{0};
   bool key_invalid_{false};
   std::array<Sample, RING_LEN> ring_{};
   size_t ring_head_{0}, ring_count_{0};
