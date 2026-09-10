@@ -112,6 +112,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool led_blink_on_{false};
   uint32_t led_blink_last_ms_{0};
   int8_t led_mode_{-1};
+  int8_t led_pending_mode_{-1};
+  uint32_t led_pending_since_ms_{0};
   ::gplug_dsmr::DsmrParser dsmr_;
   ::gplug_dlms::DlmsDecoder dlms_;
 

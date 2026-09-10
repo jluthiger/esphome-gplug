@@ -332,6 +332,12 @@ void GplugSmi::poll_button_() {
 // green steady; error (wrong DLMS decrypt key, or no meter data at all 60 s after WiFi is up and
 // a meter is configured -- "no smart meter connected") -> red steady, overriding every other mode.
 static constexpr uint32_t LED_NO_DATA_TIMEOUT_MS = 60000;
+// WiFi/captive-portal state (and therefore the computed mode) can flap for a moment during a real
+// transition, e.g. dropping into AP-fallback goes through a few STA-retry/AP-(re)start cycles
+// before settling. Only commit a mode change -- and only then touch the GPIOs -- once the newly
+// computed mode has been stable for this long, so the LED never visibly flickers between two
+// colors while the underlying state is still settling.
+static constexpr uint32_t LED_DEBOUNCE_MS = 300;
 static GPIOPin *make_led_pin_(int8_t num) {
   if (num < 0) return nullptr;
   auto *pin = new esp32::ESP32InternalGPIOPin();   // NOLINT: lives for the rest of the runtime
@@ -349,6 +355,8 @@ void GplugSmi::apply_led_pins_() {
   led_blue_gpio_ = make_led_pin_(led_blue_pin_num_);
   led_blink_on_ = false;
   led_blink_last_ms_ = 0;
+  led_pending_mode_ = -1;
+  led_pending_since_ms_ = 0;
 }
 
 static const char *led_mode_name_(int8_t mode) {
@@ -368,28 +376,34 @@ void GplugSmi::update_led_() {
   bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
   bool error = key_invalid_ || no_data;   // overrides every other mode
   bool running = !ap_mode && has_meter && !error;
+  int8_t candidate = error ? 3 : (ap_mode ? 0 : (running ? 2 : 1));
 
-  int8_t mode = error ? 3 : (ap_mode ? 0 : (running ? 2 : 1));
-  if (mode != led_mode_) {
-    led_mode_ = mode;
-    ESP_LOGI(TAG, "led mode -> %s", led_mode_name_(mode));
+  if (candidate != led_pending_mode_) {
+    led_pending_mode_ = candidate;
+    led_pending_since_ms_ = now;
+  } else if (candidate != led_mode_ && now - led_pending_since_ms_ >= LED_DEBOUNCE_MS) {
+    led_mode_ = candidate;
+    ESP_LOGI(TAG, "led mode -> %s", led_mode_name_(led_mode_));
   }
 
+  // Always drive GPIOs from the debounced led_mode_, never the raw candidate computed above --
+  // that's what keeps a transient flap in ap_mode/error/running from ever reaching the LED.
   if (led_red_gpio_ == nullptr && led_green_gpio_ == nullptr && led_blue_gpio_ == nullptr) return;
-  if (led_red_gpio_ != nullptr) led_red_gpio_->digital_write(error);
-  if (error) {
+  bool show_error = led_mode_ == 3, show_running = led_mode_ == 2, show_ap = led_mode_ == 0;
+  if (led_red_gpio_ != nullptr) led_red_gpio_->digital_write(show_error);
+  if (show_error) {
     if (led_green_gpio_ != nullptr) led_green_gpio_->digital_write(false);
     if (led_blue_gpio_ != nullptr) led_blue_gpio_->digital_write(false);
     return;
   }
-  if (running) {
+  if (show_running) {
     if (led_green_gpio_ != nullptr) led_green_gpio_->digital_write(true);
     if (led_blue_gpio_ != nullptr) led_blue_gpio_->digital_write(false);
     return;
   }
   if (led_green_gpio_ != nullptr) led_green_gpio_->digital_write(false);
   if (led_blue_gpio_ == nullptr) return;
-  if (!ap_mode) { led_blue_gpio_->digital_write(true); return; }   // setup mode: steady
+  if (!show_ap) { led_blue_gpio_->digital_write(true); return; }   // setup mode: steady
 
   if (now - led_blink_last_ms_ >= 500) {
     led_blink_last_ms_ = now;
@@ -496,13 +510,13 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
   if (url == "/api/config/hardware") {
     std::string err;
     if (!apply_hw_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
-    this->defer([this, body]() { this->nvs_save_("hw", body); });
+    this->defer([this, body]() { if (!this->nvs_save_("hw", body)) ESP_LOGE(TAG, "nvs_save_(hw) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
   if (url == "/api/config/meter") {
     std::string err;
     if (!apply_meter_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
-    this->defer([this, body]() { this->nvs_save_("meter", body); });
+    this->defer([this, body]() { if (!this->nvs_save_("meter", body)) ESP_LOGE(TAG, "nvs_save_(meter) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
   if (url == "/api/config/wifi") {
