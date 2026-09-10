@@ -51,9 +51,6 @@ uart:
   baud_rate: 115200
   rx_buffer_size: 2048
 
-status_led:
-  pin: GPIO7
-
 gplug_smi:
   uart_id: han_uart
   spa: ../spa/dist/index.html.gz
