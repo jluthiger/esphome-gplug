@@ -42,5 +42,6 @@ export const api = {
   setHardware: (cfg) => req("POST", "/api/config/hardware", cfg),
   setMeter: (cfg) => req("POST", "/api/config/meter", cfg),
   live: () => req("GET", "/api/live", null, 4000),
+  ring: () => req("GET", "/api/ring", null, 4000),
   reboot: () => req("POST", "/api/reboot"),
 };

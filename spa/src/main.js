@@ -7,15 +7,29 @@ import { Welcome } from "./steps/welcome.js";
 import { Hardware } from "./steps/hardware.js";
 import { Meter } from "./steps/meter.js";
 import { Done } from "./steps/done.js";
+import { Live } from "./steps/live.js";
 
 // No "wifi" step: this SPA is only ever reachable after the device has already joined WiFi
 // (the stock captive_portal handles that first join, before gplug_smi's own handler -- and
 // thus this SPA -- resumes serving "/"). A "connect to your network" step here would always be
 // a no-op re-confirmation of a connection that already exists. Changing to a *different* network
-// later is still possible, from the Done step's "WLAN ändern" panel.
+// later is still possible, from the Live view's "WLAN ändern" panel.
 const STEPS = ["welcome", "hardware", "meter", "done"];
 
+// Two top-level routes, kept in location.hash so each is a real, bookmarkable screen rather than
+// a full page reload dressed up as navigation:
+//   #setup -> the wizard (STEPS above)
+//   #live  -> the live view (steps/live.js), the day-to-day home screen once configured
+// The very first load has no hash yet; default to whichever screen makes sense once /api/status
+// answers (configured + on WiFi -> live, otherwise the wizard starts a fresh device's setup).
+function initialRoute() {
+  if (location.hash === "#live") return "live";
+  if (location.hash === "#setup") return "wizard";
+  return null;
+}
+
 function App() {
+  const [route, setRoute] = useState(initialRoute);
   const [step, setStep] = useState(0);
   const [status, setStatus] = useState(null);
   const [data, setData] = useState(null); // {variants, presets}
@@ -37,6 +51,20 @@ function App() {
   }
   useEffect(() => { load(); }, []);
 
+  // Route not decided from the URL yet: pick one once status is in.
+  useEffect(() => {
+    if (route !== null || !status) return;
+    const configured = status.hardware && status.meter;
+    openRoute(configured && status.wifi?.connected ? "live" : "wizard");
+  }, [route, status]);
+
+  function openRoute(r) {
+    location.hash = r === "live" ? "#live" : "#setup";
+    setRoute(r);
+  }
+  const openLive = () => openRoute("live");
+  const openSetup = () => { setStep(0); openRoute("wizard"); };
+
   // Persist each step to the device as the user leaves it.
   async function commit(from) {
     setBusy(true); setErr(null);
@@ -55,18 +83,20 @@ function App() {
   const name = STEPS[step];
   let body;
   if (err && !data) body = html`<div class="err">${err}</div><button onClick=${load}>${S.retry}</button>`;
-  else if (!data) body = html`<p><span class="spin"></span> ${S.loading}</p>`;
+  else if (!data || route === null) body = html`<p><span class="spin"></span> ${S.loading}</p>`;
+  else if (route === "live") body = html`<${Live} status=${status} onOpenSetup=${openSetup} />`;
   else if (name === "welcome") body = html`<${Welcome} status=${status} onNext=${() => setStep(1)} />`;
   else if (name === "hardware") body = html`<${Hardware} variants=${data.variants} value=${hw} onChange=${setHw}
       onBack=${back} onNext=${() => commit("hardware")} />`;
   else if (name === "meter") body = html`<${Meter} presets=${data.presets} variant=${hw?.variant} value=${meter}
       onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
-  else body = html`<${Done} status=${status} />`;
+  else body = html`<${Done} onOpenLive=${openLive} />`;
 
+  const showSteps = route === "wizard" && data;
   return html`
     <div class="brand">${S.brand}</div>
-    <h1>${S.title}</h1>
-    <div class="steps">${STEPS.map((_, i) => html`<i class=${i < step ? "done" : i === step ? "cur" : ""}></i>`)}</div>
+    <h1>${showSteps ? S.title : S.liveTitle}</h1>
+    ${showSteps && html`<div class="steps">${STEPS.map((_, i) => html`<i class=${i < step ? "done" : i === step ? "cur" : ""}></i>`)}</div>`}
     ${body}
     ${busy && html`<p style="text-align:center"><span class="spin"></span></p>`}
     ${err && data && html`<div class="err">${err}</div>`}`;

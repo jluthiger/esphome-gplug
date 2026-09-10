@@ -1,5 +1,5 @@
 // Bundles src/ into dist/index.html (single file, JS+CSS inlined) and dist/index.html.gz
-// for embedding into the ESPHome firmware.
+// for the mock dev server, plus the copy embedded by the ESPHome firmware.
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { gzipSync } from "node:zlib";
@@ -26,5 +26,8 @@ mkdirSync("dist", { recursive: true });
 writeFileSync("dist/index.html", html);
 const gz = gzipSync(Buffer.from(html), { level: 9 });
 writeFileSync("dist/index.html.gz", gz);
+// The copy the firmware actually embeds (committed; see firmware/components/gplug_smi/__init__.py).
+const BUNDLED = "../firmware/components/gplug_smi/spa.html.gz";
+writeFileSync(BUNDLED, gz);
 console.log(`dist/index.html     ${(html.length / 1024).toFixed(1)} kB`);
-console.log(`dist/index.html.gz  ${(gz.length / 1024).toFixed(1)} kB`);
+console.log(`dist/index.html.gz  ${(gz.length / 1024).toFixed(1)} kB  -> ${BUNDLED}`);

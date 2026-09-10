@@ -1,4 +1,10 @@
 # gPlug ESPHome firmware – PoC. One image for gPlugD / D-E / K / M; pins and meter descriptor are runtime data.
+#
+# This file is self-contained on purpose: it is the package other people's ESPHome Device Builders
+# pull in when they adopt a gPlug (dashboard_import below), so it must not reference anything
+# relative to a config directory -- components come from git, the SPA and presets are bundled
+# inside the component, the partition table is inline. For local development use dev.yaml, which
+# includes this file and overrides the component source with the working tree.
 substitutions:
   name: gplug
   friendly_name: gPlug
@@ -7,17 +13,38 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: 2026.6.0
+  # project + dashboard_import together make the device show up under "Discovered" in any ESPHome
+  # Device Builder on the LAN (both are required, see esphome/zeroconf.py DashboardImportDiscovery).
+  project:
+    name: jluthiger.gplug
+    version: "0.1.0"
+
+dashboard_import:
+  package_import_url: github://jluthiger/esphome-gplug/firmware/gplug.yaml@main
+  import_full_config: false
 
 esp32:
   board: esp32-c3-devkitm-1
   variant: esp32c3
   flash_size: 4MB
-  partitions: partitions.csv
   framework:
     type: esp-idf
+  # ESPHome's standard ESP-IDF layout (otadata, phy_init, app0 @ 0x10000, app1, nvs 448 kB) plus our
+  # history store appended at the end. App slots come out at 1408 kB each. `esphome run` works
+  # unmodified with this layout (it hardcodes the 0x10000 app offset).
+  partitions:
+    - name: data
+      type: data
+      subtype: spiffs
+      size: 0xB0000   # 704 kB, 15-min records, ~1 year at 16 B/slot (unused yet)
 
 external_components:
-  - source: components
+  - source:
+      type: git
+      url: https://github.com/jluthiger/esphome-gplug
+      ref: main
+      path: firmware/components
+    refresh: 1d
 
 logger:
   level: INFO
@@ -33,7 +60,8 @@ captive_portal:
 api:
   # Encryption pulls in mbedtls (Noise protocol), which gplug_smi also needs for AES-GCM.
   # Without this, ESP-IDF never links mbedtls and mbedtls_gcm_* is an undefined reference at link
-  # time (found by trying to compile without it first). Placeholder key -- replace per deployment.
+  # time (found by trying to compile without it first). Placeholder key -- an adopting dashboard
+  # generates its own and overrides this.
   encryption:
     key: "jxc9G0UKLtu5pAfuNeTDpDU58d/jtLPkX1L7QEeKY0E="
 
@@ -51,7 +79,6 @@ uart:
   baud_rate: 115200
   rx_buffer_size: 2048
 
+# SPA and presets default to the copies bundled in the component.
 gplug_smi:
   uart_id: han_uart
-  spa: ../spa/dist/index.html.gz
-  presets: ../spa/mock/presets.json

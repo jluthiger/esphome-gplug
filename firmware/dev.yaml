@@ -1,0 +1,10 @@
+# Local development config: gplug.yaml with the components taken from this working tree instead
+# of GitHub. Sources are processed in order and the last one wins (each installs its meta-path
+# finder at the front), so the local entry below shadows the git one from the package.
+#
+#   esphome run dev.yaml --device /dev/cu.usbmodemXXXX
+packages:
+  gplug: !include gplug.yaml
+
+external_components:
+  - source: components

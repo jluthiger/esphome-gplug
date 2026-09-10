@@ -16,9 +16,31 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 
 ## Quick start
 
+Prerequisites: Node.js (SPA build), [ESPHome](https://esphome.io/guides/installing_esphome) 2026.x
+(`brew install esphome` or `pip install esphome`), a gPlug on USB.
+
 ```
-cd spa && npm install && npm run build   # produces dist/index.html.gz, embedded by the firmware
-cd ../firmware && esphome compile gplug.yaml
+# 1. Build the setup wizard -> firmware/components/gplug_smi/spa.html.gz (embedded into the firmware image)
+cd spa && npm install && npm run build
+
+# 2. Compile the firmware (gplug_smi + captive_portal + the SPA). dev.yaml = gplug.yaml with local components
+cd ../firmware && esphome compile dev.yaml
+
+# 3. Flash over USB and watch the boot log (Ctrl+C to stop the log; add --no-logs to return after flashing)
+esphome run dev.yaml --device /dev/cu.usbmodemXXXX
 ```
 
-See the linked READMEs for details (host tests, flashing caveats, wizard flow, device API).
+Already have an ESPHome Device Builder (e.g. the Home Assistant add-on)? A flashed gPlug shows up
+there under *Discovered* and can be adopted; the adopted config pulls `firmware/gplug.yaml` from
+this repo as a package, no clone needed.
+
+First boot: the device has no WiFi yet, so it opens the `gPlug-Setup` access point. Join it from a
+phone, the captive portal asks for your home WiFi, the device reboots into it, and the setup wizard
+is then at `http://gplug.local/` (pins, meter preset). From then on that address opens the live
+view instead (current power, counters, 1 h sparkline) — the wizard is still one tap away from
+there. Re-entering setup directly: hold the AP button >= 3 s.
+
+Dev loop without hardware: `cd spa && npm run dev` serves the wizard against a mock device API on
+http://localhost:8080. Host-side decoder tests: see [`firmware/README.md`](firmware/README.md).
+
+See the linked READMEs for details (flashing caveats, wizard flow, device API).

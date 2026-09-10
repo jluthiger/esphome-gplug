@@ -8,7 +8,7 @@ import json, re, sys
 from pathlib import Path
 
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / "gplug")
-OUT = Path(sys.argv[2] if len(sys.argv) > 2 else Path(__file__).resolve().parents[1] / "mock" / "presets.json")
+OUT = Path(sys.argv[2] if len(sys.argv) > 2 else Path(__file__).resolve().parents[2] / "firmware" / "components" / "gplug_smi" / "presets.json")
 
 # Hardware defaults per variant (from intent.md pin table)
 VARIANTS = [

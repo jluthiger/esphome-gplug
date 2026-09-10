@@ -1,7 +1,7 @@
 #!/bin/sh
 # Compile each config and print flash/RAM usage from the linker map summary.
 cd "$(dirname "$0")"
-for cfg in base gplug; do
+for cfg in base dev; do
   echo "=== $cfg"
   esphome compile "$cfg.yaml" 2>&1 | grep -E 'RAM:|Flash:|error|Error' | tail -5
   bin=".esphome/build/gplug/.pioenvs/gplug/firmware.bin"

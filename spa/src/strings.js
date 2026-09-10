@@ -61,4 +61,12 @@ export const S = {
   openLive: "Live-Ansicht öffnen",
   bezug: "Bezug",
   einspeisung: "Einspeisung",
+
+  live: "Live-Ansicht",
+  liveTitle: "gPlug",
+  openSetup: "Einrichtung",
+  phase1: "Phase 1",
+  phase2: "Phase 2",
+  phase3: "Phase 3",
+  last60min: "Letzte 60 Minuten",
 };

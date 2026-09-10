@@ -4,42 +4,67 @@ Status: **PoC**. One image for gPlugD / D-E / K / M (ESP32-C3, 4 MB). Pins and m
 runtime data written by the SPA setup wizard and stored in NVS.
 
 ```
-esphome config gplug.yaml            # validate
-esphome compile gplug.yaml           # build (needs ../spa/dist/index.html.gz → run `npm run build` in ../spa first)
-./sizes.sh                           # build base + gplug, print flash/RAM
+esphome config dev.yaml              # validate
+esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
+./sizes.sh                           # build base + dev, print flash/RAM
 cd test && for t in dsmr aes dlms replay raw structure capturelist; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
 ```
 
-**Flashing**: `esphome run gplug.yaml` / `esphome upload gplug.yaml` fail with `Detected overlap at
-address: 0x10000` on this project's custom partition layout. ESPHome's `upload_using_esptool`
-(`esphome/__main__.py`) hardcodes the ESP32 app image offset to `0x10000` for every ESP32 target
-regardless of the actual partition table; this project's app0 starts at `0x20000` (`partitions.csv`),
-so the upload step writes to the wrong address. Confirmed a real ESPHome bug, not a mistake here: the
-bootloader's own partition-table dump on boot matches `partitions.csv` exactly, and the `flash_args`
-file the same build step generates lists the correct `0x20000` offset.
+**Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
+Stock tooling, nothing custom. That works because the partition table is ESPHome's own standard
+ESP-IDF layout with `app0` at `0x10000` (only the `data` partition is added, inline in `gplug.yaml`): ESPHome's `upload_using_esptool` (`esphome/__main__.py`) hardcodes
+that ESP32 app offset for every target instead of reading the `application_offset` PlatformIO already
+puts in `.esphome/idedata/<name>.json` (still hardcoded in upstream `dev` as of 2026-09-10). Until
+2026-09-10 this project had `app0` at `0x20000` to leave room for a 64 kB nvs, so `esphome run` failed
+with `Detected overlap at address: 0x10000` and every flash went through a hand-written esptool
+command. The big nvs turned out to be unnecessary (see the AP-button paragraph below), so the layout
+was moved back to standard and the workaround dropped. Cost: one USB reflash of each dev unit with
+WiFi/hw/meter re-entered. Later the same day the hand-written `partitions.csv` went too, in favour of
+ESPHome's generated table plus an inline `data` entry (needed for the self-contained package, see
+below): app slots 1408 kB instead of 1664 kB, nvs 448 kB (ESPHome's IDF default), `data` 704 kB.
 
-Workaround — flash each real partition file at its own offset from `flasher_args.json`, **not**
-`firmware.factory.bin`. That merged image is a single contiguous blob from `0x0` through the end of
-`app0`; it has no entry for `nvs` (in the middle of that span) because nvs isn't a flashable file, so
-the merge silently pads the gap with erased bytes. Writing it as one blob therefore **wipes the nvs
-partition — the saved WiFi credentials and the SPA-configured hw/meter JSON — on every single flash**,
-even a plain firmware update with no `partitions.csv` change. Found 2026-09-10 after it silently erased
-a real device's just-completed onboarding on what should have been a routine reflash; the earlier
-version of this doc recommended `firmware.factory.bin` directly and was wrong.
+Two flashing traps that are independent of the layout, both hit on 2026-09-10:
+
+- **Never write `firmware.factory.bin` to `0x0`** (dashboard "factory" download, ESP Web Tools, or
+  `esptool write-flash 0x0 firmware.factory.bin`) on a device whose config you want to keep. The merged
+  image is one contiguous blob from `0x0` through the end of `app0`; nvs sits in the middle of that span
+  with no file of its own, so the merge pads it with erased bytes and **every such flash wipes the saved
+  WiFi credentials and the SPA-configured hw/meter JSON**, even a plain firmware update. `esphome run`
+  flashes bootloader / partition table / otadata / app as separate files at their own offsets and
+  leaves nvs alone. Verified 2026-09-10 on a real gPlugK: config survives repeated `esphome run`.
+- **After any partition-table change, delete `.esphome/idedata/gplug.json` before flashing.** ESPHome
+  takes the bootloader/partition-table/otadata offsets from that cached idedata and only regenerates it
+  when `platformio.ini` changes, which a partition edit doesn't trigger. With a stale cache the otadata
+  image is written at its *old* offset -- on 2026-09-10 that was `0xf000`, i.e. straight into the then
+  64 kB nvs partition.
 
 ```
-cd .esphome/build/gplug/.pioenvs/gplug
-esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX --baud 460800 write-flash \
-  --flash_mode dio --flash_freq 80m --flash_size 4MB \
-  0x0 bootloader.bin \
-  0x8000 partitions.bin \
-  0x19000 ota_data_initial.bin \
-  0x20000 firmware.bin
-esphome logs gplug.yaml --device /dev/cu.usbmodemXXXX   # watch boot
+esphome run dev.yaml --device /dev/cu.usbmodemXXXX            # compile + flash + tail log (never exits: Ctrl+C)
+esphome run dev.yaml --device /dev/cu.usbmodemXXXX --no-logs  # same, returns after the flash
+esphome upload dev.yaml --device /dev/cu.usbmodemXXXX         # flash only, no compile
+esphome logs dev.yaml --device /dev/cu.usbmodemXXXX           # log only
 ```
 
-Verified 2026-09-10: clean boot on a real gPlugK, correct partition table, `gplug_smi` initializes,
-and — unlike the merged-image method — nvs contents survive the flash.
+**Two configs, one firmware.** `gplug.yaml` is the *package*: self-contained, no path relative to
+any config directory, because it is what a foreign ESPHome Device Builder pulls in when a gPlug is
+adopted. Components come from `github://jluthiger/esphome-gplug` (`firmware/components`), the SPA
+and presets are bundled *inside* the component (`components/gplug_smi/spa.html.gz`, `presets.json`,
+both committed, regenerated by `npm run build` / `npm run presets` in `../spa`), and the partition
+table is inline. `dev.yaml` includes it as a package and appends a local `external_components`
+source; ESPHome processes sources in order and the last one wins (each installs its meta-path
+finder at the front), so the working tree shadows the git clone. **Always build/flash `dev.yaml`
+while developing** -- `gplug.yaml` alone compiles whatever is on GitHub `main`, not your edits.
+
+**Device Builder discovery ("Discovered" list).** An ESPHome device is only listed there if its
+mDNS TXT records carry `package_import_url`, `project_name` and `project_version`
+(`esphome/zeroconf.py`, `DashboardImportDiscovery`); anything else is silently used just for the
+online dot of configs the dashboard already has. That is why the gPlug was invisible to the
+Device Builder in the same WLAN before 2026-09-10 although `dns-sd -B _esphomelib._tcp` on a Mac
+showed it fine. `esphome: project:` plus `dashboard_import:` in `gplug.yaml` provide the three
+records; adopting fetches the import URL and writes a small config with `packages:` pointing at it,
+a fresh API key and the adopter's WiFi. Every build of `gplug.yaml` (via `dev.yaml` too) advertises
+the URL, so discovery works from the first flash; the adopt step itself only works once the
+bundled-asset version of the component is on GitHub `main`.
 
 **The other "config vanished" cause on 2026-09-10 was the AP button itself.** Its first
 implementation called `nvs_flash_erase()`, which wipes the **entire** nvs partition -- every namespace,
@@ -47,8 +72,9 @@ so `gplug_smi`'s `hw`/`meter` JSON went with the WiFi credentials on every press
 being tested by holding that button, that read as "config keeps disappearing for no reason". An earlier
 revision of this paragraph blamed ESPHome's `ESP32Preferences::open()` self-erase (it does call
 `nvs_flash_erase()` if `nvs_open("esphome")` fails) and grew `nvs` from 24 kB to 64 kB for headroom; that
-theory was wrong for these incidents. The larger partition is kept -- it costs nothing, using the gap
-that was already unused between `phy_init` and `app0`, and `app0`/`app1`/`data` offsets are unchanged.
+theory was wrong for these incidents. The custom partition table was later dropped altogether
+(2026-09-10, same day): the only thing it bought was a non-standard `app0` offset that broke
+`esphome run`, and nvs holds three small blobs (WiFi credentials, `hw` JSON, `meter` JSON).
 
 **Reset into AP mode**: hold the hardware AP button >= 3 s (wired to GND, `hw.pins.button` in the
 stored hw config) — erases ESPHome's `esphome` NVS namespace (where `WiFiComponent` keeps its saved STA
@@ -58,14 +84,14 @@ blinking). Equivalent manual fallback (e.g. no button wired, or NVS is corrupt) 
 everything, hw/meter included:
 
 ```
-esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x10000   # whole nvs partition
+esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000    # whole nvs partition
 ```
 
 | File | Purpose |
 |---|---|
-| `partitions.csv` | nvs 64 kB, otadata 8 kB, phy 4 kB, app0/app1 1664 kB each (OTA), data 640 kB (history, unused yet) |
+| `gplug.yaml` | the package: wifi AP + captive portal, api, ota, sntp, uart, `gplug_smi`, project + dashboard_import, git component source, inline partitions (ESPHome's standard ESP-IDF layout: otadata, phy_init, app0 @ 0x10000 / app1 1408 kB each, nvs 448 kB, plus `data` 704 kB appended for history, unused yet) |
+| `dev.yaml` | `gplug.yaml` + local component source; what you build and flash while developing |
 | `base.yaml` | skeleton without the component, for size reference |
-| `gplug.yaml` | real config: wifi AP + captive portal, api, ota, sntp, uart, status LED, `gplug_smi` |
 | `components/gplug_smi/` | external component (see below) |
 | `components/captive_portal/` | forked+re-styled external component, shadows ESPHome's built-in one (see below) |
 | `test/test_dsmr.cpp` | host unit test for the DSMR parser |
@@ -168,7 +194,7 @@ by design: one setter, one call-site swap).
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
 | GET | `/api/status` | version, hostname, uptime, heap, wifi, hardware, meter counters |
-| GET | `/api/live` | `{age, key_invalid, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}` |
+| GET | `/api/live` | `{age, no_data, key_invalid, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}` |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |
 | GET | `/api/presets` | embedded presets (gzip) |
