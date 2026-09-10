@@ -43,5 +43,8 @@ export const api = {
   setMeter: (cfg) => req("POST", "/api/config/meter", cfg),
   live: () => req("GET", "/api/live", null, 4000),
   ring: () => req("GET", "/api/ring", null, 4000),
+  frames: () => req("GET", "/api/frames", null, 4000),
+  frameRaw: (i) => req("GET", `/api/frames/${i}/raw`, null, 4000),
+  framePlain: (i) => req("GET", `/api/frames/${i}/plain`, null, 4000),
   reboot: () => req("POST", "/api/reboot"),
 };

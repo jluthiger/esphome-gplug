@@ -7,7 +7,7 @@ import { Welcome } from "./steps/welcome.js";
 import { Hardware } from "./steps/hardware.js";
 import { Meter } from "./steps/meter.js";
 import { Done } from "./steps/done.js";
-import { Live } from "./steps/live.js";
+import { Live } from "./live/index.js";
 
 // No "wifi" step: this SPA is only ever reachable after the device has already joined WiFi
 // (the stock captive_portal handles that first join, before gplug_smi's own handler -- and
@@ -84,7 +84,7 @@ function App() {
   let body;
   if (err && !data) body = html`<div class="err">${err}</div><button onClick=${load}>${S.retry}</button>`;
   else if (!data || route === null) body = html`<p><span class="spin"></span> ${S.loading}</p>`;
-  else if (route === "live") body = html`<${Live} status=${status} onOpenSetup=${openSetup} />`;
+  else if (route === "live") body = html`<${Live} status=${status} presets=${data.presets} onOpenSetup=${openSetup} />`;
   else if (name === "welcome") body = html`<${Welcome} status=${status} onNext=${() => setStep(1)} />`;
   else if (name === "hardware") body = html`<${Hardware} variants=${data.variants} value=${hw} onChange=${setHw}
       onBack=${back} onNext=${() => commit("hardware")} />`;

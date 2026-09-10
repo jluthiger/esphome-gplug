@@ -49,9 +49,55 @@ function ring() {
   return { period: 10, samples };
 }
 
+// Mirrors /api/frames: last FRAME_LEN raw DLMS HDLC frame captures, newest-first, DLMS only --
+// same gating a DSMR-configured device gets from the real firmware (frame_log.h is never
+// populated for DSMR, see firmware/components/gplug_smi/gplug_smi.cpp's loop()).
+const FRAME_LEN = 5, FRAME_CAP = 768;
+function frames() {
+  const protocol = state.meter?.descriptor?.protocol === "dlms" ? "dlms"
+    : state.meter?.descriptor?.protocol === "dsmr" ? "dsmr" : "none";
+  if (protocol !== "dlms") return { protocol, cap: FRAME_CAP, len: FRAME_LEN, count: 0, frames: [] };
+  const n = Math.min(FRAME_LEN, Math.floor((Date.now() - state.t0) / 10000) + 1);
+  const list = [];
+  for (let i = 0; i < n; i++) {
+    const ok = i !== 2;   // one synthetic CRC-fail entry so the empty/fail state is exercisable
+    list.push({
+      i, age: i * 10, ok,
+      raw_len: 210 + (i % 3) * 40, raw_trunc: false,
+      plain_len: ok ? 160 + (i % 3) * 20 : 0, plain_trunc: false,
+    });
+  }
+  return { protocol, cap: FRAME_CAP, len: FRAME_LEN, count: n, frames: list };
+}
+
+function hexDump(seed, n) {
+  const lines = [];
+  for (let i = 0; i < n; i += 16) {
+    const row = [];
+    for (let j = i; j < Math.min(i + 16, n); j++) row.push(((seed * 7 + j * 31) & 0xff).toString(16).padStart(2, "0").toUpperCase());
+    lines.push(row.join(" "));
+  }
+  return lines.join("\n") + "\n";
+}
+
+function frameDetail(i, kind) {
+  const f = frames().frames.find((x) => x.i === i);
+  if (!f) return null;
+  const n = kind === "raw" ? f.raw_len : f.plain_len;
+  if (!n) return null;
+  return hexDump(i + 1, n);
+}
+
+function statusMeter() {
+  if (!state.meter) return null;
+  return { preset: state.meter.preset, protocol: state.meter.descriptor?.protocol,
+    encrypted: state.meter.key !== undefined };
+}
+
 const routes = {
-  "GET /api/status": () => ({ ...state, uptime: (Date.now() - state.t0) / 1000, heap: 123456 }),
+  "GET /api/status": () => ({ ...state, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000, heap: 123456 }),
   "GET /api/presets": () => presets,
+  "GET /api/frames": () => frames(),
   "GET /api/wifi/scan": () => new Promise((r) => setTimeout(() => r(NETS), 1200)),
   "POST /api/config/wifi": (b) => {
     state.wifi = { connected: false, ssid: b.ssid, ip: null, rssi: null, error: null };
@@ -69,9 +115,21 @@ const routes = {
 };
 
 createServer(async (req, res) => {
-  const key = `${req.method} ${req.url.split("?")[0]}`;
+  const path = req.url.split("?")[0];
+  const key = `${req.method} ${path}`;
   let body = "";
   for await (const c of req) body += c;
+
+  // /api/frames/<i>/raw|plain -- text/plain, not in the flat JSON route table above.
+  const m = req.method === "GET" && path.match(/^\/api\/frames\/(\d+)\/(raw|plain)$/);
+  if (m) {
+    const text = frameDetail(Number(m[1]), m[2]);
+    console.log(key);
+    if (text == null) { res.writeHead(404, { "content-type": "application/json" }); return res.end('{"error":"not found"}'); }
+    res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+    return res.end(text);
+  }
+
   const fn = routes[key];
   if (fn) {
     const out = await fn(body ? JSON.parse(body) : undefined);

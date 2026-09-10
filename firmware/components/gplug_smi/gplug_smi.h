@@ -5,6 +5,7 @@
 #include "esphome/components/web_server_base/web_server_base.h"
 #include "dsmr_parser.h"
 #include "dlms_decoder.h"
+#include "frame_log.h"
 
 #include <array>
 #include <mutex>
@@ -17,6 +18,11 @@ namespace gplug_smi {
 static constexpr size_t MAX_OBIS = 48;
 static constexpr size_t RING_LEN = 360;      // 60 min at 10 s
 static constexpr uint32_t RING_PERIOD_MS = 10000;
+// Datenstrom capture: last FRAME_LOG_LEN raw DLMS HDLC frames, each capped at FRAME_LOG_CAP bytes
+// (real captured frames run 500-700B; 768 leaves headroom without paying for the 1280B worst case).
+static constexpr size_t FRAME_LOG_LEN = 5;
+static constexpr size_t FRAME_LOG_CAP = 768;
+using FrameLog = ::gplug_framelog::FrameLog<FRAME_LOG_LEN, FRAME_LOG_CAP>;
 
 struct ObisEntry {
   char obis[24];
@@ -90,6 +96,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_status_();
   std::string json_live_();
   std::string json_ring_();
+  std::string json_frames_();
+  void handle_frame_detail_(AsyncWebServerRequest *req, const char *url);
   std::string json_wifi_scan_();
 
   web_server_base::WebServerBase *base_;
@@ -131,6 +139,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::array<Sample, RING_LEN> ring_{};
   size_t ring_head_{0}, ring_count_{0};
   uint32_t last_sample_ms_{0};
+  FrameLog frames_;             // Datenstrom capture ring, DLMS only (see loop())
+  uint32_t dlms_frame_seq_seen_{0};
 };
 
 }  // namespace gplug_smi

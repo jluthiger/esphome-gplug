@@ -69,4 +69,45 @@ export const S = {
   phase2: "Phase 2",
   phase3: "Phase 3",
   last60min: "Letzte 60 Minuten",
+
+  // tabs
+  tabLive: "Live",
+  tabHist: "Verlauf",
+  tabStream: "Datenstrom",
+  tabSetup: "Setup",
+
+  // Verlauf
+  range10: "10 Min",
+  range60: "60 Min",
+  statMin: "Min",
+  statMax: "Max",
+  statAvg: "Ø",
+  registers: "Register (aktuell)",
+
+  // Datenstrom
+  streamRaw: "Rohdaten (verschlüsselt)",
+  streamPlain: "Entschlüsselt",
+  streamDetails: "Details",
+  streamCopy: "Kopieren",
+  streamCopied: "Kopiert",
+  streamDownload: "Herunterladen",
+  streamSelectAll: "Alle auswählen",
+  streamDeselectAll: "Auswahl aufheben",
+  streamExport: "Auswahl exportieren",
+  streamExportAll: "Puffer exportieren",
+  streamCrcOk: "CRC ok",
+  streamCrcFail: "CRC-Fehler",
+  streamBuffer: (n, kb) => `${n} gepufferte Frames · ~${kb} kB`,
+  streamEmptyDsmr: "Dieses Profil überträgt unverschlüsselte Klartext-Telegramme (DSMR) — keine rohen DLMS-Frames vorhanden.",
+  streamEmptyWaiting: "Noch keine Frames empfangen.",
+
+  // Setup tab
+  setupConn: "Verbindung",
+  setupKey: "Schlüssel (GUEK)",
+  keySet: "gültig",
+  keyInvalidBadge: "ungültig",
+  keyUnset: "unverschlüsselt",
+  keyNote: "Nur auf dem Gerät gespeichert. Wird nie im Klartext angezeigt oder exportiert.",
+  dimMode: "Nachtmodus",
+  dimModeHint: "Abgedunkelt für schwache Beleuchtung.",
 };

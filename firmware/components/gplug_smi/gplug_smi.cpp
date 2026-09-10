@@ -36,6 +36,22 @@ void GplugSmi::setup() {
   }
   this->apply_button_pin_();
   this->apply_led_pins_();
+  // Compiled-in WiFi credentials (e.g. the `wifi:` block the ESPHome Device Builder adds to every
+  // adopted config) would make the AP button pointless: it clears the *saved* credentials, the
+  // device reboots and reconnects to the compiled-in network within 3 s. Once the button has been
+  // used, drop the compiled-in networks on every boot and run WiFi from portal-saved credentials
+  // only. WiFi has already started by now (this component sets up AFTER_WIFI), so restart it:
+  // disable()+enable() re-runs WiFiComponent::start(), which with no STA networks left goes
+  // straight to the fallback AP + captive portal. start() also derives its preference key from
+  // has_sta(), so the portal-saved credentials only stay reachable if the compiled-in ones are
+  // dropped on *every* boot -- hence a persistent flag, never cleared. Harmless on builds without
+  // compiled-in credentials (has_sta() false at this point, nothing to do).
+  if (this->nvs_load_("ignore_sta", s) && wifi::global_wifi_component->has_sta()) {
+    ESP_LOGW(TAG, "AP button was used: ignoring compiled-in WiFi credentials, using portal-saved ones only");
+    wifi::global_wifi_component->clear_sta();
+    wifi::global_wifi_component->disable();
+    wifi::global_wifi_component->enable();
+  }
   wifi::global_wifi_component->set_keep_scan_results(true);
   this->base_->init();
   this->base_->add_handler_without_auth(this);   // registered before captive portal → we serve "/"
@@ -57,7 +73,18 @@ void GplugSmi::loop() {
     if (desc_.protocol == Descriptor::DSMR) {
       dsmr_.feed((char) c, [this](const ::gplug_dsmr::DsmrValue &v) { this->on_dsmr_value_(v); });
     } else if (desc_.protocol == Descriptor::DLMS) {
-      if (dlms_.feed(c)) this->on_dlms_apdu_();
+      bool full_ok = dlms_.feed(c);
+      // frame_seq() bumps on every closed HDLC frame, success or failure -- unlike feed()'s bool
+      // return, which only fires on a full successful decode. Capture regardless of outcome so the
+      // Datenstrom view can show CRC-fail / wrong-key frames too.
+      if (dlms_.frame_seq() != dlms_frame_seq_seen_) {
+        dlms_frame_seq_seen_ = dlms_.frame_seq();
+        const auto &raw = dlms_.last_frame();
+        std::lock_guard<std::mutex> lock(mutex_);
+        frames_.push(millis(), dlms_.last_frame_ok(), raw.data(), raw.size(),
+                     full_ok ? dlms_.plaintext() : nullptr, full_ok ? dlms_.plaintext_len() : 0);
+      }
+      if (full_ok) this->on_dlms_apdu_();
       else if (dlms_.key_invalid() && dlms_.encrypted_seen()) { std::lock_guard<std::mutex> lock(mutex_); key_invalid_ = true; last_frame_ms_ = millis(); }
     }
   }
@@ -324,7 +351,9 @@ void GplugSmi::poll_button_() {
     // "gplug" namespace, i.e. the hw config with the LED pin numbers, so after the reboot the
     // LED can't be driven at all and just keeps whatever state GPIO left it in (red).
     ESP_LOGW(TAG, "AP button held 3s: clearing WiFi credentials, rebooting into AP mode");
-    this->defer([]() {
+    this->defer([this]() {
+      // Compiled-in credentials survive the erase below; tell setup() to drop them from now on.
+      this->nvs_save_("ignore_sta", "1");
       nvs_handle_t h;
       if (nvs_open("esphome", NVS_READWRITE, &h) == ESP_OK) {
         nvs_erase_all(h);
@@ -523,6 +552,8 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/wifi/scan") return send_json_(req, 200, json_wifi_scan_());
     if (url == "/api/presets") return send_gz_(req, "application/json", presets_, presets_len_);
     if (url == "/api/config/hardware") return send_json_(req, 200, hw_json_);
+    if (url == "/api/frames") return send_json_(req, 200, json_frames_());
+    if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
     return send_gz_(req, "text/html", spa_, spa_len_);   // SPA fallback (also captive page)
   }
@@ -565,6 +596,19 @@ static void json_escape(std::string &out, const char *s) {
   }
 }
 
+// Uppercase hex, 16 bytes/line -- readable both inline (<pre>) and as a downloaded .txt.
+static void bytes_to_hex(std::string &out, const uint8_t *data, size_t n, size_t wrap = 16) {
+  static const char *H = "0123456789ABCDEF";
+  out.reserve(out.size() + n * 3 + n / wrap + 1);
+  for (size_t i = 0; i < n; i++) {
+    if (i && (i % wrap) == 0) out += '\n';
+    else if (i) out += ' ';
+    out += H[data[i] >> 4];
+    out += H[data[i] & 0xF];
+  }
+  out += '\n';
+}
+
 std::string GplugSmi::json_status_() {
   auto *w = wifi::global_wifi_component;
   bool conn = w->is_connected();
@@ -583,6 +627,7 @@ std::string GplugSmi::json_status_() {
   s += "},\"hardware\":" + hw_json_;
   s += ",\"meter\":{\"preset\":\""; json_escape(s, desc_.preset.c_str()); s += "\"";
   s += ",\"protocol\":" + std::to_string(desc_.protocol) + ",\"obis\":" + std::to_string(desc_.n);
+  s += ",\"encrypted\":" + std::string(desc_.encrypted ? "true" : "false");
   s += ",\"dsmr_telegrams\":" + std::to_string(dsmr_.telegrams) + ",\"dsmr_crc_errors\":" + std::to_string(dsmr_.crc_errors);
   s += ",\"dlms_frames\":" + std::to_string(dlms_.stats.frames) + ",\"dlms_apdus\":" + std::to_string(dlms_.stats.apdus);
   s += ",\"dlms_fcs_errors\":" + std::to_string(dlms_.stats.fcs_errors) + ",\"dlms_auth_failed\":" + std::to_string(dlms_.stats.auth_failed) + "}}";
@@ -635,6 +680,54 @@ std::string GplugSmi::json_ring_() {
   }
   s += "]}";
   return s;
+}
+
+// Metadata only, newest-first (i=0 = most recent) -- no frame bytes here, those are fetched
+// per-frame via /api/frames/<i>/raw|plain (handle_frame_detail_) so the list stays cheap to poll.
+std::string GplugSmi::json_frames_() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  const char *proto = desc_.protocol == Descriptor::DLMS ? "dlms" : desc_.protocol == Descriptor::DSMR ? "dsmr" : "none";
+  std::string s = "{\"protocol\":\""; s += proto; s += "\"";
+  s += ",\"cap\":" + std::to_string(FRAME_LOG_CAP) + ",\"len\":" + std::to_string(FRAME_LOG_LEN);
+  s += ",\"count\":" + std::to_string(frames_.count()) + ",\"frames\":[";
+  uint32_t now = millis();
+  for (size_t i = 0; i < frames_.count(); i++) {
+    const auto *e = frames_.at(i);
+    if (i) s += ",";
+    s += "{\"i\":" + std::to_string(i) + ",\"age\":" + std::to_string((now - e->ts_ms) / 1000);
+    s += ",\"ok\":" + std::string(e->ok ? "true" : "false");
+    s += ",\"raw_len\":" + std::to_string(e->raw_len) + ",\"raw_trunc\":" + std::string(e->raw_trunc ? "true" : "false");
+    s += ",\"plain_len\":" + std::to_string(e->plain_len) + ",\"plain_trunc\":" + std::string(e->plain_trunc ? "true" : "false") + "}";
+  }
+  s += "]}";
+  return s;
+}
+
+// /api/frames/<i>/raw|plain -- text/plain hex dump of one captured frame. One endpoint serves
+// preview, clipboard-copy, and download alike; the SPA decides client-side which UI action a
+// fetched body drives, and can concatenate several fetches for a multi-frame export. Never touches
+// key material -- frames_ only ever holds ciphertext/plaintext byte copies (see frame_log.h).
+void GplugSmi::handle_frame_detail_(AsyncWebServerRequest *req, const char *url) {
+  const char *p = url + strlen("/api/frames/");
+  char *end = nullptr;
+  long idx = strtol(p, &end, 10);
+  if (end == p || idx < 0 || *end != '/') return send_json_(req, 404, "{\"error\":\"not found\"}");
+  const char *kind = end + 1;
+  bool is_raw = !strcmp(kind, "raw");
+  if (!is_raw && strcmp(kind, "plain") != 0) return send_json_(req, 404, "{\"error\":\"not found\"}");
+
+  std::string body;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto *e = frames_.at((size_t) idx);
+    if (!e) return send_json_(req, 404, "{\"error\":\"not found\"}");
+    size_t n = is_raw ? e->raw_len : e->plain_len;
+    if (!n) return send_json_(req, 404, "{\"error\":\"empty\"}");
+    bytes_to_hex(body, (is_raw ? e->raw : e->plain).data(), n);
+  }
+  auto *res = req->beginResponse(200, "text/plain; charset=utf-8", body.c_str());
+  res->addHeader("Cache-Control", "no-cache");
+  req->send(res);
 }
 
 std::string GplugSmi::json_wifi_scan_() {

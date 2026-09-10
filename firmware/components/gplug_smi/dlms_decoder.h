@@ -49,9 +49,17 @@ class DlmsDecoder {
     if (frame_.empty() && c == 0x7E) return false;             // 7E 7E: still at frame start
     if (frame_.empty() && (c & 0xF0) != 0xA0) { in_frame_ = false; return false; }   // not a type-3 frame
     if (expect_ && frame_.size() == expect_) {                 // all bytes in: this must be the closing flag
-      bool done = (c == 0x7E) && on_frame_();
+      bool closed = (c == 0x7E);
+      bool done = closed && on_frame_();
+      // Snapshot the raw frame for the Datenstrom capture ring regardless of decode outcome --
+      // GplugSmi wants to show CRC-fail and wrong-key frames too, not just fully-decoded ones.
+      if (closed) {
+        last_frame_.assign(frame_.begin(), frame_.end());
+        last_frame_ok_ = last_frame_crc_ok_;
+        frame_seq_++;
+      }
       frame_.clear(); expect_ = 0;
-      in_frame_ = (c == 0x7E);                                  // closing flag may double as the next opening flag
+      in_frame_ = closed;                                       // closing flag may double as the next opening flag
       return done;
     }
     if (frame_.size() >= max_frame_) { stats.overflow++; frame_.clear(); in_frame_ = false; return false; }
@@ -70,6 +78,15 @@ class DlmsDecoder {
   const uint8_t *system_title() const { return system_title_; }
   uint32_t frame_counter() const { return frame_counter_; }
   Stats stats;
+
+  // Most recently closed raw HDLC frame (ciphertext + headers, flags stripped), and whether the
+  // frame's FCS/HCS checked out -- true even for a frame that failed to decrypt (wrong key), since
+  // that's a genuinely well-formed frame at the HDLC level. Never exposes key material.
+  // frame_seq() increments on every closed frame; callers poll it to detect a new capture without
+  // relying on feed()'s return value, which only fires on a full successful decode.
+  const std::vector<uint8_t> &last_frame() const { return last_frame_; }
+  bool last_frame_ok() const { return last_frame_ok_; }
+  uint32_t frame_seq() const { return frame_seq_; }
 
   // Pattern for pm(x.y.z): the three decimal groups + 0xFF. Returns pattern length (0 if not parseable).
   static size_t obis_pattern(const char *obis, uint8_t out[8]) {
@@ -282,6 +299,7 @@ class DlmsDecoder {
   // One HDLC frame (without the 0x7E flags) is in frame_.
   bool on_frame_() {
     stats.frames++;
+    last_frame_crc_ok_ = false;
     const uint8_t *d = frame_.data();
     size_t n = frame_.size();
     if ((d[0] & 0xF0) != 0xA0) return false;                    // frame format type 3 only
@@ -295,6 +313,9 @@ class DlmsDecoder {
     i++;                                                        // control
     if (crc16_x25(d, i) != (uint16_t) (d[i] | (d[i + 1] << 8))) { stats.hcs_errors++; return false; }
     i += 2;
+    // FCS+HCS both valid from here: a genuinely well-formed HDLC frame, independent of whether the
+    // payload below decrypts/authenticates -- this is the "CRC ok" the Datenstrom capture reports.
+    last_frame_crc_ok_ = true;
     const uint8_t *p = d + i;
     size_t plen = n - 2 - i;
     return on_payload_(p, plen);
@@ -405,6 +426,10 @@ class DlmsDecoder {
   uint8_t key_[16]{}, ak_[16]{}, system_title_[8]{};
   uint32_t frame_counter_{0};
   bool have_key_{false}, have_ak_{false}, key_invalid_{false}, encrypted_seen_{false};
+
+  std::vector<uint8_t> last_frame_;
+  bool last_frame_ok_{false}, last_frame_crc_ok_{false};
+  uint32_t frame_seq_{0};
 };
 
 }  // namespace gplug_dlms

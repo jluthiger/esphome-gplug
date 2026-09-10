@@ -7,7 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
-cd test && for t in dsmr aes dlms replay raw structure capturelist; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
+cd test && for t in dsmr aes dlms replay raw structure capturelist framelog; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
 ```
 
 **Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
@@ -80,7 +80,22 @@ theory was wrong for these incidents. The custom partition table was later dropp
 stored hw config) — erases ESPHome's `esphome` NVS namespace (where `WiFiComponent` keeps its saved STA
 credentials; `esp32/preferences.cpp`) and reboots. The `gplug` namespace -- hw pins, meter descriptor --
 survives, so the device comes back up broadcasting its setup AP **with the LED still driven** (blue
-blinking). Equivalent manual fallback (e.g. no button wired, or NVS is corrupt) -- note this one wipes
+blinking).
+
+The button also works on firmware with **compiled-in WiFi credentials**, which is what every config
+the ESPHome Device Builder generates on adoption has (it adds `wifi: ssid/password: !secret` to the
+adopted YAML). Found 2026-09-10 right after the first adoption: the button erased the saved
+credentials and rebooted as designed, and the device was back on the compiled-in network 3 s later,
+so the AP never appeared. Fix: the button additionally sets a persistent `ignore_sta` flag in the
+`gplug` namespace; on every later boot `gplug_smi::setup()` drops the compiled-in networks
+(`WiFiComponent::clear_sta()`) and restarts WiFi (`disable()` + `enable()` re-runs `start()`, which
+with no STA left goes straight to the fallback AP + captive portal -- this component sets up
+`AFTER_WIFI`, so WiFi has already started by then). The flag is deliberately never cleared:
+`WiFiComponent::start()` keys its saved-credentials preference on `has_sta()`, so credentials
+saved through the portal while the compiled-in ones are dropped are only found again on boots where
+they are dropped again. Verified on the real gPlugK with a build that compiled in one network:
+button -> AP in < 1 s, portal onboarding to a *different* network, `/api/reboot` -> reconnects to
+that portal network, not the compiled-in one. Harmless on builds without compiled-in credentials. Equivalent manual fallback (e.g. no button wired, or NVS is corrupt) -- note this one wipes
 everything, hw/meter included:
 
 ```
@@ -97,6 +112,7 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
 | `test/test_dsmr.cpp` | host unit test for the DSMR parser |
 | `test/test_structure.cpp` | tests `decode_structure()` (the production DLMS decode path) against a real capture |
 | `test/test_capturelist.cpp` | tests `find_capture_list()` (gPlugM/L+G capture-list decode) against two real captures |
+| `test/test_framelog.cpp` | tests `frame_log.h`'s ring buffer and its wiring to `DlmsDecoder`'s capture hook (`last_frame()`/`last_frame_ok()`/`frame_seq()`), incl. the CRC-ok-but-wrong-key case the Datenstrom view depends on |
 
 ## Component `gplug_smi`
 
@@ -132,6 +148,11 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
     capture, since that's what production actually runs).
   Tag verified only when an authentication key is configured; otherwise plaintext sanity check (first
   byte 0x0F) drives `key_invalid`.
+- `frame_log.h` – fixed-size ring of the last 5 raw DLMS HDLC frames (ciphertext, capped 768 B, plus
+  decrypted plaintext when available), for the SPA's Datenstrom view (`/api/frames`,
+  `/api/frames/<i>/raw|plain`). Header-only, no ESPHome deps, and a generic byte-blob ring with no
+  notion of "key" — structurally incapable of exposing key material. DLMS-only: `GplugSmi::loop()`
+  never populates it for a DSMR-configured device.
 - `gplug_smi.{h,cpp}` – component:
   - loads `hw` and `meter` JSON blobs from NVS namespace `gplug` at boot, applies baud + RX pin to the UART
   - drives the hardware `button` pin (from `hw.pins.button`, active low, internal pull-up): held >= 3 s
