@@ -1,92 +1,66 @@
-import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
-import { api } from "../api.js";
+import { de } from "../fmt.js";
 
-// Polls /api/live + /api/ring at 0.1 Hz -- fast enough to feel live, slow enough not to matter on
-// battery-backed phones or the device's own web server. Only runs while this tab is mounted.
-const POLL_MS = 10000;
-
-export function LiveTab() {
-  const [live, setLive] = useState(null);
-  const [ring, setRing] = useState(null);
-  const [err, setErr] = useState(null);
-
-  useEffect(() => {
-    let stop = false;
-    async function tick() {
-      try {
-        const [l, r] = await Promise.all([api.live(), api.ring()]);
-        if (stop) return;
-        setLive(l); setRing(r); setErr(null);
-      } catch (e) { if (!stop) setErr(String(e.message || e)); }
-    }
-    tick();
-    const id = setInterval(tick, POLL_MS);
-    return () => { stop = true; clearInterval(id); };
-  }, []);
-
+export function LiveTab({ live, ring }) {
   const age = live?.age;
-  // no_data is the firmware's verdict (same one that turns the LED red), so the badge and the LED
-  // never disagree -- age alone stays null forever when no frame has ever arrived.
-  const badge = live?.key_invalid ? ["err", S.keyWrong]
-    : live?.no_data ? ["err", S.noData]
-    : age == null ? ["warn", S.waitingData]
-    : ["ok", `${S.dataOk} (-${age}s)`];
   const hint = live?.key_invalid ? S.keyWrongHint : live?.no_data ? S.noDataHint : null;
   const hasData = live && age != null && !live.key_invalid;
+  if (!hasData) return html`<div class="card"><div class="lbl">${S.activePower}</div><p class="hint">${hint || S.waitingData}</p></div>`;
 
-  // Per-phase power isn't in /api/live (the meter descriptor decides which named registers exist,
-  // and single-phase presets have none) -- take it from the ring's latest sample instead, which
-  // the firmware always fills (0 when the meter has no per-phase registers). Hide the row rather
-  // than show three zeroes on a single-phase install.
-  const last = ring?.samples?.length ? ring.samples[ring.samples.length - 1] : null;
-  const phases = last && (last[2] || last[3] || last[4]) ? last.slice(2, 5) : null;
+  const net = live.p ?? 0;   // kW, positive = draw from grid
+  const samples = ring?.samples || [];
+  const vals = samples.map(([pi, po]) => pi - po);
+  const max = vals.length ? Math.max(0, ...vals) : 0;
+
+  // Per-phase power isn't in /api/live (the meter descriptor decides which named registers
+  // exist) -- take it from the ring's latest sample, which the firmware always fills (0 when the
+  // meter has no per-phase registers). Hide the card rather than show three zeroes.
+  const last = samples.length ? samples[samples.length - 1] : null;
+  const ph = last && (last[2] || last[3] || last[4]) ? last.slice(2, 5) : null;
+  const phMax = ph ? Math.max(400, ...ph.map(Math.abs)) : 1;
+  const v = live.values || {};
+  const volt = (i) => v[`V${i}`] ?? v[`U${i}`];
+  const amp = (i) => v[`I${i}`];
 
   return html`
     <div class="card">
-      <div class="row" style="justify-content:space-between">
-        <span>${S.meterData} ${live?.smid ? html`<span class="mono">${live.smid}</span>` : ""}</span>
-        <span class="badge ${badge[0]}" style="flex:0 0 auto">${badge[1]}</span>
-      </div>
-      ${hint && html`<div class="err">${hint}</div>`}
-      ${hasData && html`
-        <div class="big">${(live.p ?? 0).toFixed(2)} <small>kW</small></div>
-        <div class="kv">
-          <b>${S.bezug}</b><span>${live.ei?.toFixed(0) ?? "–"} kWh</span>
-          <b>${S.einspeisung}</b><span>${live.eo?.toFixed(0) ?? "–"} kWh</span>
-        </div>
-        ${phases && html`
-          <div class="kv" style="margin-top:6px">
-            <b>${S.phase1}</b><span>${(phases[0] / 1000).toFixed(2)} kW</span>
-            <b>${S.phase2}</b><span>${(phases[1] / 1000).toFixed(2)} kW</span>
-            <b>${S.phase3}</b><span>${(phases[2] / 1000).toFixed(2)} kW</span>
-          </div>`}
-        <${AreaChart} ring=${ring} />`}
-      ${err && html`<div class="err">${err}</div>`}
-    </div>`;
+      <div class="between"><span class="lbl">${S.activePower}</span><span class="mono" style="font-size:.7rem;color:var(--mono)">−${age} s</span></div>
+      <div class="big"><span class="v">${de(Math.abs(net), 2)}</span><span class="u">kW</span></div>
+      <div class="dir">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>
+      ${vals.length >= 2 && html`
+        <${Chart} vals=${vals} />
+        <div class="axis"><span>${S.ago60}</span><span>${de(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>`}
+    </div>
+    <div class="grid2">
+      <div class="card stat"><div class="lbl">${S.importLbl}</div><div class="v">${de(live.ei)}</div><div class="u">kWh</div></div>
+      <div class="card stat"><div class="lbl orange">${S.exportLbl}</div><div class="v orange">${de(live.eo)}</div><div class="u orange">kWh</div></div>
+    </div>
+    ${ph && html`
+      <div class="card">
+        <div class="lbl">${S.phases}</div>
+        ${ph.map((w, i) => html`
+          <div class="phase">
+            <span class="n">L${i + 1}</span>
+            <div class="bar"><i style="width:${Math.round(Math.abs(w) / phMax * 100)}%"></i></div>
+            <span class="kw">${de(w / 1000, 2)}</span>
+            <span class="ui">${volt(i + 1) != null ? de(volt(i + 1), 1) + " V" : ""}${volt(i + 1) != null && amp(i + 1) != null ? " · " : ""}${amp(i + 1) != null ? de(amp(i + 1), 1) + " A" : ""}</span>
+          </div>`)}
+      </div>`}`;
 }
 
-function AreaChart({ ring }) {
-  const samples = ring?.samples;
-  if (!samples || samples.length < 2) return null;
-  const vals = samples.map(([pi, po]) => pi - po);   // net W per sample, same sign convention as live.p
-  const min = Math.min(0, ...vals), max = Math.max(0, ...vals);
-  const span = max - min || 1;
-  const w = 300, h = 72;
-  const pts = vals.map((v, i) => {
-    const x = (i / (vals.length - 1)) * w;
-    const y = h - ((v - min) / span) * h;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const line = pts.join(" ");
-  const zeroY = (h - ((0 - min) / span) * h).toFixed(1);
-  const area = `0,${zeroY} ${line} ${w},${zeroY}`;
+function Chart({ vals }) {
+  const w = 320, h = 104;
+  const min = Math.min(0, ...vals), max = Math.max(0, ...vals), span = max - min || 1;
+  const X = (i) => (i / (vals.length - 1)) * w, Y = (v) => h - ((v - min) / span) * h;
+  const pts = vals.map((v, i) => `${X(i).toFixed(1)} ${Y(v).toFixed(1)}`);
+  const line = "M" + pts.join(" L ");
+  const zeroY = Y(0).toFixed(1);
   return html`
-    <div class="s" style="margin-top:10px">${S.last60min}</div>
-    <svg viewBox="0 0 ${w} ${h}" class="spark" preserveAspectRatio="none">
-      <polygon points=${area} class="area-fill" />
-      ${min < 0 && max > 0 && html`<line x1="0" y1=${zeroY} x2=${w} y2=${zeroY} class="spark-zero" />`}
-      <polyline points=${line} class="spark-line" />
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart">
+      <path d="${line} L ${w} ${zeroY} L 0 ${zeroY} Z" class="area" />
+      <line x1="0" y1=${zeroY} x2=${w} y2=${zeroY} class="zero" />
+      <path d=${line} class="line" />
+      <circle cx=${w} cy=${Y(vals[vals.length - 1]).toFixed(1)} r="3.5" class="head" />
     </svg>`;
 }

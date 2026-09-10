@@ -28,10 +28,14 @@ function live() {
   const t = (Date.now() - state.t0) / 1000;
   const keyInvalid = state.meter.key !== undefined && state.meter.key?.toLowerCase().startsWith("dead");
   if (keyInvalid) return { age: null, no_data: false, key_invalid: true };
+  const p = 1.11 + 0.4 * Math.sin(t / 30);
   return {
     smid: "55771146", age: Math.floor(t % 10), no_data: false,
-    p: 1.11 + 0.4 * Math.sin(t / 30),
-    ei: 19087 + t / 3600, eo: 30836,
+    p, ei: 19087 + t / 3600, eo: 30836,
+    // register snapshot keyed by preset name, like the firmware's `values` (subset: what the
+    // Verlauf register list and the Live phase rows read)
+    values: { Pi: p, Po: 0, V1: 231.4, V2: 230.1, V3: 229.6, I1: p * 1000 / 3 / 231.4, I2: p * 1000 / 3 / 230.1, I3: p * 1000 / 3 / 229.6,
+      Ei: 19087.204 + t / 3600, Eo: 30836.881 },
   };
 }
 

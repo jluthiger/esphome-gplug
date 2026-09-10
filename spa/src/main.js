@@ -63,7 +63,6 @@ function App() {
     setRoute(r);
   }
   const openLive = () => openRoute("live");
-  const openSetup = () => { setStep(0); openRoute("wizard"); };
 
   // Persist each step to the device as the user leaves it.
   async function commit(from) {
@@ -84,7 +83,7 @@ function App() {
   let body;
   if (err && !data) body = html`<div class="err">${err}</div><button onClick=${load}>${S.retry}</button>`;
   else if (!data || route === null) body = html`<p><span class="spin"></span> ${S.loading}</p>`;
-  else if (route === "live") body = html`<${Live} status=${status} presets=${data.presets} onOpenSetup=${openSetup} />`;
+  else if (route === "live") body = html`<${Live} status=${status} presets=${data.presets} />`;
   else if (name === "welcome") body = html`<${Welcome} status=${status} onNext=${() => setStep(1)} />`;
   else if (name === "hardware") body = html`<${Hardware} variants=${data.variants} value=${hw} onChange=${setHw}
       onBack=${back} onNext=${() => commit("hardware")} />`;
@@ -92,10 +91,11 @@ function App() {
       onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
   else body = html`<${Done} onOpenLive=${openLive} />`;
 
+  // The live screen draws its own header (status bar, screen title, data pill -- see live/index.js);
+  // the brand/title/progress chrome is wizard-only.
   const showSteps = route === "wizard" && data;
   return html`
-    <div class="brand">${S.brand}</div>
-    <h1>${showSteps ? S.title : S.liveTitle}</h1>
+    ${route !== "live" && html`<div class="brand">${S.brand}</div><h1>${S.title}</h1>`}
     ${showSteps && html`<div class="steps">${STEPS.map((_, i) => html`<i class=${i < step ? "done" : i === step ? "cur" : ""}></i>`)}</div>`}
     ${body}
     ${busy && html`<p style="text-align:center"><span class="spin"></span></p>`}

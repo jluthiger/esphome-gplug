@@ -1,79 +1,63 @@
-import { useEffect, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
-import { api } from "../api.js";
+import { de } from "../fmt.js";
 
-const POLL_MS = 10000;
-
-// History is just the same 1h/10s ring /api/live already needs elsewhere -- no separate backend
-// endpoint. "10 Min"/"60 Min" are both client-side slices of the same 360-sample response.
-export function HistTab({ status, presets }) {
-  const [ring, setRing] = useState(null);
-  const [values, setValues] = useState(null);   // one-shot register snapshot, not polled
-  const [err, setErr] = useState(null);
+// History is the same 1h/10s ring the Live tab draws -- "10 Min"/"60 Min" are client-side slices
+// of one /api/ring response, no separate backend endpoint. The register list is the current
+// snapshot from /api/live's `values`, named/unit-tagged via the matching preset.
+export function HistTab({ live, ring, status, presets }) {
   const [range, setRange] = useState("60");
-
-  useEffect(() => {
-    let stop = false;
-    async function tick() {
-      try { const r = await api.ring(); if (!stop) { setRing(r); setErr(null); } }
-      catch (e) { if (!stop) setErr(String(e.message || e)); }
-    }
-    tick();
-    const id = setInterval(tick, POLL_MS);
-    return () => { stop = true; clearInterval(id); };
-  }, []);
-
-  useEffect(() => {
-    api.live().then((l) => setValues(l.values || {})).catch(() => {});
-  }, []);
-
   const samples = ring?.samples || [];
-  const count = range === "10" ? 60 : 360;
-  const win = samples.slice(-count);
+  const win = samples.slice(-(range === "10" ? 60 : 360));
   const vals = win.map(([pi, po]) => pi - po);
-
   const preset = presets?.find((p) => p.id === status?.meter?.preset);
+  const values = live?.values || {};
+  const regs = preset ? preset.obis.filter((o) => values[o.name] != null) : [];
 
   return html`
-    <div class="range">
-      <button class="${range === "10" ? "active" : ""}" onClick=${() => setRange("10")}>${S.range10}</button>
-      <button class="${range === "60" ? "active" : ""}" onClick=${() => setRange("60")}>${S.range60}</button>
+    <div class="seg">
+      <button class=${range === "10" ? "active" : ""} onClick=${() => setRange("10")}>${S.range10}</button>
+      <button class=${range === "60" ? "active" : ""} onClick=${() => setRange("60")}>${S.range60}</button>
     </div>
-    ${err && html`<div class="err">${err}</div>`}
+    <div class="card">
+      <div class="between" style="margin-bottom:12px"><span class="lbl">${S.netPower}</span><span class="mono" style="font-size:.66rem;color:var(--muted2)">${S.samples(vals.length)}</span></div>
+      ${vals.length >= 2 ? html`<${Bars} vals=${vals} />` : html`<p class="hint">${S.waitingData}</p>`}
+      <div class="axis"><span>${range === "10" ? S.ago10 : S.ago60}</span><span>${S.now}</span></div>
+    </div>
     ${vals.length >= 2 && html`
-      <div class="card">
-        <${HistChart} vals=${vals} />
-      </div>
-      <div class="stats3">
-        <div class="card"><div class="s">${S.statMax}</div><div class="t">${(Math.max(...vals) / 1000).toFixed(2)} kW</div></div>
-        <div class="card"><div class="s">${S.statAvg}</div><div class="t">${(vals.reduce((a, b) => a + b, 0) / vals.length / 1000).toFixed(2)} kW</div></div>
-        <div class="card"><div class="s">${S.statMin}</div><div class="t">${(Math.min(...vals) / 1000).toFixed(2)} kW</div></div>
+      <div class="grid3">
+        <${Stat} k=${S.statMax} v=${Math.max(...vals)} />
+        <${Stat} k=${S.statAvg} v=${vals.reduce((a, b) => a + b, 0) / vals.length} />
+        <${Stat} k=${S.statMin} v=${Math.min(...vals)} />
       </div>`}
-    ${preset && values && html`
+    ${regs.length > 0 && html`
       <div class="card">
-        <div class="s">${S.registers}</div>
-        <div class="kv mono" style="margin-top:8px">
-          ${preset.obis.filter((o) => values[o.name] != null).map((o) => html`
-            <b>${o.obis}</b><span>${values[o.name]}${o.unit ? " " + o.unit : ""}</span>`)}
-        </div>
+        <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
+        ${regs.map((o) => html`
+          <div class="reg"><span class="o">${o.obis.replace(/^\d-\d:/, "")}</span><span class="n">${o.name}</span>
+            <span class="v">${de(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
       </div>`}`;
 }
 
-function HistChart({ vals }) {
-  const w = 320, h = 130;
-  const maxAbs = Math.max(1, ...vals.map(Math.abs));
-  const hasNeg = vals.some((v) => v < 0);
-  const zeroY = hasNeg ? h * 0.6 : h - 2;
-  const bw = w / vals.length;
+function Stat({ k, v }) {
+  return html`<div class="card stat"><div class="lbl">${k}</div><div class="v" style="font-size:1.1rem">${de(v / 1000, 2)}</div><div class="u">kW</div></div>`;
+}
+
+function Bars({ vals }) {
+  const w = 320, h = 130, buckets = 40;
+  const per = Math.ceil(vals.length / buckets);
+  const avg = [];
+  for (let i = 0; i < vals.length; i += per) { const c = vals.slice(i, i + per); avg.push(c.reduce((a, b) => a + b, 0) / c.length); }
+  const maxAbs = Math.max(1, ...avg.map(Math.abs));
+  const zero = avg.some((v) => v < 0) ? h * 0.62 : h - 2;
+  const bw = w / avg.length;
   return html`
-    <svg viewBox="0 0 ${w} ${h}" class="hist-chart">
-      <line x1="0" y1=${zeroY} x2=${w} y2=${zeroY} class="hist-zero" />
-      ${vals.map((v, i) => {
-        const bh = Math.max(1, (Math.abs(v) / maxAbs) * (v >= 0 ? zeroY - 4 : h - zeroY - 4));
-        const y = v >= 0 ? zeroY - bh : zeroY;
-        return html`<rect x=${(i * bw + 0.5).toFixed(1)} y=${y.toFixed(1)} width=${Math.max(1, bw - 1).toFixed(1)}
-          height=${bh.toFixed(1)} rx="1" class=${v >= 0 ? "hist-bar-up" : "hist-bar-down"} />`;
+    <svg viewBox="0 0 ${w} ${h}" class="hist">
+      <line x1="0" y1=${zero} x2=${w} y2=${zero} class="zero" />
+      ${avg.map((v, i) => {
+        const bh = Math.max(2, (Math.abs(v) / maxAbs) * (v >= 0 ? zero - 4 : h - zero - 4));
+        return html`<rect x=${(i * bw + 1).toFixed(1)} y=${(v >= 0 ? zero - bh : zero).toFixed(1)} width=${(bw - 2).toFixed(1)} height=${bh.toFixed(1)} rx="1.5" class=${v >= 0 ? "up" : "down"} />`;
       })}
     </svg>`;
 }
