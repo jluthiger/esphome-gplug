@@ -41,27 +41,24 @@ esphome logs gplug.yaml --device /dev/cu.usbmodemXXXX   # watch boot
 Verified 2026-09-10: clean boot on a real gPlugK, correct partition table, `gplug_smi` initializes,
 and — unlike the merged-image method — nvs contents survive the flash.
 
-**A second, separate cause of the same symptom (config silently gone after a boot, not a flash):**
-ESPHome's own `esp32::ESP32Preferences::open()` runs at `app_main()`, before the logger even starts.
-If `nvs_open("esphome", NVS_READWRITE, ...)` fails for any reason -- most plausibly
-`ESP_ERR_NVS_NOT_ENOUGH_SPACE` once the partition gets tight -- it "recovers" by calling
-`nvs_flash_erase()`, which wipes the **entire** nvs partition, every namespace, not just ESPHome's own.
-`gplug_smi`'s "gplug" namespace (the `hw`/`meter` JSON, including a ~3 KB blob for a real 22-entry
-DLMS descriptor) shares that same partition with ESPHome's own preferences and the WiFi credentials --
-at the original 24 kB it doesn't take much churn to trip this. This is almost certainly what caused the
-handful of "config vanished after a completely unrelated flash" incidents on 2026-09-10 that the
-per-partition-write fix above didn't fully explain (confirmed via `esptool read-flash 0x9000 0x6000`:
-nvs wasn't blank, but `gplug`'s blobs and other content kept shrinking across otherwise-safe flashes).
-Fixed by growing `nvs` from 24 kB to 64 kB (`partitions.csv`) using the ~56 kB gap that was already
-sitting unused between `phy_init` and `app0` (system partitions before app0 must fall in a 128 kB-aligned
-block; they only used 36 kB of it) -- `app0`/`app1`/`data` offsets are unchanged, no OTA-slot impact.
+**The other "config vanished" cause on 2026-09-10 was the AP button itself.** Its first
+implementation called `nvs_flash_erase()`, which wipes the **entire** nvs partition -- every namespace,
+so `gplug_smi`'s `hw`/`meter` JSON went with the WiFi credentials on every press. While the LED work was
+being tested by holding that button, that read as "config keeps disappearing for no reason". An earlier
+revision of this paragraph blamed ESPHome's `ESP32Preferences::open()` self-erase (it does call
+`nvs_flash_erase()` if `nvs_open("esphome")` fails) and grew `nvs` from 24 kB to 64 kB for headroom; that
+theory was wrong for these incidents. The larger partition is kept -- it costs nothing, using the gap
+that was already unused between `phy_init` and `app0`, and `app0`/`app1`/`data` offsets are unchanged.
 
 **Reset into AP mode**: hold the hardware AP button >= 3 s (wired to GND, `hw.pins.button` in the
-stored hw config) — clears the saved WiFi STA credentials and reboots; device comes back up
-broadcasting its setup AP. Equivalent manual fallback (e.g. no button wired, or NVS is corrupt):
+stored hw config) — erases ESPHome's `esphome` NVS namespace (where `WiFiComponent` keeps its saved STA
+credentials; `esp32/preferences.cpp`) and reboots. The `gplug` namespace -- hw pins, meter descriptor --
+survives, so the device comes back up broadcasting its setup AP **with the LED still driven** (blue
+blinking). Equivalent manual fallback (e.g. no button wired, or NVS is corrupt) -- note this one wipes
+everything, hw/meter included:
 
 ```
-esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x10000   # nvs partition
+esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x10000   # whole nvs partition
 ```
 
 | File | Purpose |
@@ -112,8 +109,11 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x10000  
 - `gplug_smi.{h,cpp}` – component:
   - loads `hw` and `meter` JSON blobs from NVS namespace `gplug` at boot, applies baud + RX pin to the UART
   - drives the hardware `button` pin (from `hw.pins.button`, active low, internal pull-up): held >= 3 s
-    erases NVS (`nvs_flash_erase()`) and hard-reboots (`esp_restart()`), the same mechanism as the
-    esptool nvs-erase workaround (see "Reset into AP mode" below) but without a cable. Deliberately
+    erases ESPHome's `esphome` NVS namespace (`nvs_erase_all` on it -- that's where `WiFiComponent`'s
+    saved credentials live) and hard-reboots (`esp_restart()`); the `gplug` namespace with hw/meter is
+    kept, so the LED pins are still known after the reboot (see "Reset into AP mode" below). Not
+    `nvs_flash_erase()`: that took hw/meter with it, leaving the LED undriven and stuck on whatever
+    GPIO state it was in. Deliberately
     not `wifi::save_wifi_sta("", "")`: that call doesn't clear credentials, it *saves* an empty-SSID
     STA entry, which `WiFiComponent` reloads and retries forever on every subsequent boot too
     (persisted in its own flash preference, independent of the `gplug` NVS namespace), producing an

@@ -315,12 +315,19 @@ void GplugSmi::poll_button_() {
     // wifi::save_wifi_sta("", "") does NOT clear credentials -- it *saves* an empty-SSID STA
     // entry, which WiFiComponent::start() reloads and retries forever on every future boot too
     // (WiFiComponent::pref_ persists across reboots), producing an endless "No matching network
-    // found" / "Restarting adapter" loop that starves the AP instead of leaving it stable. Erase
-    // NVS outright instead -- same mechanism as the documented manual esptool workaround, and the
-    // one already verified to bring AP mode up cleanly.
-    ESP_LOGW(TAG, "AP button held 3s: erasing NVS, rebooting into AP mode");
+    // found" / "Restarting adapter" loop that starves the AP instead of leaving it stable.
+    // Erase ESPHome's own NVS namespace instead: that's where WiFiComponent's preference lives
+    // (esp32/preferences.cpp opens "esphome"). NOT nvs_flash_erase() -- that also wipes our
+    // "gplug" namespace, i.e. the hw config with the LED pin numbers, so after the reboot the
+    // LED can't be driven at all and just keeps whatever state GPIO left it in (red).
+    ESP_LOGW(TAG, "AP button held 3s: clearing WiFi credentials, rebooting into AP mode");
     this->defer([]() {
-      nvs_flash_erase();
+      nvs_handle_t h;
+      if (nvs_open("esphome", NVS_READWRITE, &h) == ESP_OK) {
+        nvs_erase_all(h);
+        nvs_commit(h);
+        nvs_close(h);
+      }
       esp_restart();
     });
   }
@@ -374,9 +381,13 @@ void GplugSmi::update_led_() {
   uint32_t now = millis();
   uint32_t since_data = last_frame_ms_ == 0 ? now - meter_applied_ms_ : now - last_frame_ms_;
   bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
-  bool error = key_invalid_ || no_data;   // overrides every other mode
+  // key_invalid_ latches (only cleared by a valid decode or reconfiguring the meter) and isn't
+  // gated by ap_mode, so it can outlive the run that set it -- e.g. an unconnected/floating RX
+  // pin picking up noise the decoder misreads as an encrypted frame with the wrong key. AP-
+  // fallback is the state that actually needs the user's attention, so it always wins the LED.
+  bool error = !ap_mode && (key_invalid_ || no_data);
   bool running = !ap_mode && has_meter && !error;
-  int8_t candidate = error ? 3 : (ap_mode ? 0 : (running ? 2 : 1));
+  int8_t candidate = ap_mode ? 0 : (error ? 3 : (running ? 2 : 1));
 
   if (candidate != led_pending_mode_) {
     led_pending_mode_ = candidate;
