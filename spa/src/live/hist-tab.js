@@ -1,36 +1,69 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
-import { de } from "../fmt.js";
+import { api } from "../api.js";
+import { de, bucketLabel } from "../fmt.js";
 
-// History is the same 1h/10s ring the Live tab draws -- "10 Min"/"60 Min" are client-side slices
-// of one /api/ring response, no separate backend endpoint. The register list is the current
-// snapshot from /api/live's `values`, named/unit-tagged via the matching preset.
+// "60 Min" is the in-RAM ring the Live tab already polls -- free, and the only range with 10 s
+// resolution. Everything longer comes from the flash history (/api/history), fetched once per
+// range and kept, so re-visiting a range costs the device nothing. That scan reads flash, which is
+// why it is not on the 10 s poll.
+const RANGES = [["60", "range60"], ["day", "rangeDay"], ["week", "rangeWeek"], ["month", "rangeMonth"], ["year", "rangeYear"]];
+const HF_CONFIG_CHANGE = 8, HF_NO_DATA = 16;
+const MAX_BARS = 400;
+const cache = new Map();
+
 export function HistTab({ live, ring, status, presets }) {
   const [range, setRange] = useState("60");
-  const samples = ring?.samples || [];
-  const win = samples.slice(-(range === "10" ? 60 : 360));
-  const vals = win.map(([pi, po]) => pi - po);
+  const [hist, setHist] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (range === "60") { setErr(null); return; }
+    if (cache.has(range)) { setHist(cache.get(range)); setErr(null); return; }
+    let stop = false;
+    setLoading(true); setHist(null); setErr(null);
+    api.history(range)
+      .then((h) => { if (!stop) { cache.set(range, h); setHist(h); } })
+      .catch((e) => { if (!stop) setErr(String(e.message || e)); })
+      .finally(() => { if (!stop) setLoading(false); });
+    return () => { stop = true; };
+  }, [range]);
+
+  const isRing = range === "60";
+  const energy = range === "week" || range === "month" || range === "year";
+  const bars = isRing ? ringBars(ring) : histBars(hist, range);
+  const vals = bars.filter((b) => !b.missing).map((b) => b.v);
+  const estimated = !isRing && hist && hist.pts.some((p) => p[0] === null);
+
   const preset = presets?.find((p) => p.id === status?.meter?.preset);
   const values = live?.values || {};
   const regs = preset ? preset.obis.filter((o) => values[o.name] != null) : [];
 
   return html`
     <div class="seg">
-      <button class=${range === "10" ? "active" : ""} onClick=${() => setRange("10")}>${S.range10}</button>
-      <button class=${range === "60" ? "active" : ""} onClick=${() => setRange("60")}>${S.range60}</button>
+      ${RANGES.map(([id, key]) => html`
+        <button class=${range === id ? "active" : ""} onClick=${() => setRange(id)}>${S[key]}</button>`)}
     </div>
+    ${err && html`<div class="err">${err}</div>`}
     <div class="card">
-      <div class="between" style="margin-bottom:12px"><span class="lbl">${S.netPower}</span><span class="mono" style="font-size:.66rem;color:var(--muted2)">${S.samples(vals.length)}</span></div>
-      ${vals.length >= 2 ? html`<${Bars} vals=${vals} />` : html`<p class="hint">${S.waitingData}</p>`}
-      <div class="axis"><span>${range === "10" ? S.ago10 : S.ago60}</span><span>${S.now}</span></div>
+      <div class="between" style="margin-bottom:12px">
+        <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
+        <span class="mono" style="font-size:.66rem;color:var(--muted2)">
+          ${isRing ? S.samples(vals.length) : S.points(vals.length)}
+        </span>
+      </div>
+      ${loading && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
+      ${!loading && bars.length < 2 && html`<p class="hint">${isRing ? S.waitingData : S.noHistory}</p>`}
+      ${bars.length >= 2 && html`<${Bars} bars=${bars} />`}
+      ${bars.length >= 2 && html`
+        <div class="axis">
+          ${axisLabels(bars).map((l) => html`<span>${l}</span>`)}
+        </div>`}
     </div>
-    ${vals.length >= 2 && html`
-      <div class="grid3">
-        <${Stat} k=${S.statMax} v=${Math.max(...vals)} />
-        <${Stat} k=${S.statAvg} v=${vals.reduce((a, b) => a + b, 0) / vals.length} />
-        <${Stat} k=${S.statMin} v=${Math.min(...vals)} />
-      </div>`}
+    ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
+    ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}
     ${regs.length > 0 && html`
       <div class="card">
         <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
@@ -40,24 +73,95 @@ export function HistTab({ live, ring, status, presets }) {
       </div>`}`;
 }
 
-function Stat({ k, v }) {
-  return html`<div class="card stat"><div class="lbl">${k}</div><div class="v" style="font-size:1.1rem">${de(v / 1000, 2)}</div><div class="u">kW</div></div>`;
+// Ring -> bars: same 40-bucket mean over net power the tab has always drawn, in W.
+function ringBars(ring) {
+  const samples = ring?.samples || [];
+  const vals = samples.map(([pi, po]) => pi - po);
+  if (vals.length < 2) return [];
+  const per = Math.ceil(vals.length / 40);
+  const out = [];
+  for (let i = 0; i < vals.length; i += per) {
+    const c = vals.slice(i, i + per);
+    out.push({ v: c.reduce((a, b) => a + b, 0) / c.length, label: null });
+  }
+  return out;
 }
 
-function Bars({ vals }) {
-  const w = 320, h = 130, buckets = 40;
-  const per = Math.ceil(vals.length / buckets);
-  const avg = [];
-  for (let i = 0; i < vals.length; i += per) { const c = vals.slice(i, i + per); avg.push(c.reduce((a, b) => a + b, 0) / c.length); }
-  const maxAbs = Math.max(1, ...avg.map(Math.abs));
-  const zero = avg.some((v) => v < 0) ? h * 0.62 : h - 2;
-  const bw = w / avg.length;
+// History -> bars. Day keeps power (W, signed); longer ranges switch to energy per bucket (Wh,
+// import positive / export negative) because a mean over a whole day says very little.
+// A hole in the qh sequence means the device was off: render it as a gap rather than closing it.
+function histBars(hist, range) {
+  if (!hist || !hist.pts?.length) return [];
+  const energy = range !== "day";
+  const step = hist.bucket || 1;
+  const out = [];
+  let prevQh = null;
+  for (const [qh, dEi, dEo, pMin, pMax, pAvg, flags] of hist.pts) {
+    if (qh !== null && prevQh !== null && out.length < MAX_BARS) {
+      for (let g = prevQh + step; g < qh && out.length < MAX_BARS; g += step)
+        out.push({ v: 0, missing: true, label: bucketLabel(range, g) });
+    }
+    const label = qh === null ? null : bucketLabel(range, qh);
+    if (energy) {
+      const known = dEi !== null || dEo !== null;
+      out.push({ v: (dEi || 0) - (dEo || 0), label, missing: !known || (flags & HF_NO_DATA) !== 0 });
+    } else {
+      out.push({ v: pAvg, label, missing: (flags & HF_NO_DATA) !== 0 });
+    }
+    if (qh !== null) prevQh = qh;
+  }
+  return out;
+}
+
+function axisLabels(bars) {
+  const labelled = bars.filter((b) => b.label);
+  if (!labelled.length) return [S.ago60, S.now];
+  const pick = [0, Math.floor(labelled.length / 2), labelled.length - 1];
+  return [...new Set(pick)].map((i) => labelled[i].label);
+}
+
+function PowerStats({ vals }) {
+  return html`
+    <div class="grid3">
+      <${Stat} k=${S.statMax} v=${de(Math.max(...vals) / 1000, 2)} u="kW" />
+      <${Stat} k=${S.statAvg} v=${de(vals.reduce((a, b) => a + b, 0) / vals.length / 1000, 2)} u="kW" />
+      <${Stat} k=${S.statMin} v=${de(Math.min(...vals) / 1000, 2)} u="kW" />
+    </div>`;
+}
+
+function EnergyStats({ bars }) {
+  const known = bars.filter((b) => !b.missing);
+  const imp = known.reduce((a, b) => a + Math.max(0, b.v), 0) / 1000;
+  const exp = known.reduce((a, b) => a + Math.max(0, -b.v), 0) / 1000;
+  return html`
+    <div class="grid3">
+      <${Stat} k=${S.statImport} v=${de(imp, 1)} u="kWh" />
+      <${Stat} k=${S.statExport} v=${de(exp, 1)} u="kWh" orange=${true} />
+      <${Stat} k=${S.statSum} v=${de(imp - exp, 1)} u="kWh" />
+    </div>`;
+}
+
+function Stat({ k, v, u, orange }) {
+  return html`<div class="card stat"><div class="lbl">${k}</div>
+    <div class="v ${orange ? "orange" : ""}" style="font-size:1.1rem">${v}</div><div class="u">${u}</div></div>`;
+}
+
+function Bars({ bars }) {
+  const w = 320, h = 130;
+  const maxAbs = Math.max(1, ...bars.filter((b) => !b.missing).map((b) => Math.abs(b.v)));
+  const hasNeg = bars.some((b) => !b.missing && b.v < 0);
+  const zero = hasNeg ? h * 0.62 : h - 2;
+  const bw = w / bars.length;
   return html`
     <svg viewBox="0 0 ${w} ${h}" class="hist">
       <line x1="0" y1=${zero} x2=${w} y2=${zero} class="zero" />
-      ${avg.map((v, i) => {
-        const bh = Math.max(2, (Math.abs(v) / maxAbs) * (v >= 0 ? zero - 4 : h - zero - 4));
-        return html`<rect x=${(i * bw + 1).toFixed(1)} y=${(v >= 0 ? zero - bh : zero).toFixed(1)} width=${(bw - 2).toFixed(1)} height=${bh.toFixed(1)} rx="1.5" class=${v >= 0 ? "up" : "down"} />`;
+      ${bars.map((b, i) => {
+        const x = (i * bw + (bw > 3 ? 1 : 0.2)).toFixed(1);
+        const bwd = Math.max(0.8, bw - (bw > 3 ? 2 : 0.4)).toFixed(1);
+        if (b.missing) return html`<rect x=${x} y=${(zero - 3).toFixed(1)} width=${bwd} height="3" rx="1" class="gap" />`;
+        const bh = Math.max(2, (Math.abs(b.v) / maxAbs) * (b.v >= 0 ? zero - 4 : h - zero - 4));
+        return html`<rect x=${x} y=${(b.v >= 0 ? zero - bh : zero).toFixed(1)} width=${bwd}
+          height=${bh.toFixed(1)} rx="1.5" class=${b.v >= 0 ? "up" : "down"} />`;
       })}
     </svg>`;
 }

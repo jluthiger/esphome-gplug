@@ -53,6 +53,48 @@ function ring() {
   return { period: 10, samples };
 }
 
+// Mirrors /api/history. Deliberately reproduces every degraded case the firmware can emit, so the
+// rendering of each is exercisable without hardware: a gap where the device was off, a reboot, a
+// config change (counter chain broken -> null deltas), records written before the clock synced
+// (qh null), and -- via ?noepoch=1 -- a device that never got NTP at all.
+const QH_EPOCH = 1577836800;
+const HF_BOOT = 4, HF_CONFIG = 8, HF_NO_DATA = 16;
+const RANGE_SPEC = { day: [1, 96], week: [4, 168], month: [24, 120], year: [96, 365] };
+
+function history(range, noEpoch) {
+  const [bucket, n] = RANGE_SPEC[range] || RANGE_SPEC.day;
+  const nowQh = Math.floor((Date.now() / 1000 - QH_EPOCH) / 900);
+  const pts = [];
+  if (state.meter) {
+    for (let i = n; i > 0; i--) {
+      if (i === 12) continue;                        // device was off: a hole in the qh sequence
+      const qh = nowQh - i * bucket;
+      const load = 1400 + 900 * Math.sin(qh / 9) + 300 * Math.sin(qh / 2.3);
+      const pv = Math.max(0, 2600 * Math.sin(((qh % 96) / 96) * Math.PI));
+      const net = Math.round(load - pv);
+      const hrs = (bucket * 900) / 3600;
+      let flags = 0;
+      if (i === 20) flags |= HF_BOOT;
+      if (i === 30) flags |= HF_CONFIG;
+      if (i === 40) flags |= HF_NO_DATA;
+      const broken = (flags & HF_CONFIG) !== 0 || (flags & HF_NO_DATA) !== 0;
+      const timeless = noEpoch || i <= 3;            // the newest few were written pre-sync
+      pts.push([
+        timeless ? null : qh,
+        broken ? null : Math.round(Math.max(0, net) * hrs),
+        broken ? null : Math.round(Math.max(0, -net) * hrs),
+        net - 400, net + 600, net, flags,
+      ]);
+    }
+  }
+  return {
+    period: 900, range: RANGE_SPEC[range] ? range : "day", bucket,
+    qh_epoch: QH_EPOCH, epoch_valid: !noEpoch, epoch: noEpoch ? 0 : Math.floor(Date.now() / 1000),
+    now_qh: noEpoch ? 0 : nowQh, oldest_qh: nowQh - n * bucket, newest_qh: nowQh,
+    count: pts.length, ok: true, pts,
+  };
+}
+
 // Mirrors /api/frames: last FRAME_LEN raw DLMS HDLC frame captures, newest-first, DLMS only --
 // same gating a DSMR-configured device gets from the real firmware (frame_log.h is never
 // populated for DSMR, see firmware/components/gplug_smi/gplug_smi.cpp's loop()).
@@ -119,10 +161,19 @@ const routes = {
 };
 
 createServer(async (req, res) => {
-  const path = req.url.split("?")[0];
+  const url = new URL(req.url, "http://localhost");
+  const path = url.pathname;
   const key = `${req.method} ${path}`;
   let body = "";
   for await (const c of req) body += c;
+
+  // Query-param endpoint: the flat table below is keyed on the path alone.
+  if (req.method === "GET" && path === "/api/history") {
+    console.log(key, url.search);
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(JSON.stringify(history(url.searchParams.get("range") || "day",
+                                          url.searchParams.get("noepoch") === "1")));
+  }
 
   // /api/frames/<i>/raw|plain -- text/plain, not in the flat JSON route table above.
   const m = req.method === "GET" && path.match(/^\/api\/frames\/(\d+)\/(raw|plain)$/);

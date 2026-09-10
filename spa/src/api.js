@@ -43,6 +43,9 @@ export const api = {
   setMeter: (cfg) => req("POST", "/api/config/meter", cfg),
   live: () => req("GET", "/api/live", null, 4000),
   ring: () => req("GET", "/api/ring", null, 4000),
+  // Bulk read of the flash history; range=year scans the whole partition on the device, so it gets
+  // a longer timeout than the polled endpoints.
+  history: (range) => req("GET", "/api/history?range=" + range, null, 10000),
   frames: () => req("GET", "/api/frames", null, 4000),
   frameRaw: (i) => req("GET", `/api/frames/${i}/raw`, null, 4000),
   framePlain: (i) => req("GET", `/api/frames/${i}/plain`, null, 4000),

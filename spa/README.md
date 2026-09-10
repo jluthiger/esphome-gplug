@@ -44,6 +44,7 @@ Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows "Schl�
 | POST | `/api/config/meter` | `{preset, key?, descriptor:{schema, protocol, mode, baud, rx, serial_flags, buffer, obis[]}}` |
 | GET | `/api/live` | `{smid, age, no_data, p, ei, eo, key_invalid?}` — no per-phase field; the live view takes that from `/api/ring`'s latest sample instead |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}`, 360 samples = 1 h at 10 s resolution |
+| GET | `/api/history?range=day\|week\|month\|year` | flash-backed 15-min history, downsampled server-side to ≤365 points: `{period:900, bucket, qh_epoch, epoch_valid, now_qh, count, pts:[[qh, d_ei_wh, d_eo_wh, p_min, p_max, p_avg, flags],…]}`. `qh` = quarter-hours since 2020-01-01Z, `null` when the record predates a clock sync; the energy deltas are `null` when a counter is absent or the chain is broken (meter swap, config change) |
 
 Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js`,
 `src/api.js`, `src/strings.js` (German UI text), `src/style.css`.

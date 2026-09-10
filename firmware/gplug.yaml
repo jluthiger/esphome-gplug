@@ -36,7 +36,7 @@ esp32:
     - name: data
       type: data
       subtype: spiffs
-      size: 0xB0000   # 704 kB, 15-min records, ~1 year at 16 B/slot (unused yet)
+      size: 0xB0000   # 704 kB: 15-min history, 20 B/record, 204 per 4 kB sector -> ~374 days
 
 external_components:
   - source:

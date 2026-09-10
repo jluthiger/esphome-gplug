@@ -6,6 +6,8 @@
 #include "dsmr_parser.h"
 #include "dlms_decoder.h"
 #include "frame_log.h"
+#include "history_store.h"
+#include "partition_flash.h"
 
 #include <array>
 #include <mutex>
@@ -23,6 +25,12 @@ static constexpr uint32_t RING_PERIOD_MS = 10000;
 static constexpr size_t FRAME_LOG_LEN = 5;
 static constexpr size_t FRAME_LOG_CAP = 768;
 using FrameLog = ::gplug_framelog::FrameLog<FRAME_LOG_LEN, FRAME_LOG_CAP>;
+// Persistent history: one record per quarter hour on the `data` partition (see history_store.h).
+// Lowering HIST_INTERVAL_S in a dev build is the only practical way to exercise sector rotation --
+// at 900 s a sector lasts 2.6 days.
+static constexpr uint32_t HIST_INTERVAL_S = ::gplug_hist::HIST_INTERVAL_S;
+static constexpr uint32_t HIST_TICKS_PER_INTERVAL = HIST_INTERVAL_S * 1000 / RING_PERIOD_MS;
+using HistoryStore = ::gplug_hist::HistoryStore<PartitionFlash>;
 
 struct ObisEntry {
   char obis[24];
@@ -98,6 +106,11 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_ring_();
   std::string json_frames_();
   void handle_frame_detail_(AsyncWebServerRequest *req, const char *url);
+  std::string json_history_(const char *range);
+  void hist_setup_();
+  void hist_close_interval_(uint32_t qh_tag, bool expect_full);
+  void hist_backpatch_(uint32_t qh_now);
+  void hist_service_();
   std::string json_wifi_scan_();
 
   web_server_base::WebServerBase *base_;
@@ -141,6 +154,26 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   uint32_t last_sample_ms_{0};
   FrameLog frames_;             // Datenstrom capture ring, DLMS only (see loop())
   uint32_t dlms_frame_seq_seen_{0};
+
+  // Persistent quarter-hour history. Guarded by hist_mutex_, never by mutex_: a range=year scan
+  // reads the whole partition (~150 ms) and must not block /api/live or the sampling path.
+  mutable std::mutex hist_mutex_;
+  PartitionFlash hist_flash_;
+  HistoryStore hist_{hist_flash_};
+  bool hist_ok_{false};
+  ::gplug_hist::QhAccum acc_;
+  uint32_t acc_qh_{0};                  // wall-clock quarter hour being accumulated, 0 = unknown
+  bool acc_time_valid_{false};
+  uint8_t pending_flags_{::gplug_hist::HF_BOOT_BEFORE};   // carried into the next record written
+  uint32_t unk_first_addr_{0};          // first record of this boot written with an unknown time
+  uint16_t unk_count_{0};
+  double local_ei_wh_{0}, local_eo_wh_{0};   // fallback integrator for meters without Ei/Eo
+  // "Zählerwerte des letzten 1/4-h Updates für alle Quellen": every register the meter sends,
+  // snapshotted when the interval closed. /api/live exposes it as `last_qh`.
+  float qh_values_[MAX_OBIS]{};
+  bool qh_have_[MAX_OBIS]{};
+  uint32_t qh_snapshot_qh_{0};
+  uint8_t hist_buf_[256];               // scan scratch; a member, not an httpd-task stack local
 };
 
 }  // namespace gplug_smi

@@ -7,7 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
-cd test && for t in dsmr aes dlms replay raw structure capturelist framelog; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
+cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
 ```
 
 **Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
@@ -112,6 +112,7 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
 | `test/test_dsmr.cpp` | host unit test for the DSMR parser |
 | `test/test_structure.cpp` | tests `decode_structure()` (the production DLMS decode path) against a real capture |
 | `test/test_capturelist.cpp` | tests `find_capture_list()` (gPlugM/L+G capture-list decode) against two real captures |
+| `test/test_history.cpp` | tests `history_store.h`: append/rotate/wrap, crash recovery (torn record, half-written timestamp, interrupted erase), timestamp back-patching, and the bucket aggregation |
 | `test/test_framelog.cpp` | tests `frame_log.h`'s ring buffer and its wiring to `DlmsDecoder`'s capture hook (`last_frame()`/`last_frame_ok()`/`frame_seq()`), incl. the CRC-ok-but-wrong-key case the Datenstrom view depends on |
 
 ## Component `gplug_smi`
@@ -153,6 +154,18 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
   `/api/frames/<i>/raw|plain`). Header-only, no ESPHome deps, and a generic byte-blob ring with no
   notion of "key" — structurally incapable of exposing key material. DLMS-only: `GplugSmi::loop()`
   never populates it for a DSMR-configured device.
+- `history_store.h` – persistent 15-min history: an append-only log of 20 B records over the raw
+  `data` partition, organised as rotating 4 kB sector buckets (16 B header + 204 records each).
+  Appending costs one write; a sector is erased only when recycled, once per ~2.6 days, giving
+  ~374 days of history on 176 sectors. Header-only, no ESPHome deps, host-testable
+  (`test/test_history.cpp`) via an injected flash backend. Two flash facts shape the record layout:
+  programming only clears bits (so "time unknown" is all-ones, never zero, and can be filled in
+  later), and a record needs its own crc or a power cut mid-write is indistinguishable from data.
+  Hence the two-phase write — payload+crc first, the timestamp as a separate word excluded from the
+  crc, which is what lets records written before NTP synced be back-dated with no erase.
+- `partition_flash.h` – the device backend for the above, and the only file that includes
+  `esp_partition.h`. Note `esp_partition_write` does *not* fail on non-erased bytes, it silently
+  ANDs into them; the append-only scheme is what guarantees virgin targets.
 - `gplug_smi.{h,cpp}` – component:
   - loads `hw` and `meter` JSON blobs from NVS namespace `gplug` at boot, applies baud + RX pin to the UART
   - drives the hardware `button` pin (from `hw.pins.button`, active low, internal pull-up): held >= 3 s
@@ -238,6 +251,26 @@ descriptor + SPA wizard. Per the user's decision (2026-09-10), the runtime-descr
 remains a prototype; a future pass should reconcile the two rather than duplicate protocol work, with
 the SPA's role narrowing to WiFi onboarding, live view and history rather than meter-protocol selection.
 
+**Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
+`esphome run`. To clear it, erase that region — take the offset from the boot log
+(`gplug_smi: history: partition 0x...`), never a hardcoded constant, since the generated partition
+table derives it:
+
+```
+esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region <addr> 0xB0000
+```
+
+The device reformats one sector on the next boot; NVS (WiFi, hw/meter config) is untouched.
+
+**Erase timing.** A 4 kB sector erase runs with the flash cache disabled and
+`CONFIG_UART_ISR_IN_IRAM` is off, so nothing drains the UART FIFO for 30-50 ms — at 115200 baud that
+overflows after ~11 ms and clips one meter frame. The store therefore pre-arms the recycle and
+`hist_service_()` performs it only in the quiet stretch after a frame completed (or while the meter
+is silent anyway), which at a 1 s meter cadence leaves ~900 ms of headroom. It happens once per
+~2.6 days. `CONFIG_SPI_FLASH_AUTO_SUSPEND=y` or `CONFIG_UART_ISR_IN_IRAM=y` would remove the hazard
+outright; neither is enabled by default (each has its own caveats, and ESPHome's UART driver may not
+pass `ESP_INTR_FLAG_IRAM` anyway).
+
 ### Known gaps (PoC)
 
 - Firmware is 962 kB flash / 51 kB static RAM (up from 890 kB before adopting mbedtls — a real crypto
@@ -263,6 +296,5 @@ the SPA's role narrowing to WiFi onboarding, live view and history rather than m
   `dbg_structure.cpp <hex files...>` remains for dumping any future capture's descriptors/values with
   byte offsets.
 - LEDs: only ESPHome `status_led` on GPIO7; RGB behaviour from the descriptor not wired yet.
-- No 15-min history store yet (`data` partition unused).
 - WiFi scan endpoint returns whatever the wifi component last scanned; may be empty right after boot.
 - Config writes are applied immediately from the HTTP task; UART reconfiguration is not yet deferred to the main loop.

@@ -22,6 +22,14 @@ namespace gplug_smi {
 static const char *const TAG = "gplug_smi";
 static const char *const NVS_NS = "gplug";
 
+// SNTP has not synced until the clock is past a date we know is in the past. Without this check
+// the device reports 1970 and every history record would carry a nonsense timestamp.
+static constexpr uint32_t EPOCH_SANE = 1600000000u;   // 2020-09-13
+
+static uint32_t qh_from_epoch(uint32_t ep) {
+  return ep > ::gplug_hist::HIST_EPOCH ? (ep - ::gplug_hist::HIST_EPOCH) / HIST_INTERVAL_S : 0;
+}
+
 // ---------------------------------------------------------------- lifecycle
 
 void GplugSmi::setup() {
@@ -36,6 +44,7 @@ void GplugSmi::setup() {
   }
   this->apply_button_pin_();
   this->apply_led_pins_();
+  this->hist_setup_();
   // Compiled-in WiFi credentials (e.g. the `wifi:` block the ESPHome Device Builder adds to every
   // adopted config) would make the AP button pointless: it clears the *saved* credentials, the
   // device reboots and reconnects to the compiled-in network within 3 s. Once the button has been
@@ -62,6 +71,12 @@ void GplugSmi::dump_config() {
   ESP_LOGCONFIG(TAG, "gPlug SMI\n  preset: %s\n  protocol: %s\n  baud: %u\n  rx: %d\n  obis entries: %u\n  spa: %u B gz\n  presets: %u B gz",
                 desc_.preset.c_str(), desc_.protocol == Descriptor::DSMR ? "dsmr" : desc_.protocol == Descriptor::DLMS ? "dlms" : "none",
                 (unsigned) desc_.baud, desc_.rx, desc_.n, (unsigned) spa_len_, (unsigned) presets_len_);
+  // The partition offset is derived by the generated partition table, so log it rather than
+  // documenting a constant -- it is what an `esptool erase_region` to wipe the history needs.
+  const auto &m = hist_.meta();
+  ESP_LOGCONFIG(TAG, "  history: %s, partition 0x%06X +%u B, %u sectors x %u slots, %u records, seq %u",
+                hist_ok_ ? "ok" : "disabled", (unsigned) hist_flash_.address(), (unsigned) hist_flash_.size(),
+                m.sectors, (unsigned) ::gplug_hist::HIST_SLOTS, (unsigned) m.count, (unsigned) m.seq);
 }
 
 void GplugSmi::loop() {
@@ -90,6 +105,9 @@ void GplugSmi::loop() {
   }
   // 10 s ring sample
   uint32_t now = millis();
+  bool sampled = false;
+  int16_t p_net = 0;
+  bool meter_ok = false;
   if (now - last_sample_ms_ >= RING_PERIOD_MS) {
     last_sample_ms_ = now;
     std::lock_guard<std::mutex> lock(mutex_);
@@ -103,7 +121,22 @@ void GplugSmi::loop() {
     ring_[ring_head_] = smp;
     ring_head_ = (ring_head_ + 1) % RING_LEN;
     if (ring_count_ < RING_LEN) ring_count_++;
+    p_net = (int16_t) (smp.pi - smp.po);
+    meter_ok = last_frame_ms_ != 0 && (now - last_frame_ms_) < 30000;
+    sampled = true;
   }
+  // Feed the quarter-hour accumulator outside the lock: it never touches the decoder state, and
+  // flash I/O must never happen while mutex_ is held (it would stall /api/live for an erase).
+  if (sampled) {
+    acc_.add(p_net, meter_ok);
+    if (meter_ok) {
+      // Fallback energy integration, for meters that send no Ei/Eo at all. Cheap enough to always
+      // run; only used when the counters are absent when the interval closes.
+      double wh = (double) p_net * (RING_PERIOD_MS / 1000.0) / 3600.0;
+      if (wh >= 0) local_ei_wh_ += wh; else local_eo_wh_ -= wh;
+    }
+  }
+  this->hist_service_();
 }
 
 // ---------------------------------------------------------------- decoding
@@ -286,6 +319,11 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
     if (nd.has_auth_key) dlms_.set_auth_key(nd.auth_key);
     dlms_.set_max_frame(nd.buffer > 256 ? nd.buffer : 1280);
   }
+  // The counter chain breaks here: a different preset may map a different register to "Ei", and a
+  // meter swap resets the counters outright. Flag the next record so the client shows a null delta
+  // rather than a spike, and restart the fallback integrator.
+  pending_flags_ |= ::gplug_hist::HF_CONFIG_CHANGE | ::gplug_hist::HF_PARTIAL;
+  local_ei_wh_ = local_eo_wh_ = 0;
   this->apply_uart_();
   return true;
 }
@@ -553,6 +591,11 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/presets") return send_gz_(req, "application/json", presets_, presets_len_);
     if (url == "/api/config/hardware") return send_json_(req, 200, hw_json_);
     if (url == "/api/frames") return send_json_(req, 200, json_frames_());
+    // url_to() strips the query string, so the literal compare still matches /api/history?range=...
+    if (url == "/api/history") {
+      auto *p = req->getParam("range");
+      return send_json_(req, 200, json_history_(p ? p->value().c_str() : "day"));
+    }
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
     return send_gz_(req, "text/html", spa_, spa_len_);   // SPA fallback (also captive page)
@@ -630,7 +673,24 @@ std::string GplugSmi::json_status_() {
   s += ",\"encrypted\":" + std::string(desc_.encrypted ? "true" : "false");
   s += ",\"dsmr_telegrams\":" + std::to_string(dsmr_.telegrams) + ",\"dsmr_crc_errors\":" + std::to_string(dsmr_.crc_errors);
   s += ",\"dlms_frames\":" + std::to_string(dlms_.stats.frames) + ",\"dlms_apdus\":" + std::to_string(dlms_.stats.apdus);
-  s += ",\"dlms_fcs_errors\":" + std::to_string(dlms_.stats.fcs_errors) + ",\"dlms_auth_failed\":" + std::to_string(dlms_.stats.auth_failed) + "}}";
+  s += ",\"dlms_fcs_errors\":" + std::to_string(dlms_.stats.fcs_errors) + ",\"dlms_auth_failed\":" + std::to_string(dlms_.stats.auth_failed) + "}";
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  bool epoch_valid = ep > EPOCH_SANE;
+  s += ",\"time\":{\"valid\":" + std::string(epoch_valid ? "true" : "false");
+  s += ",\"epoch\":" + std::to_string(epoch_valid ? ep : 0) + "}";
+  {
+    std::lock_guard<std::mutex> lock(hist_mutex_);
+    const auto &m = hist_.meta();
+    s += ",\"history\":{\"ok\":" + std::string(hist_ok_ ? "true" : "false");
+    s += ",\"addr\":" + std::to_string(hist_flash_.address()) + ",\"size\":" + std::to_string(hist_flash_.size());
+    s += ",\"sectors\":" + std::to_string(m.sectors) + ",\"slots\":" + std::to_string((unsigned) ::gplug_hist::HIST_SLOTS);
+    s += ",\"interval\":" + std::to_string(HIST_INTERVAL_S);
+    s += ",\"count\":" + std::to_string(m.count) + ",\"seq\":" + std::to_string(m.seq);
+    s += ",\"oldest_qh\":" + std::to_string(m.oldest_qh) + ",\"newest_qh\":" + std::to_string(m.newest_qh);
+    s += ",\"erases\":" + std::to_string(m.erases) + ",\"writes\":" + std::to_string(m.writes);
+    s += ",\"crc_errors\":" + std::to_string(m.crc_errors) + "}";
+  }
+  s += "}";
   return s;
 }
 
@@ -664,7 +724,19 @@ std::string GplugSmi::json_live_() {
     s += "\""; json_escape(s, desc_.obis[i].name); s += "\":";
     append_num(s, values_[i], desc_.obis[i].precision);
   }
-  s += "}}";
+  s += "}";
+  // Every register the meter sent, as of the moment the last quarter-hour record was written -- the
+  // stored record itself only carries Ei/Eo plus the power aggregate.
+  s += ",\"last_qh\":{\"qh\":" + std::to_string(qh_snapshot_qh_) + ",\"values\":{";
+  first = true;
+  for (uint8_t i = 0; i < desc_.n; i++) {
+    if (!qh_have_[i] || desc_.obis[i].is_string) continue;
+    if (!first) s += ",";
+    first = false;
+    s += "\""; json_escape(s, desc_.obis[i].name); s += "\":";
+    append_num(s, qh_values_[i], desc_.obis[i].precision);
+  }
+  s += "}}}";
   return s;
 }
 
@@ -728,6 +800,205 @@ void GplugSmi::handle_frame_detail_(AsyncWebServerRequest *req, const char *url)
   auto *res = req->beginResponse(200, "text/plain; charset=utf-8", body.c_str());
   res->addHeader("Cache-Control", "no-cache");
   req->send(res);
+}
+
+// ---------------------------------------------------------------- history (15 min, on flash)
+
+static uint32_t kwh_to_wh(float kwh) {
+  if (std::isnan(kwh) || std::isinf(kwh) || kwh < 0 || kwh > 4000000.0f) return ::gplug_hist::WH_ABSENT;
+  return (uint32_t) lroundf(kwh * 1000.0f);
+}
+
+void GplugSmi::hist_setup_() {
+  if (!hist_flash_.begin()) {
+    ESP_LOGW(TAG, "history: `data` partition not found, history disabled");
+    return;
+  }
+  std::lock_guard<std::mutex> lock(hist_mutex_);
+  hist_ok_ = hist_.begin();
+  if (!hist_ok_) {
+    ESP_LOGW(TAG, "history: store init failed, history disabled");
+    return;
+  }
+  // Resume the fallback integrator where the last record left it, so a meter without Ei/Eo still
+  // produces a continuous energy series across a reboot.
+  if (const auto *l = hist_.last()) {
+    if (l->flags & ::gplug_hist::HF_LOCAL_ENERGY) {
+      if (l->ei_wh != ::gplug_hist::WH_ABSENT) local_ei_wh_ = l->ei_wh;
+      if (l->eo_wh != ::gplug_hist::WH_ABSENT) local_eo_wh_ = l->eo_wh;
+    }
+  }
+  const auto &m = hist_.meta();
+  ESP_LOGI(TAG, "history: %u records, %u sectors, seq %u, qh %u..%u", (unsigned) m.count, m.sectors,
+           (unsigned) m.seq, (unsigned) m.oldest_qh, (unsigned) m.newest_qh);
+}
+
+void GplugSmi::hist_close_interval_(uint32_t qh_tag, bool expect_full) {
+  // try_lock, never lock: a range=year request holds hist_mutex_ for ~150 ms and the main loop must
+  // not stall behind it. Failing here just means the interval closes a tick later.
+  std::unique_lock<std::mutex> lk(hist_mutex_, std::try_to_lock);
+  if (!lk.owns_lock()) return;
+
+  uint32_t ei, eo;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    ei = kwh_to_wh(this->value_("Ei", NAN));
+    eo = kwh_to_wh(this->value_("Eo", NAN));
+    memcpy(qh_values_, values_, sizeof qh_values_);
+    memcpy(qh_have_, have_, sizeof qh_have_);
+    qh_snapshot_qh_ = acc_qh_;
+  }
+  uint8_t flags = pending_flags_;
+  if (ei == ::gplug_hist::WH_ABSENT && eo == ::gplug_hist::WH_ABSENT) {
+    ei = (uint32_t) local_ei_wh_;
+    eo = (uint32_t) local_eo_wh_;
+    flags |= ::gplug_hist::HF_LOCAL_ENERGY;
+  }
+  acc_.flags |= flags;
+  ::gplug_hist::HistRecord r = acc_.close(ei, eo, qh_tag, expect_full);
+  if (hist_.append(r)) {
+    if (qh_tag == ::gplug_hist::QH_UNKNOWN) {
+      if (!unk_count_) unk_first_addr_ = hist_.last_addr();
+      unk_count_++;
+    }
+  } else {
+    ESP_LOGW(TAG, "history: append failed");
+  }
+  pending_flags_ = 0;
+  acc_.reset(0);
+}
+
+// Give the records written before the clock synced their (approximate) timestamps. Only possible
+// because qh_tag is a separate word excluded from the record's crc and still erased -- programming
+// it is a legal 1 -> 0 write, no erase, no rewrite. Only this boot's records can be dated: across a
+// power cycle with no clock the number of missed intervals is unknowable.
+void GplugSmi::hist_backpatch_(uint32_t qh_now) {
+  std::unique_lock<std::mutex> lk(hist_mutex_, std::try_to_lock);
+  if (!lk.owns_lock()) return;   // retried on the next service tick
+  uint32_t first = qh_now > unk_count_ ? qh_now - unk_count_ : 0;
+  uint16_t n = hist_.patch_qh_seq(unk_first_addr_, unk_count_, first, true);
+  ESP_LOGI(TAG, "history: back-dated %u of %u records after clock sync", n, unk_count_);
+  unk_count_ = 0;
+}
+
+void GplugSmi::hist_service_() {
+  if (!hist_ok_) return;
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  bool valid = ep > EPOCH_SANE;
+
+  if (valid && !acc_time_valid_) {
+    // Clock just became usable. Close whatever is in flight (it was measured on the millis()
+    // cadence, so it is not aligned to a wall-clock quarter hour) and start aligned from here.
+    if (acc_.ticks) this->hist_close_interval_(::gplug_hist::QH_UNKNOWN, false);
+    acc_time_valid_ = true;
+    acc_qh_ = qh_from_epoch(ep);
+  } else if (valid) {
+    uint32_t qh = qh_from_epoch(ep);
+    if (qh > acc_qh_) {
+      // A jump of more than one leaves a hole in the qh sequence -- that hole *is* the gap marker;
+      // no separate marker record, which would break the one-record-per-interval density.
+      this->hist_close_interval_(::gplug_hist::qh_tag_make(acc_qh_, false), qh == acc_qh_ + 1);
+      acc_qh_ = qh;
+    } else if (qh < acc_qh_) {
+      acc_qh_ = qh;   // clock stepped backwards; never write an out-of-order record
+      pending_flags_ |= ::gplug_hist::HF_PARTIAL;
+    }
+  } else if (acc_.ticks >= HIST_TICKS_PER_INTERVAL) {
+    this->hist_close_interval_(::gplug_hist::QH_UNKNOWN, true);
+  }
+  if (valid && unk_count_) this->hist_backpatch_(acc_qh_);
+
+  // Deferred sector recycle. esp_partition_erase_range runs with the flash cache disabled and the
+  // UART ISR is not in IRAM (CONFIG_UART_ISR_IN_IRAM is off), so during the 30-50 ms erase nothing
+  // drains the 128 B FIFO -- at 115200 baud that overflows after ~11 ms and clips a meter frame.
+  // Wait for the quiet stretch after a frame completed (~900 ms at a 1 s meter cadence), or just go
+  // ahead if the meter is silent anyway and there is nothing to lose.
+  if (hist_.pending_erase()) {
+    uint32_t last_frame = last_frame_ms_;   // benign unlocked read: this is only a timing heuristic
+    uint32_t since = millis() - last_frame;
+    bool silent = !last_frame || since > 5000;
+    if (!this->available() && (silent || (since > 150 && since < 600))) {
+      std::unique_lock<std::mutex> lk(hist_mutex_, std::try_to_lock);
+      if (lk.owns_lock()) hist_.service_erase();
+    }
+  }
+}
+
+// Downsampled history. One streaming pass, no array of records in RAM, response bounded to a few
+// hundred points regardless of range.
+std::string GplugSmi::json_history_(const char *range) {
+  uint32_t bucket = 1, span = 96;   // day: native 15 min resolution, 24 h
+  if (!strcmp(range, "week")) { bucket = 4; span = 672; }
+  else if (!strcmp(range, "month")) { bucket = 24; span = 2880; }
+  else if (!strcmp(range, "year")) { bucket = 96; span = 35040; }
+  else range = "day";
+
+  std::lock_guard<std::mutex> lock(hist_mutex_);
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  bool epoch_valid = ep > EPOCH_SANE;
+  const auto &m = hist_.meta();
+  uint32_t now_qh = epoch_valid ? qh_from_epoch(ep) : m.newest_qh;
+
+  std::string s = "{\"period\":" + std::to_string(HIST_INTERVAL_S);
+  s += ",\"range\":\""; s += range; s += "\"";
+  s += ",\"bucket\":" + std::to_string(bucket);
+  s += ",\"qh_epoch\":" + std::to_string(::gplug_hist::HIST_EPOCH);
+  s += ",\"epoch_valid\":" + std::string(epoch_valid ? "true" : "false");
+  s += ",\"epoch\":" + std::to_string(epoch_valid ? ep : 0);
+  s += ",\"now_qh\":" + std::to_string(now_qh);
+  s += ",\"oldest_qh\":" + std::to_string(m.oldest_qh) + ",\"newest_qh\":" + std::to_string(m.newest_qh);
+  s += ",\"count\":" + std::to_string(m.count);
+  s += ",\"ok\":" + std::string(hist_ok_ ? "true" : "false");
+  s += ",\"pts\":[";
+  if (!hist_ok_) { s += "]}"; return s; }
+
+  // from_qh 0 means "no sector skipping"; when the clock has never synced there is nothing to skip
+  // by, so records are windowed by position instead.
+  uint32_t from_qh = (now_qh > span) ? now_qh - span : (now_qh ? 1 : 0);
+  uint32_t idx_from = (!now_qh && m.count > span) ? m.count - span : 0;
+  const uint32_t max_delta_wh = bucket * 7500;   // >30 kW average over a quarter hour: not real
+
+  s.reserve(4096);
+  ::gplug_hist::HistBucket b;
+  uint32_t idx = 0, prev_ei = ::gplug_hist::WH_ABSENT, prev_eo = ::gplug_hist::WH_ABSENT;
+  bool first_pt = true;
+
+  auto flush = [&]() {
+    if (!b.started || !b.n) return;
+    if (!first_pt) s += ",";
+    first_pt = false;
+    s += "[";
+    if (b.has_key) s += std::to_string(b.qh); else s += "null";
+    uint32_t d;
+    bool broken = (b.flags & ::gplug_hist::HF_CONFIG_CHANGE) != 0;
+    if (!broken && ::gplug_hist::HistBucket::delta(prev_ei, b.last_ei, max_delta_wh, &d))
+      s += "," + std::to_string(d);
+    else s += ",null";
+    if (!broken && ::gplug_hist::HistBucket::delta(prev_eo, b.last_eo, max_delta_wh, &d))
+      s += "," + std::to_string(d);
+    else s += ",null";
+    s += "," + std::to_string(b.p_min) + "," + std::to_string(b.p_max) + "," + std::to_string(b.avg());
+    s += "," + std::to_string(b.flags) + "]";
+    if (b.last_ei != ::gplug_hist::WH_ABSENT) prev_ei = b.last_ei;
+    if (b.last_eo != ::gplug_hist::WH_ABSENT) prev_eo = b.last_eo;
+  };
+
+  hist_.for_each(hist_buf_, sizeof hist_buf_, from_qh,
+                 [&](const ::gplug_hist::HistRecord &r, uint32_t qh, bool have_qh) {
+    uint32_t i = idx++;
+    bool in_window = have_qh ? (qh >= from_qh) : (i >= idx_from);
+    if (!in_window) {   // still useful: carries the counter the first delta is measured against
+      if (r.ei_wh != ::gplug_hist::WH_ABSENT) prev_ei = r.ei_wh;
+      if (r.eo_wh != ::gplug_hist::WH_ABSENT) prev_eo = r.eo_wh;
+      return;
+    }
+    uint32_t key = have_qh ? qh / bucket : i / bucket;
+    if (!b.started || b.key != key || b.has_key != have_qh) { flush(); b.begin(key, have_qh); }
+    b.add(r, qh, have_qh);
+  });
+  flush();
+  s += "]}";
+  return s;
 }
 
 std::string GplugSmi::json_wifi_scan_() {

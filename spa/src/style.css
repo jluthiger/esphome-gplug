@@ -111,6 +111,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .hist .zero { stroke: #4b5a37; stroke-width: 1; }
 .hist .up { fill: var(--bar); }
 .hist .down { fill: #c17b45; }
+.hist .gap { fill: var(--border2); opacity: .5; }   /* device was off, or the meter sent nothing */
 .reg { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--track); }
 .reg:last-child { border-bottom: 0; }
 .reg .o { font: 600 .72rem "JetBrains Mono", ui-monospace, Menlo, monospace; color: var(--mono); width: 64px; }

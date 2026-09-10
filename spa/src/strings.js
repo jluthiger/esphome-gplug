@@ -83,15 +83,24 @@ export const S = {
   phases: "Phasen · 21/41/61.7.0",
 
   // Verlauf
-  range10: "10 Min",
   range60: "60 Min",
+  rangeDay: "Tag",
+  rangeWeek: "Woche",
+  rangeMonth: "Monat",
+  rangeYear: "Jahr",
   netPower: "Netto-Leistung",
+  energyPerBucket: "Energie je Intervall",
   samples: (n) => `${n} Samples`,
-  ago10: "−10 min",
+  points: (n) => `${n} Werte`,
   statMin: "Min",
   statMax: "Max",
   statAvg: "Mittel",
-  registers: "Register im Ringpuffer",
+  statSum: "Summe",
+  statImport: "Bezug",
+  statExport: "Einspeisung",
+  registers: "Register (aktuell)",
+  noHistory: "Noch keine gespeicherte Historie.",
+  timeEstimated: "Zeitstempel geschätzt (vor der Uhrzeit-Synchronisierung aufgezeichnet).",
 
   // Datenstrom
   streamRaw: "Roh · verschlüsselt",

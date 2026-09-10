@@ -11,5 +11,10 @@
 # Providing this file ourselves (present before PlatformIO would generate its default) fixes
 # that with no other effect on the build -- confirmed: bootloader (a separate, unrelated
 # ESP-IDF subproject) still links fine since REQUIRES here only affects this one component.
+#
+# esp_partition (and spi_flash, which it sits on) is here for the same reason: the 15-min history
+# store writes the `data` partition raw via esp_partition_read/write/erase_range -- see
+# components/gplug_smi/partition_flash.h. Same failure mode without it: undefined references at
+# link, not a compile error.
 FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
-idf_component_register(SRCS ${app_sources} REQUIRES mbedtls)
+idf_component_register(SRCS ${app_sources} REQUIRES mbedtls esp_partition spi_flash)
