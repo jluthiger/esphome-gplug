@@ -400,6 +400,7 @@ void GplugSmi::update_led_() {
   bool has_meter = desc_.protocol != Descriptor::NONE && !setup_pending_;
   uint32_t since_data = last_frame_ms_ == 0 ? now - meter_applied_ms_ : now - last_frame_ms_;
   bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
+  no_data_ = no_data;
   // AP-fallback is the state that actually needs the user's attention, so it always wins the LED.
   bool error = !ap_mode && (key_invalid_ || no_data);
   bool running = !ap_mode && has_meter && !error;
@@ -601,6 +602,7 @@ std::string GplugSmi::json_live_() {
   if (last_frame_ms_ == 0) { s += "\"age\":null"; }
   else { s += "\"age\":" + std::to_string((millis() - last_frame_ms_) / 1000); }
   s += ",\"key_invalid\":" + std::string(key_invalid_ ? "true" : "false");
+  s += ",\"no_data\":" + std::string(no_data_ ? "true" : "false");
   if (smid_[0]) { s += ",\"smid\":\""; json_escape(s, smid_); s += "\""; }
   float pi = value_w_("Pi"), po = value_w_("Po");
   s += ",\"p\":"; append_num(s, (pi - po) / 1000.0f, 3);

@@ -116,6 +116,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   uint32_t led_pending_since_ms_{0};
   bool led_ap_prev_{false};
   bool setup_pending_{false};   // just left AP-fallback; stay in setup until meter commit or first frame
+  bool no_data_{false};         // LED's no-data verdict, exposed in /api/live so the SPA agrees with the LED
   ::gplug_dsmr::DsmrParser dsmr_;
   ::gplug_dlms::DlmsDecoder dlms_;
 

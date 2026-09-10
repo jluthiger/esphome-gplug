@@ -33,10 +33,15 @@ export function Done({ status }) {
   const host = status?.hostname ? `http://${status.hostname}.local/` : null;
   const ip = wifiVal.result?.ip ? `http://${wifiVal.result.ip}/` : status?.wifi?.ip ? `http://${status.wifi.ip}/` : null;
   const age = live?.age;
+  // no_data is the firmware's verdict (same one that turns the LED red), so the badge and the LED
+  // never disagree -- age alone stays null forever when no frame has ever arrived.
+  // Badge stays a few words (it sits in a row next to the label on a phone); the actionable
+  // detail goes on its own line below.
   const badge = live?.key_invalid ? ["err", S.keyWrong]
+    : live?.no_data ? ["err", S.noData]
     : age == null ? ["warn", S.waitingData]
-    : age > 60 ? ["err", S.dataStale]
     : ["ok", `${S.dataOk} (-${age}s)`];
+  const hint = live?.key_invalid ? S.keyWrongHint : live?.no_data ? S.noDataHint : null;
 
   return html`
     <h2>${S.done}</h2>
@@ -53,6 +58,7 @@ export function Done({ status }) {
         <span>${S.meterData} ${live?.smid ? html`<span class="mono">${live.smid}</span>` : ""}</span>
         <span class="badge ${badge[0]}" style="flex:0 0 auto">${badge[1]}</span>
       </div>
+      ${hint && html`<div class="err">${hint}</div>`}
       ${live && age != null && !live.key_invalid && html`
         <div class="big">${(live.p ?? 0).toFixed(2)} <small>kW</small></div>
         <div class="kv">
