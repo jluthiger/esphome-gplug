@@ -9,6 +9,9 @@ export const S = {
   loading: "Lade…",
   error: "Fehler",
   retry: "Erneut versuchen",
+  errTimeout: "Gerät antwortet nicht. Bitte prüfen, ob es eingeschaltet und erreichbar ist, und erneut versuchen.",
+  errNetwork: "Gerät nicht erreichbar. WLAN-Verbindung zum gPlug prüfen.",
+  errServer: "Fehler vom Gerät",
 
   welcome: "Willkommen",
   welcomeText: "Dieser Assistent richtet Ihren gPlug in vier Schritten ein: Gerät, Smart Meter, WLAN, Abschluss.",
