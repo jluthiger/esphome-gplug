@@ -16,17 +16,30 @@ address: 0x10000` on this project's custom partition layout. ESPHome's `upload_u
 regardless of the actual partition table; this project's app0 starts at `0x20000` (`partitions.csv`),
 so the upload step writes to the wrong address. Confirmed a real ESPHome bug, not a mistake here: the
 bootloader's own partition-table dump on boot matches `partitions.csv` exactly, and the `flash_args`
-file the same build step generates lists the correct `0x20000` offset. Workaround — flash the merged
-image directly, which ESPHome's own build already assembles correctly at every real offset:
+file the same build step generates lists the correct `0x20000` offset.
+
+Workaround — flash each real partition file at its own offset from `flasher_args.json`, **not**
+`firmware.factory.bin`. That merged image is a single contiguous blob from `0x0` through the end of
+`app0`; it has no entry for `nvs` (`0x9000`–`0xf000`, in the middle of that span) because nvs isn't a
+flashable file, so the merge silently pads the gap with erased bytes. Writing it as one blob therefore
+**wipes the nvs partition — the saved WiFi credentials and the SPA-configured hw/meter JSON — on every
+single flash**, even a plain firmware update with no `partitions.csv` change. Found 2026-09-10 after it
+silently erased a real device's just-completed onboarding on what should have been a routine reflash;
+the earlier version of this doc recommended `firmware.factory.bin` directly and was wrong.
 
 ```
+cd .esphome/build/gplug/.pioenvs/gplug
 esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX --baud 460800 write-flash \
   --flash_mode dio --flash_freq 80m --flash_size 4MB \
-  0x0 .esphome/build/gplug/.pioenvs/gplug/firmware.factory.bin
+  0x0 bootloader.bin \
+  0x8000 partitions.bin \
+  0xf000 ota_data_initial.bin \
+  0x20000 firmware.bin
 esphome logs gplug.yaml --device /dev/cu.usbmodemXXXX   # watch boot
 ```
 
-Verified 2026-09-10: clean boot on a real gPlugK, correct partition table, `gplug_smi` initializes.
+Verified 2026-09-10: clean boot on a real gPlugK, correct partition table, `gplug_smi` initializes,
+and — unlike the merged-image method — nvs contents survive the flash.
 
 **Reset into AP mode**: hold the hardware AP button >= 3 s (wired to GND, `hw.pins.button` in the
 stored hw config) — clears the saved WiFi STA credentials and reboots; device comes back up
@@ -42,6 +55,7 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x6000   
 | `base.yaml` | skeleton without the component, for size reference |
 | `gplug.yaml` | real config: wifi AP + captive portal, api, ota, sntp, uart, status LED, `gplug_smi` |
 | `components/gplug_smi/` | external component (see below) |
+| `components/captive_portal/` | forked+re-styled external component, shadows ESPHome's built-in one (see below) |
 | `test/test_dsmr.cpp` | host unit test for the DSMR parser |
 | `test/test_structure.cpp` | tests `decode_structure()` (the production DLMS decode path) against a real capture |
 | `test/test_capturelist.cpp` | tests `find_capture_list()` (gPlugM/L+G capture-list decode) against two real captures |
@@ -100,6 +114,38 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x6000   
     poorly. Once real WiFi is joined, this SPA resumes owning `GET /` for hardware/meter setup and
     live/history viewing, in a normal, unrestricted mobile browser tab. See the 2026-09-10 finding in
     `intent/intent.md`.
+
+## Component `captive_portal` (fork)
+
+ESPHome's built-in `captive_portal` component (the page phones actually see during AP-fallback,
+per the deferral above) has no config-level way to customize its appearance — its page
+(`captive_index.h`) is a vendored, pre-gzipped byte array, and its `CONFIG_SCHEMA` only exposes
+`compression: gzip|br`. So this project forks the whole component under `components/captive_portal/`
+(same `external_components` mechanism as `gplug_smi`, which fully shadows the built-in one — ESPHome
+picks up an external component of the same name in preference to its own) to give that page gPlug's
+branding, based on esphome 2026.6.5:
+
+- `dns_server_esp32_idf.{h,cpp}` – copied byte-for-byte from upstream, untouched.
+- `__init__.py`, `captive_portal.{h,cpp}` – forked with one functional change: the page byte
+  array is no longer the vendored `captive_index.h`, it's loaded from a real, editable
+  `captive.html` at codegen time via the same `_gz_bytes()`/`static_const_array()`/setter pattern
+  `gplug_smi/__init__.py` already uses for the SPA (`set_index()` on `CaptivePortal`, mirroring
+  `set_spa()` on `GplugSmi`). Everything else — namespace, class name, `global_captive_portal`,
+  `is_active()`, the `/config.json` and `/wifisave` handlers `gplug_smi` and phones both depend
+  on — is byte-identical to upstream. `compression: br` is no longer accepted (the runtime source
+  is always gzip via `_gz_bytes()`); this is a deliberate narrowing, not an oversight.
+- `captive.html` – the actual branding: same markup/JS/form-field contract as upstream's page
+  (dynamic title/MAC/network-list from `/config.json`, `#ssid`/`#psk` fields posting to
+  `/wifisave`, `/update` OTA form), only the `<style>` block and viewport/color-scheme meta
+  changed, using the SPA's tokens (`spa/src/style.css`): `--bg:#1f1f1f`, `--panel:#2a2a2a`,
+  `--accent:#ffd400` buttons, same border-radius scale (8/10/12px) and font stack. This is the
+  file to edit for future branding tweaks — no rebuild-time script needed, ESPHome
+  gzip-compresses it automatically via `to_code()`.
+
+Since this is a fork of an actively-evolving core component (not a frozen vendored copy), re-diff
+`captive_portal.{h,cpp}`/`dns_server_esp32_idf.{h,cpp}` against the newly-installed esphome
+package before every ESPHome version bump, to pick up any upstream fixes (the diff today is small
+by design: one setter, one call-site swap).
 
 ### HTTP API
 
