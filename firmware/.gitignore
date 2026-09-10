@@ -1,0 +1,17 @@
+.esphome/
+*.bin
+__pycache__/
+*.pyc
+
+# compiled host test binaries (source: test/*.cpp)
+test/dbg2
+test/dbg_structure
+test/dump_gplugm
+test/dump_gplugm2
+test/test_aes
+test/test_capturelist
+test/test_dlms
+test/test_dsmr
+test/test_raw
+test/test_replay
+test/test_structure
