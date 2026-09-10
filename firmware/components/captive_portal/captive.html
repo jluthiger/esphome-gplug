@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" href="data:image">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<script type="module">
+function s(e) {
+  let t = Math.max(Math.min(2 * (e + 100), 100), 0) / 100;
+  return a(`<path d="M12 19.25L.7 4.25c7-5 14-5 22.5 0z" fill="none" stroke="currentColor"/>
+<path d="M12 19.25L.7 4.25c7-5 14-5 22.5 0z" transform="scale(${t} ${t})" transform-origin="12 18"/>`);
+}
+function a(e) {
+  return o([`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">${e}</svg>`]);
+}
+function i(e) {
+  return e ? a("<path d='M12 17a2 2 0 0 0 2-2 2 2 0 0 0-2-2 2 2 0 0 0-2 2 2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5 5 5 0 0 1 5 5v2h1m-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3z'/>") : "";
+}
+function o(e) {
+  return e.join("");
+}
+fetch("/config.json").then(function (e) {
+  e.json().then(function (t) {
+    document.title = t.name;
+    document.body.getElementsByTagName("h1")[0].innerText = "MAC Address: " + t.mac;
+    document.body.getElementsByTagName("h1")[1].innerText = "WiFi Networks: " + t.name;
+    let r = t.aps.slice(1).map(function (n) {
+      return `<div class="network"
+      onclick="document.getElementById('ssid').value = this.innerText;document.getElementById('psk').focus()">
+      <a href="#" class="network-left">
+        ${s(n.rssi)}
+        <span class="network-ssid">${n.ssid}</span>
+      </a>
+      ${i(n.lock)}
+      </div>`;
+    });
+    document.querySelector("#net").innerHTML = o(r);
+    document.querySelector("link[rel~='icon']").href = `data:image/svg+xml,${s(-65)}`;
+  });
+});
+// gPlug: submit WiFi form via fetch and stay on this (branded) page instead of navigating to
+// /wifisave's bare text/plain response, which renders as unstyled text with no page around it
+// (the original upstream page had the same bug: its "aside" success banner was gated on a
+// `?save` query param nothing ever set, since the form did a plain full-page GET navigation).
+document.querySelector("form[action='/wifisave']").addEventListener("submit", function (ev) {
+  ev.preventDefault();
+  const btn = ev.target.querySelector("button");
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+  fetch("/wifisave?" + new URLSearchParams(new FormData(ev.target)).toString()).finally(function () {
+    ev.target.style.display = "none";
+    document.getElementsByTagName("h3")[0].style.display = "none";
+    document.getElementsByTagName("aside")[0].style.display = "block";
+  });
+});
+</script>
+<style>
+:root {
+  --bg: #1f1f1f; --panel: #2a2a2a; --panel2: #333; --fg: #eee; --muted: #9a9a9a;
+  --accent: #ffd400; --blue: #3fa9f5; --green: #4cd964; --red: #ff5a5a; --border: #444;
+}
+* { box-sizing: inherit; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); }
+body { text-align: center; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: inherit; text-decoration: none; }
+svg { fill: currentColor; }
+div, input { padding: 5px; font-size: 1em; }
+input {
+  width: 95%; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel2); color: var(--fg);
+}
+input::placeholder { color: var(--muted); }
+input:focus { outline: 2px solid var(--blue); border-color: transparent; }
+button {
+  border: 0; border-radius: 10px; background-color: var(--accent); color: #111;
+  line-height: 2.4rem; font-size: 1.2rem; font-weight: 600; width: 100%; padding: 0; cursor: pointer;
+}
+button:disabled { opacity: .4; cursor: default; }
+main {
+  text-align: left; display: inline-block; min-width: 260px;
+  background: var(--panel); border-radius: 12px; padding: 12px; margin: 10px;
+}
+h1 { font-size: 1.1rem; font-weight: 600; }
+h3 { color: var(--muted); font-weight: 500; }
+.network {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 4px; border-radius: 8px; cursor: pointer;
+}
+.network:hover { background: var(--panel2); }
+.network-left { display: flex; align-items: center; }
+.network-ssid { margin-bottom: -7px; margin-left: 10px; }
+aside {
+  border: 1px solid #2f6b3a; margin: 10px 0; padding: 15px 10px;
+  color: #dfffe6; background-color: #2f6b3a; display: none; border-radius: 8px;
+}
+details { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; }
+summary { color: var(--muted); font-weight: 500; cursor: pointer; }
+summary::marker { color: var(--muted); }
+details form { margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+<h1 id="mac">MAC Address</h1>
+<h1 id="h1">WiFi Networks</h1>
+<aside>Connecting to network...<br>Please wait.</aside>
+<span id="net"></span>
+<h3>WiFi Settings</h3>
+<form action="/wifisave">
+<input id="ssid" name="ssid" length="32" placeholder="SSID"><br>
+<input id="psk" name="psk" length="64" type="password" placeholder="Password"><br><br>
+<button>Save</button>
+</form>
+<details>
+<summary>OTA Update</summary>
+<form method="POST" action="/update" enctype="multipart/form-data">
+<input type="file" name="update"> <button>Update</button>
+</form>
+</details>
+</main>
+</body>
+</html>
