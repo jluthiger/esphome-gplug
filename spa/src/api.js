@@ -50,4 +50,51 @@ export const api = {
   frameRaw: (i) => req("GET", `/api/frames/${i}/raw`, null, 4000),
   framePlain: (i) => req("GET", `/api/frames/${i}/plain`, null, 4000),
   reboot: () => req("POST", "/api/reboot"),
+  firmware: uploadFirmware,
+  firmwareAuth: checkFirmwareAuth,
 };
+
+// /update takes HTTP Basic auth, user fixed to "admin" (see gplug_smi's ota_password). Two browser
+// quirks shape how it is sent:
+//  * A request that draws a 401 carrying WWW-Authenticate makes the browser pop its own login
+//    dialog -- unless the credentials came in through open(user, password).
+//  * But with open(user, password) the browser sends the request *without* credentials first and
+//    only repeats it after the 401. For a 1 MB body that is fatal: ESPHome's auth middleware rejects
+//    every body chunk separately, the upload crawls for minutes and the device's web server is tied
+//    up until the connection times out (seen on hardware).
+// So the password is checked with an empty POST via open(user, password) -- instant 401 when wrong,
+// no dialog; when right, the OTA handler answers "Update Failed!" without touching flash -- and the
+// upload itself then sends the header up front, never drawing a 401.
+function checkFirmwareAuth(password) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", BASE + "/update", true, "admin", password);
+    xhr.timeout = 8000;
+    xhr.onload = () => resolve(xhr.status !== 401);
+    xhr.onerror = () => reject(new Error(S.errNetwork));
+    xhr.ontimeout = () => reject(new Error(S.errTimeout));
+    xhr.send("");
+  });
+}
+
+// POST the image to ESPHome's ota.web_server handler (/update, multipart field "update"). XHR, not
+// fetch: fetch has no upload progress. Resolves with the HTTP status and ESPHome's plain-text verdict
+// ("Update Successful!" / "Update Failed!"); the device reboots itself right after a success.
+function uploadFirmware(file, password, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", BASE + "/update");
+    if (password) {
+      const bytes = new TextEncoder().encode("admin:" + password);   // UTF-8-safe btoa
+      xhr.setRequestHeader("Authorization", "Basic " + btoa(String.fromCharCode(...bytes)));
+    }
+    xhr.timeout = 180000;
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText || "" });
+    xhr.onerror = () => reject(new Error(S.fwConnLost));
+    xhr.ontimeout = () => reject(new Error(S.errTimeout));
+    const fd = new FormData();
+    fd.append("update", file, file.name);
+    xhr.send(fd);
+  });
+}

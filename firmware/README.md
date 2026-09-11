@@ -51,11 +51,17 @@ hw/meter config and history survive:
 
 ```
 esphome upload dev.yaml --device <ip|gplug.local>             # native ESPHome OTA, port 3232 (~6 s)
-curl -F update=@.esphome/build/gplug/.pioenvs/gplug/firmware.ota.bin http://<ip>/update   # browser form path (~12 s)
+curl -F update=@.esphome/build/gplug/.pioenvs/gplug/firmware.ota.bin http://<ip>/update   # what the SPA's firmware card does (~12 s)
 ```
 
-The `/update` form is on the captive-portal page, but the handler is live in STA mode too
-(`gplug_smi` starts `web_server_base` unconditionally). A bad image is rejected before the slot
+For end users the entry point is the SPA: Setup tab → **Firmware-Update** (`spa/src/live/firmware-card.js`).
+It checks the file's image header in the browser (ESP32-C3 app image; a `firmware.factory.bin` is
+refused, it starts with the bootloader), POSTs it to `/update` (ESPHome's `ota.web_server`, which
+`gplug_smi` auto-loads), then polls `/api/status` until a fresh uptime appears and compares its
+`build` (compile time) with the one before, so a boot-loop rollback to the old image is reported
+rather than shown as success. Measured on the gPlugK: 13 s upload, confirmed new build at 19 s.
+There is no OTA on the captive-portal page any more (removed 2026-09-11): that page is onboarding
+only. A bad image is rejected before the slot
 switch (`esp_ota_ops: OTA image has invalid magic byte`); an image that boots but crash-loops is
 rolled back by the bootloader (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`, `safe_mode` marks the app
 valid after 60 s) -- config-verified only, not provoked on hardware.
@@ -65,10 +71,24 @@ anyone on the LAN can flash. Non-empty protects both paths with the same passwor
 (SHA256 challenge) and `/update` (HTTP Basic, user `admin`, via `gplug_smi: ota_password` →
 `web_server_base` credentials; the SPA and captive portal register with
 `add_handler_without_auth()` and stay open). Set it in the adopting config's `substitutions:` or
-per build with `esphome -s ota_password <pw> compile dev.yaml`. Gotcha: plain `esphome upload`
-(no `-s`) reuses the validated config of the *last compile* (`.esphome/storage/dev.yaml.validated.yaml`),
-password included -- so after a `-s` compile, pass the same `-s` to `upload` or it silently
-authenticates with the cached value.
+per build with `esphome -s ota_password <pw> compile dev.yaml`. `/api/status` reports
+`ota_auth`, so the firmware card only asks for a password when one is set. Gotchas, all seen on
+hardware:
+
+- Plain `esphome upload` (no `-s`) reuses the validated config of the *last compile*
+  (`.esphome/storage/dev.yaml.validated.yaml`), password included -- after a `-s` compile, pass the
+  same `-s` to `upload` or it silently authenticates with the cached value.
+- `password: ""` still runs the native OTA challenge, just with the empty password, so
+  `esphome -s ota_password <new> upload` against an unprotected device fails with
+  "Authentication invalid". To *set* a password, push the protected build through `/update`
+  (open while no password is set) or the firmware card; to change it, authenticate with the old one.
+- ESPHome's Basic-auth middleware rejects an unauthenticated `/update` once **per body chunk**: a
+  1 MB upload without (or with wrong) credentials crawls for minutes, and the device's web server
+  stays unreachable until the connection times out (~3 min). Browsers trigger this by themselves
+  when credentials are given via `XMLHttpRequest.open(user, pass)` -- they send the body without
+  them first and only retry after the 401. The firmware card therefore checks the password with an
+  empty POST first (instant 401, or `Update Failed!` without touching flash) and then uploads with
+  a preemptive `Authorization` header (see `spa/src/api.js`).
 
 **Two configs, one firmware.** `gplug.yaml` is the *package*: self-contained, no path relative to
 any config directory, because it is what a foreign ESPHome Device Builder pulls in when a gPlug is
@@ -239,7 +259,7 @@ branding, based on esphome 2026.6.5:
   is always gzip via `_gz_bytes()`); this is a deliberate narrowing, not an oversight.
 - `captive.html` – the actual branding: same markup/JS/form-field contract as upstream's page
   (dynamic title/MAC/network-list from `/config.json`, `#ssid`/`#psk` fields posting to
-  `/wifisave`, `/update` OTA form), only the `<style>` block and viewport/color-scheme meta
+  `/wifisave`; the upstream `/update` OTA form was removed, updates live in the SPA), only the `<style>` block and viewport/color-scheme meta
   changed, using the SPA's tokens and font stack (`spa/src/style.css`, both themes: dark default,
   light via `prefers-color-scheme` since the captive webview has no toggle). Keep the token values
   in sync by hand when the SPA palette changes. This is the

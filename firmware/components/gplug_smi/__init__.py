@@ -14,7 +14,9 @@ from esphome.components.web_server_base import CONF_WEB_SERVER_BASE_ID
 from esphome.const import CONF_ID
 from esphome.core import CORE
 
-AUTO_LOAD = ["web_server_base", "json"]
+# ota.web_server: the POST /update handler the SPA's firmware card uploads to. The captive portal
+# fork auto-loads it too, but the card must not depend on that.
+AUTO_LOAD = ["web_server_base", "json", "ota.web_server"]
 DEPENDENCIES = ["uart", "wifi", "esp32", "captive_portal"]
 CODEOWNERS = ["@gplug"]
 
@@ -64,8 +66,8 @@ CONFIG_SCHEMA = (
             cv.GenerateID(CONF_PRESETS_RAW_ID): cv.declare_id(cg.uint8),
             cv.Optional(CONF_SPA, default=None): _bundled(BUNDLED_SPA),
             cv.Optional(CONF_PRESETS, default=None): _bundled(BUNDLED_PRESETS),
-            # Optional: protects the browser OTA form (`/update`, from the captive portal's
-            # ota.web_server) with HTTP Basic auth, user "admin". Empty = no auth. gplug.yaml feeds
+            # Optional: protects the browser upload (`POST /update`, ota.web_server, used by the
+            # SPA's firmware card) with HTTP Basic auth, user "admin". Empty = no auth. gplug.yaml feeds
             # the same value to `ota: password:` so both OTA paths share one password.
             cv.Optional(CONF_OTA_PASSWORD, default=""): cv.sensitive(),
         }
@@ -110,6 +112,7 @@ async def to_code(config):
     # /update here; the SPA and captive portal use add_handler_without_auth() -- in Basic auth once
     # a username is set. Set before setup(), since the wrap happens when the handler is added.
     if config[CONF_OTA_PASSWORD]:
+        cg.add(var.set_ota_auth(True))
         cg.add_define("USE_WEBSERVER_AUTH")
         cg.add(base.set_auth_username(OTA_USERNAME))
         cg.add(base.set_auth_password(config[CONF_OTA_PASSWORD]))

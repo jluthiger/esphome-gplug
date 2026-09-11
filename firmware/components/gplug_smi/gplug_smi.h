@@ -68,6 +68,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
 
   void set_spa(const uint8_t *data, size_t len) { spa_ = data; spa_len_ = len; }
   void set_presets(const uint8_t *data, size_t len) { presets_ = data; presets_len_ = len; }
+  void set_ota_auth(bool on) { ota_auth_ = on; }
 
   void setup() override;
   void loop() override;
@@ -162,6 +163,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   PartitionFlash hist_flash_;
   HistoryStore hist_{hist_flash_};
   bool hist_ok_{false};
+  bool ota_auth_{false};   // /update needs Basic auth (ota_password set); the SPA's firmware card asks for it
   ::gplug_hist::QhAccum acc_;
   uint32_t acc_qh_{0};                  // wall-clock quarter hour being accumulated, 0 = unknown
   bool acc_time_valid_{false};

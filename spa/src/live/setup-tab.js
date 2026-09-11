@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { Wifi } from "../steps/wifi.js";
+import { FirmwareCard } from "./firmware-card.js";
 
 export function SetupTab({ status, live, presets, theme, onTheme }) {
   const [showWifi, setShowWifi] = useState(false);
@@ -23,7 +24,6 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
     [S.ip, wifi?.ip],
     [S.wlan, wifi ? `${wifi.ssid} · ${wifi.rssi} dBm` : S.offline],
     [S.profile, preset?.name || status?.meter?.preset],
-    [S.firmware, status?.version],
   ].filter(([, v]) => v);
 
   const encrypted = status?.meter?.encrypted;
@@ -42,6 +42,7 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
         <div class="keymask"><span class="m">•••• •••• •••• •••• •••• •••• •••• ••••</span><span class="badge ${keyBadge[0]}">${keyBadge[1]}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       </div>`}
+    <${FirmwareCard} status=${status} />
     <div class="card">
       <div class="lbl">${S.theme}</div>
       <div class="seg" role="radiogroup">

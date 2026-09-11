@@ -678,6 +678,10 @@ std::string GplugSmi::json_status_() {
   std::string s = "{\"version\":\"" ESPHOME_VERSION "\",\"hostname\":\"";
   json_escape(s, App.get_name().c_str());
   s += "\",\"uptime\":" + std::to_string(millis() / 1000);
+  // build: lets the SPA's firmware card tell the new image from the old one after an OTA reboot
+  // (version is the ESPHome release and usually doesn't change between our builds).
+  s += ",\"build\":" + std::to_string((uint32_t) App.get_build_time());
+  s += ",\"ota_auth\":" + std::string(ota_auth_ ? "true" : "false");
   s += ",\"heap\":" + std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
   s += ",\"wifi\":{\"connected\":" + std::string(conn ? "true" : "false");
   if (conn) {

@@ -106,10 +106,6 @@ aside {
   border: 1px solid var(--ok-bg); margin: 10px 0; padding: 15px 10px;
   color: var(--ok-fg); background-color: var(--ok-bg); display: none; border-radius: 12px;
 }
-details { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; }
-summary { color: var(--muted); font-weight: 500; cursor: pointer; }
-summary::marker { color: var(--muted); }
-details form { margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -124,12 +120,6 @@ details form { margin-top: 10px; }
 <input id="psk" name="psk" length="64" type="password" placeholder="Password"><br><br>
 <button>Save</button>
 </form>
-<details>
-<summary>OTA Update</summary>
-<form method="POST" action="/update" enctype="multipart/form-data">
-<input type="file" name="update"> <button>Update</button>
-</form>
-</details>
 </main>
 </body>
 </html>

@@ -164,6 +164,12 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .selrow button { flex: none; padding: 7px 14px; font-size: .74rem; }
 .selrow span { flex: 1; font-size: .74rem; color: var(--muted2); }
 
+.fwfile { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: var(--deep); border: 1px solid var(--track); }
+.fwfile .t { font-weight: 600; font-size: .9rem; word-break: break-all; }
+.fwfile .s { color: var(--muted); font-size: .78rem; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.progress { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; margin: 16px 0 10px; }
+.progress i { display: block; height: 100%; border-radius: 999px; background: var(--bar); transition: width .2s; }
+
 .keymask { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .keymask .m { flex: 1; font-size: .8rem; color: var(--sub); letter-spacing: .08em; }
 

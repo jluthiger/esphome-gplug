@@ -10,8 +10,12 @@ const PORT = Number(process.env.PORT || 8080);
 // Canonical presets live in the firmware component (what the device serves); see tools/scripts2presets.py.
 const presets = JSON.parse(readFileSync(join(here, "..", "..", "firmware", "components", "gplug_smi", "presets.json"), "utf8"));
 
+// MOCK_OTA_PASSWORD=x puts /update behind Basic auth (user "admin"), like gplug_smi's ota_password.
+const OTA_PASSWORD = process.env.MOCK_OTA_PASSWORD || "";
+
 const state = {
-  version: "0.1.0-mock", hostname: "gplug-a1b2c3",
+  version: "0.1.0-mock", hostname: "gplug-a1b2c3", build: Math.floor(Date.now() / 1000) - 86400,
+  ota_auth: !!OTA_PASSWORD,
   hardware: null, meter: null,
   wifi: { connected: false, ssid: null, ip: null, rssi: null, error: null },
   t0: Date.now(),
@@ -203,6 +207,26 @@ createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const path = url.pathname;
   const key = `${req.method} ${path}`;
+
+  // ESPHome's ota.web_server: multipart upload, plain-text verdict, then a reboot. The mock checks
+  // only the image magic byte, "reboots" (API down for 6 s, fresh uptime) and bumps the build time.
+  if (req.method === "POST" && path === "/update") {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    if (OTA_PASSWORD && req.headers.authorization !== "Basic " + Buffer.from("admin:" + OTA_PASSWORD).toString("base64")) {
+      res.writeHead(401, { "www-authenticate": 'Basic realm="Login Required"' }); return res.end();
+    }
+    const buf = Buffer.concat(chunks);
+    const start = buf.indexOf("\r\n\r\n") + 4;   // skip the multipart part headers
+    const ok = buf[start] === 0xe9;
+    console.log(key, buf.length, "bytes", ok ? "ok" : "bad image");
+    res.writeHead(200, { "content-type": "text/plain" });
+    res.end(ok ? "Update Successful!" : "Update Failed!");
+    if (ok) { state.rebootUntil = Date.now() + 6000; state.t0 = Date.now(); state.build = Math.floor(Date.now() / 1000); }
+    return;
+  }
+  if (state.rebootUntil && Date.now() < state.rebootUntil && path.startsWith("/api/")) { req.destroy(); return; }
+
   let body = "";
   for await (const c of req) body += c;
 
