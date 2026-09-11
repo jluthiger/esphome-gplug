@@ -9,6 +9,7 @@ import { HistTab } from "./hist-tab.js";
 import { StreamTab } from "./stream-tab.js";
 import { SetupTab } from "./setup-tab.js";
 import { initialTheme, saveTheme } from "../theme.js";
+import { diagInfo, diagOf } from "../diag.js";
 
 // Day-to-day home screen once the device is configured and on WiFi (see main.js routing).
 // Session-only tab state, not reflected in the URL hash -- only #setup/#live are real routes
@@ -48,10 +49,10 @@ export function Live({ status, presets }) {
   function pickTheme(t) { saveTheme(t); setTheme(t); }
 
   const age = live?.age;
-  // no_data is the firmware's verdict (same one that turns the LED red), so the pill and the LED
+  // diag is the firmware's verdict (the same one that turns the LED red), so the pill and the LED
   // never disagree -- age alone stays null forever when no frame has ever arrived.
-  const pill = live?.key_invalid ? ["err", S.keyWrong]
-    : live?.no_data ? ["err", S.noData]
+  const problem = diagInfo(diagOf(live));
+  const pill = problem ? ["err", problem.pill]
     : age == null ? ["warn", S.waitingData]
     : ["ok", S.dataOk];
   const wifi = status?.wifi?.connected ? `${S.wlan} · ${status.wifi.rssi} dBm` : `${S.wlan} · ${S.offline}`;

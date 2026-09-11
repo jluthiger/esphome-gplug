@@ -91,6 +91,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void poll_button_();
   void apply_led_pins_();
   void update_led_();
+  const char *diag_(uint32_t now) const;
+  bool merge_stored_keys_(std::string &body, std::string &err);
 
   // decoding
   void on_dsmr_value_(const ::gplug_dsmr::DsmrValue &v);
@@ -149,6 +151,11 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool have_[MAX_OBIS]{};
   char smid_[40]{};
   uint32_t last_frame_ms_{0};
+  // Setup diagnosis (diag_()): any byte on the HAN line, and any value that matched a configured OBIS
+  // code. last_frame_ms_ alone can't tell "silent line" from "garbage" from "wrong register map".
+  uint32_t last_rx_ms_{0};
+  uint32_t last_match_ms_{0};
+  uint32_t rx_bytes_{0};
   uint32_t meter_applied_ms_{0};
   bool key_invalid_{false};
   std::array<Sample, RING_LEN> ring_{};

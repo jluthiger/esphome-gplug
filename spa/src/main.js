@@ -25,22 +25,27 @@ const STEPS = ["welcome", "hardware", "meter", "done"];
 //   #live  -> the live view (steps/live.js), the day-to-day home screen once configured
 // The very first load has no hash yet; default to whichever screen makes sense once /api/status
 // answers (configured + on WiFi -> live, otherwise the wizard starts a fresh device's setup).
-function initialRoute() {
-  if (location.hash === "#live") return "live";
-  if (location.hash === "#setup") return "wizard";
-  return null;
+// #setup/hardware, #setup/meter and #setup/key jump straight into the wizard at the step that fixes
+// a failed setup -- the targets of the diagnosis card's buttons (diag.js). "key" is the meter step
+// with the stored key deliberately not kept.
+function parseHash() {
+  const [r, sub] = location.hash.slice(1).split("/");
+  if (r === "live") return { route: "live", step: 0 };
+  if (r !== "setup") return { route: null, step: 0 };
+  const step = { hardware: 1, meter: 2, key: 2 }[sub] ?? 0;
+  return { route: "wizard", step, newKey: sub === "key" };
 }
 
 function App() {
-  const [route, setRoute] = useState(initialRoute);
-  const [step, setStep] = useState(0);
+  const [route, setRoute] = useState(() => parseHash().route);
+  const [step, setStep] = useState(() => parseHash().step);
   const [status, setStatus] = useState(null);
   const [data, setData] = useState(null); // {variants, presets}
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const [hw, setHw] = useState(null);                 // {variant, pins}
-  const [meter, setMeter] = useState({ preset: null, key: "" });
+  const [meter, setMeter] = useState({ preset: null, key: "", keepKey: !parseHash().newKey });
 
   async function load() {
     setErr(null);
@@ -53,6 +58,23 @@ function App() {
     } catch (e) { setErr(String(e.message || e)); }
   }
   useEffect(() => { load(); }, []);
+
+  // Deep links from the diagnosis card, browser back/forward. Status is re-read on the way into the
+  // wizard: whether the device holds a key (keep-key option) may have changed since the first load.
+  useEffect(() => {
+    function onHash() {
+      const h = parseHash();
+      if (h.route === null) return;
+      setRoute(h.route);
+      if (h.route === "wizard") {
+        setStep(h.step);
+        setMeter((m) => ({ ...m, key: "", keepKey: !h.newKey }));
+        load();
+      }
+    }
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   // Route not decided from the URL yet: pick one once status is in.
   useEffect(() => {
@@ -74,7 +96,9 @@ function App() {
       if (from === "hardware") await api.setHardware(hw);
       if (from === "meter") {
         const p = data.presets.find((x) => x.id === meter.preset);
-        await api.setMeter({ preset: p.id, key: p.encrypted ? meter.key : undefined, descriptor: toDescriptor(p, hw) });
+        const keep = p.encrypted && status?.meter?.encrypted && meter.keepKey;
+        await api.setMeter({ preset: p.id, key: p.encrypted && !keep ? meter.key : undefined,
+          keep_key: keep || undefined, descriptor: toDescriptor(p, hw) });
       }
       setStep((s) => s + 1);
     } catch (e) { setErr(String(e.message || e)); }
@@ -91,6 +115,7 @@ function App() {
   else if (name === "hardware") body = html`<${Hardware} variants=${data.variants} value=${hw} onChange=${setHw}
       onBack=${back} onNext=${() => commit("hardware")} />`;
   else if (name === "meter") body = html`<${Meter} presets=${data.presets} variant=${hw?.variant} value=${meter}
+      storedKey=${!!status?.meter?.encrypted}
       onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
   else body = html`<${Done} onOpenLive=${openLive} />`;
 

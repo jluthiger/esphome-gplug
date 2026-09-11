@@ -1,12 +1,17 @@
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { de } from "../fmt.js";
+import { DiagCard, diagInfo, diagOf } from "../diag.js";
 
 export function LiveTab({ live, ring }) {
   const age = live?.age;
-  const hint = live?.key_invalid ? S.keyWrongHint : live?.no_data ? S.noDataHint : null;
+  const d = diagOf(live);
+  // A setup problem (silent line, wrong profile or key) gets a card with the way back into the
+  // wizard; no automatic redirect -- "no data" is as often a cable or a customer port the utility
+  // hasn't enabled yet, and a correct setup must not be sent round the wizard again.
+  if (diagInfo(d)) return html`<${DiagCard} diag=${d} />`;
   const hasData = live && age != null && !live.key_invalid;
-  if (!hasData) return html`<div class="card"><div class="lbl">${S.activePower}</div><p class="hint">${hint || S.waitingData}</p></div>`;
+  if (!hasData) return html`<div class="card"><div class="lbl">${S.activePower}</div><p class="hint">${S.waitingData}</p></div>`;
 
   const net = live.p ?? 0;   // kW, positive = draw from grid
   const samples = ring?.samples || [];

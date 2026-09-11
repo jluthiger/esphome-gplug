@@ -90,7 +90,9 @@ void GplugSmi::loop() {
   this->update_led_();
   uint8_t c;
   size_t budget = 512;   // bytes per loop, keep the main loop responsive
+  uint32_t got = 0;
   while (budget-- && this->available() && this->read_byte(&c)) {
+    got++;
     if (desc_.protocol == Descriptor::DSMR) {
       dsmr_.feed((char) c, [this](const ::gplug_dsmr::DsmrValue &v) { this->on_dsmr_value_(v); });
     } else if (desc_.protocol == Descriptor::DLMS) {
@@ -108,6 +110,11 @@ void GplugSmi::loop() {
       if (full_ok) this->on_dlms_apdu_();
       else if (dlms_.key_invalid() && dlms_.encrypted_seen()) { std::lock_guard<std::mutex> lock(mutex_); key_invalid_ = true; last_frame_ms_ = millis(); }
     }
+  }
+  if (got) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    rx_bytes_ += got;
+    last_rx_ms_ = millis();
   }
   // 10 s ring sample
   uint32_t now = millis();
@@ -153,6 +160,7 @@ void GplugSmi::on_dsmr_value_(const ::gplug_dsmr::DsmrValue &v) {
   setup_pending_ = false;
   for (uint8_t i = 0; i < desc_.n; i++) {
     if (strcmp(desc_.obis[i].obis, v.obis) != 0) continue;
+    last_match_ms_ = millis();
     if (desc_.obis[i].is_string) {
       if (strcmp(desc_.obis[i].name, "SMid") == 0) strlcpy(smid_, v.value, sizeof smid_);
       have_[i] = true;
@@ -165,6 +173,7 @@ void GplugSmi::on_dsmr_value_(const ::gplug_dsmr::DsmrValue &v) {
 
 // Applies one decoded value to a single, already-identified descriptor entry.
 void GplugSmi::apply_dlms_value_(ObisEntry &e, uint8_t i, const ::gplug_dlms::Value &v) {
+  last_match_ms_ = millis();
   bool is_smid = strcmp(e.name, "SMid") == 0;
   if (v.is_string) {
     if (is_smid) {
@@ -262,6 +271,27 @@ static bool hex_to_bytes(const char *hex, uint8_t *out, size_t n) {
   return true;
 }
 
+// {"keep_key":true} instead of "key": re-use the GUEK (and auth key) from the stored meter config.
+// The SPA never gets the key back, so without this, correcting just the profile after a failed
+// setup meant typing the 32 hex digits again. Rewrites body into the plain form, key included, so
+// what gets applied and saved is the same self-contained config as always.
+bool GplugSmi::merge_stored_keys_(std::string &body, std::string &err) {
+  JsonDocument doc;
+  if (deserializeJson(doc, body)) { err = "json"; return false; }
+  if (!(doc["keep_key"] | false)) return true;
+  doc.remove("keep_key");
+  std::string old;
+  JsonDocument prev;
+  if (!this->nvs_load_("meter", old) || deserializeJson(prev, old) || !*(prev["key"] | "")) {
+    err = "no stored key"; return false;
+  }
+  doc["key"] = prev["key"].as<const char *>();
+  if (*(prev["auth_key"] | "")) doc["auth_key"] = prev["auth_key"].as<const char *>();
+  body.clear();
+  serializeJson(doc, body);
+  return true;
+}
+
 // {"preset":"…","key":"32hex"?,"descriptor":{"protocol":"dsmr|dlms","baud":…,"rx":…,"mode":"o|r|rE1","serial_flags":12?,"buffer":…?,"obis":[{obis,name,unit,scale,precision,type}]}}
 bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
   JsonDocument doc;
@@ -317,6 +347,8 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
     memset(have_, 0, sizeof have_);
     smid_[0] = 0;
     last_frame_ms_ = 0;
+    last_rx_ms_ = 0;
+    last_match_ms_ = 0;
     meter_applied_ms_ = millis();
     key_invalid_ = false;
     setup_pending_ = false;
@@ -452,6 +484,28 @@ static const char *led_mode_name_(int8_t mode) {
   }
 }
 
+// Setup verdict for the SPA (/api/live "diag"): why there are no values, so the app can point at
+// the wizard step that fixes it. Uses the LED's 60 s grace after a config change or boot, so a
+// meter that pushes only every 10-30 s isn't declared broken while the user is still watching.
+//   ok        -- a configured OBIS code matched within the window
+//   waiting   -- grace period, nothing conclusive yet
+//   key       -- frames arrive but the GUEK doesn't decrypt them          -> meter step, key
+//   no_match  -- frames decode but no configured OBIS code is in them     -> meter step, profile
+//   garbled   -- bytes arrive but never form a valid frame/telegram       -> meter step (baud/protocol), maybe pins
+//   silent    -- nothing on the line at all                               -> hardware step, cable, or
+//                the utility hasn't enabled the meter's customer port
+// Caller holds mutex_.
+const char *GplugSmi::diag_(uint32_t now) const {
+  if (desc_.protocol == Descriptor::NONE) return "unconfigured";
+  if (key_invalid_) return "key";
+  auto recent = [now](uint32_t t) { return t != 0 && now - t < LED_NO_DATA_TIMEOUT_MS; };
+  if (recent(last_match_ms_)) return "ok";
+  bool grace = now - meter_applied_ms_ < LED_NO_DATA_TIMEOUT_MS;
+  if (grace) return "waiting";
+  if (recent(last_frame_ms_)) return "no_match";
+  return recent(last_rx_ms_) ? "garbled" : "silent";
+}
+
 void GplugSmi::update_led_() {
   bool ap_mode = captive_portal::global_captive_portal != nullptr && captive_portal::global_captive_portal->is_active();
   uint32_t now = millis();
@@ -466,6 +520,8 @@ void GplugSmi::update_led_() {
       std::lock_guard<std::mutex> lock(mutex_);
       key_invalid_ = false;
       last_frame_ms_ = 0;
+      last_rx_ms_ = 0;
+      last_match_ms_ = 0;
       meter_applied_ms_ = now;
       setup_pending_ = true;
     }
@@ -474,8 +530,11 @@ void GplugSmi::update_led_() {
   uint32_t since_data = last_frame_ms_ == 0 ? now - meter_applied_ms_ : now - last_frame_ms_;
   bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
   no_data_ = no_data;
+  // Frames arriving without a single configured OBIS code (wrong profile) is as broken as no data,
+  // and the SPA says so (diag "no_match") -- the LED must not stay green meanwhile.
+  bool no_match = !ap_mode && has_meter && !strcmp(diag_(now), "no_match");
   // AP-fallback is the state that actually needs the user's attention, so it always wins the LED.
-  bool error = !ap_mode && (key_invalid_ || no_data);
+  bool error = !ap_mode && (key_invalid_ || no_data || no_match);
   bool running = !ap_mode && has_meter && !error;
   int8_t candidate = ap_mode ? 0 : (error ? 3 : (running ? 2 : 1));
 
@@ -623,6 +682,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
   }
   if (url == "/api/config/meter") {
     std::string err;
+    if (!merge_stored_keys_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
     if (!apply_meter_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
     this->defer([this, body]() { if (!this->nvs_save_("meter", body)) ESP_LOGE(TAG, "nvs_save_(meter) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
@@ -729,6 +789,8 @@ std::string GplugSmi::json_live_() {
   else { s += "\"age\":" + std::to_string((millis() - last_frame_ms_) / 1000); }
   s += ",\"key_invalid\":" + std::string(key_invalid_ ? "true" : "false");
   s += ",\"no_data\":" + std::string(no_data_ ? "true" : "false");
+  s += ",\"diag\":\"" + std::string(diag_(millis())) + "\"";
+  s += ",\"rx_bytes\":" + std::to_string(rx_bytes_);
   if (smid_[0]) { s += ",\"smid\":\""; json_escape(s, smid_); s += "\""; }
   float pi = value_w_("Pi"), po = value_w_("Po");
   s += ",\"p\":"; append_num(s, (pi - po) / 1000.0f, 3);

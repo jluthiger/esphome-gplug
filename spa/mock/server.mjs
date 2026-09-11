@@ -27,14 +27,25 @@ const NETS = [
   { ssid: "Gast", rssi: -60, secure: false },
 ];
 
+// Setup diagnosis like GplugSmi::diag_, with an 8 s grace instead of the firmware's 60 s.
+// MOCK_DIAG=silent|garbled|no_match makes the *first* meter config fail that way; the next one
+// (the user fixing it in the wizard) works -- enough to walk the whole fix loop.
+const MOCK_DIAG = process.env.MOCK_DIAG || "";
+const DIAG_GRACE_S = 8;
+
 function live() {
-  if (!state.meter) return { age: null, no_data: false };
+  if (!state.meter) return { age: null, no_data: false, diag: "unconfigured" };
   const t = (Date.now() - state.t0) / 1000;
+  const grace = t < DIAG_GRACE_S;
   const keyInvalid = state.meter.key !== undefined && state.meter.key?.toLowerCase().startsWith("dead");
-  if (keyInvalid) return { age: null, no_data: false, key_invalid: true };
+  if (keyInvalid) return { age: grace ? null : 3, no_data: false, key_invalid: !grace, diag: grace ? "waiting" : "key" };
+  const forced = MOCK_DIAG && state.meterCommits <= 1;
+  if (grace && (forced || t < 3)) return { age: null, no_data: false, diag: "waiting" };
+  if (forced && MOCK_DIAG === "no_match") return { age: 3, no_data: false, diag: "no_match", values: {} };
+  if (forced) return { age: null, no_data: true, diag: MOCK_DIAG };
   const p = 1.11 + 0.4 * Math.sin(t / 30);
   return {
-    smid: "55771146", age: Math.floor(t % 10), no_data: false,
+    smid: "55771146", age: Math.floor(t % 10), no_data: false, diag: "ok",
     p, ei: 19087 + t / 3600, eo: 30836,
     // register snapshot keyed by preset name, like the firmware's `values` (subset: what the
     // Verlauf register list and the Live phase rows read)
@@ -197,7 +208,14 @@ const routes = {
     return { ok: true };
   },
   "POST /api/config/hardware": (b) => { state.hardware = b; return { ok: true }; },
-  "POST /api/config/meter": (b) => { state.meter = b; state.t0 = Date.now(); return { ok: true }; },
+  "POST /api/config/meter": (b) => {
+    if (b.keep_key) {   // GplugSmi::merge_stored_keys_
+      if (!state.meter?.key) return { __status: 400, error: "no stored key" };
+      b = { ...b, key: state.meter.key }; delete b.keep_key;
+    }
+    state.meter = b; state.t0 = Date.now(); state.meterCommits = (state.meterCommits || 0) + 1;
+    return { ok: true };
+  },
   "GET /api/live": () => live(),
   "GET /api/ring": () => ring(),
   "POST /api/reboot": () => ({ ok: true }),
@@ -252,7 +270,9 @@ createServer(async (req, res) => {
   if (fn) {
     const out = await fn(body ? JSON.parse(body) : undefined);
     console.log(key, body || "");
-    res.writeHead(200, { "content-type": "application/json" });
+    const code = out?.__status || 200;
+    if (out) delete out.__status;
+    res.writeHead(code, { "content-type": "application/json" });
     return res.end(JSON.stringify(out));
   }
   if (req.method === "GET") {

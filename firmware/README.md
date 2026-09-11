@@ -276,15 +276,36 @@ by design: one setter, one call-site swap).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
-| GET | `/api/status` | version, hostname, uptime, heap, wifi, hardware, meter counters |
-| GET | `/api/live` | `{age, no_data, key_invalid, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}` |
+| GET | `/api/status` | version, hostname, uptime, build, ota_auth, heap, wifi, hardware, meter counters |
+| GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}` |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |
 | GET | `/api/presets` | embedded presets (gzip) |
 | GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}}` |
-| POST | `/api/config/meter` | `{preset, key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}` |
+| POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
 | POST | `/api/reboot` | |
+
+**Setup diagnosis (`diag` in `/api/live`, `GplugSmi::diag_`)** says why there are no values, so
+the SPA can send the user to the wizard step that fixes it. Three timestamps feed it: any byte on
+the HAN UART (`last_rx_ms_`, plus the running `rx_bytes`), any decoded frame/telegram
+(`last_frame_ms_`), and any value that matched a configured OBIS code (`last_match_ms_`). Same 60 s
+window and grace (after boot or a meter config change) as the LED's no-data verdict:
+
+| `diag` | meaning | SPA sends the user to |
+|---|---|---|
+| `ok` | a configured OBIS code matched in the last 60 s | – |
+| `waiting` | grace period, nothing conclusive yet | – |
+| `key` | frames arrive, the GUEK doesn't decrypt them | meter step, key field |
+| `no_match` | frames decode, but none of the profile's OBIS codes is in them | meter step (profile) |
+| `garbled` | bytes arrive but never form a valid frame/telegram (baud, parity, protocol) | meter step, then hardware |
+| `silent` | nothing on the line at all: pin/variant, cable, or the utility hasn't enabled the customer port | hardware step |
+| `unconfigured` | no meter descriptor | – |
+
+`no_match` also turns the LED red: before, frames without a single matching register kept it
+green while the app showed nothing. Verified on the gPlugK with nothing on its HAN port
+(`waiting` for 60 s, then `silent`, `rx_bytes` 0); `garbled`/`no_match` need bytes on GPIO4 and
+are covered by the mock only.
 
 Only GET and POST exist: ESPHome's ESP-IDF HTTP shim registers no PUT. JSON bodies are read from the socket by
 the handler itself because the shim only pre-reads `x-www-form-urlencoded`.

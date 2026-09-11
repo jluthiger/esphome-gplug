@@ -170,6 +170,10 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .progress { height: 8px; border-radius: 999px; background: var(--track); overflow: hidden; margin: 16px 0 10px; }
 .progress i { display: block; height: 100%; border-radius: 999px; background: var(--bar); transition: width .2s; }
 
+.diag .t { font-weight: 600; margin-top: 6px; }
+.fixes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.fixes button { flex: 1 1 auto; }
+
 .keymask { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .keymask .m { flex: 1; font-size: .8rem; color: var(--sub); letter-spacing: .08em; }
 
