@@ -152,8 +152,11 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
 - `frame_log.h` – fixed-size ring of the last 5 raw DLMS HDLC frames (ciphertext, capped 768 B, plus
   decrypted plaintext when available), for the SPA's Datenstrom view (`/api/frames`,
   `/api/frames/<i>/raw|plain`). Header-only, no ESPHome deps, and a generic byte-blob ring with no
-  notion of "key" — structurally incapable of exposing key material. DLMS-only: `GplugSmi::loop()`
-  never populates it for a DSMR-configured device.
+  notion of "key" — structurally incapable of exposing key material. Captures whatever the profile
+  speaks: DLMS HDLC frames (raw ciphertext + decrypted APDU) or whole DSMR P1 telegrams, which the
+  parser hands over through `set_raw_callback()` before it rewrites its buffer in place. `raw` is
+  capped at 1280 B (a telegram or the descriptor's frame ceiling), `plain` at 768 B and unused on
+  DSMR, which has nothing to decrypt.
 - `history_store.h` – persistent 15-min history: an append-only log of 20 B records over the raw
   `data` partition, organised as rotating 4 kB sector buckets (16 B header + 204 records each).
   Appending costs one write; a sector is erased only when recycled, once per ~2.6 days, giving

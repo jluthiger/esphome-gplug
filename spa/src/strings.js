@@ -62,7 +62,7 @@ export const S = {
   // live screen chrome
   tabLive: "Live",
   tabHist: "Verlauf",
-  tabStream: "Strom",
+  tabStream: "Daten",
   tabSetup: "Setup",
   screenLive: "Live",
   screenHist: "Verlauf",
@@ -105,6 +105,8 @@ export const S = {
   // Datenstrom
   streamRaw: "Roh · verschlüsselt",
   streamPlain: "Entschlüsselt",
+  streamHex: "Hex",
+  streamText: "Klartext",
   tailOn: "Live-Mitschnitt läuft",
   tailOff: "Ansicht eingefroren",
   tailOnNote: (n, kb) => `Ringpuffer ${n} Frames · ~${kb} kB · älteste Frames fallen raus`,
@@ -114,6 +116,7 @@ export const S = {
   selCount: (n, total) => `${n} von ${total} Frames ausgewählt`,
   selNone: "Ohne Auswahl wird der ganze Puffer exportiert",
   frameMetaRaw: "GCM ciphertext",
+  frameMetaTelegram: "P1-Telegramm",
   frameMetaPlain: "Klartext",
   crcOk: "CRC OK",
   crcFail: "CRC FAIL",
@@ -126,8 +129,10 @@ export const S = {
   exportNoteAll: (n) => `Alle ${n} gepufferten Frames als Hex-Text, ein Frame pro Block, mit Zeitstempel und CRC.`,
   dlRaw: "Roh-Hex .txt",
   dlPlain: "Entschlüsselt .txt",
+  dlText: "Klartext .txt",
   dlHint: "Schlüssel wird nie mitexportiert.",
-  streamEmptyDsmr: "Dieses Profil überträgt unverschlüsselte Klartext-Telegramme (DSMR) — keine rohen DLMS-Frames vorhanden.",
+  dsmrNote: "DSMR überträgt unverschlüsselte Klartext-Telegramme — „Klartext\" zeigt sie so, wie sie ankommen, „Hex\" dieselben Bytes zur Fehlersuche.",
+  streamEmptyNone: "Noch kein Zähler-Profil konfiguriert.",
   streamEmptyWaiting: "Noch keine Frames empfangen.",
 
   // Setup tab

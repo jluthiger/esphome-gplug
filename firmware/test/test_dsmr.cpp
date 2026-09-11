@@ -80,6 +80,27 @@ int main() {
     for (char c : telegram(false)) p.feed(c, [&](const DsmrValue &) { n++; });
     CHECK(n == 18 && p.crc_errors == 0);
   }
+  // 5. raw capture hook: fires once per telegram with the pristine bytes, before parse_() rewrites
+  //    the buffer in place -- and fires on a bad CRC too, since that is exactly the telegram a user
+  //    needs to look at in the Datenstrom view.
+  {
+    DsmrParser p;
+    std::string captured;
+    int calls = 0;
+    bool last_ok = false;
+    p.set_raw_callback([&](const char *d, size_t n, bool ok) { captured.assign(d, n); calls++; last_ok = ok; });
+    auto t = telegram(true);
+    for (char c : t) p.feed(c, [](const DsmrValue &) {});
+    CHECK(calls == 1 && last_ok);
+    CHECK(captured == t);                       // byte-identical, separators intact
+    CHECK(captured.find("1-0:1.7.0") != std::string::npos);
+
+    auto bad = telegram(true);
+    bad[bad.size() - 3] = (bad[bad.size() - 3] == '0') ? '1' : '0';
+    for (char c : bad) p.feed(c, [](const DsmrValue &) {});
+    CHECK(calls == 2 && !last_ok);
+    CHECK(captured == bad);
+  }
   printf(fails ? "%d FAILED\n" : "all ok\n", fails);
   return fails ? 1 : 0;
 }

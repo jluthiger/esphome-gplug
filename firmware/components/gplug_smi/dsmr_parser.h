@@ -20,6 +20,12 @@ struct DsmrValue {
 class DsmrParser {
  public:
   using Callback = std::function<void(const DsmrValue &)>;
+  // Fires once per completed telegram with the pristine bytes, CRC-valid or not. It has to be a
+  // callback rather than an accessor: parse_() rewrites buf_ in place (NULs over the separators)
+  // and len_ resets immediately, so after feed() returns there is nothing intact left to read.
+  // Called before parsing, so a capture costs no extra buffer.
+  using RawCallback = std::function<void(const char *data, size_t len, bool crc_ok)>;
+  void set_raw_callback(RawCallback cb) { raw_cb_ = std::move(cb); }
 
   // Feed one byte. Returns true when a complete telegram was consumed (and callbacks fired).
   bool feed(char c, const Callback &cb) {
@@ -36,6 +42,7 @@ class DsmrParser {
       buf_[len_] = 0;
       crc_pending_ = false; in_telegram_ = false;
       bool ok = check_crc_();
+      if (raw_cb_) raw_cb_(buf_, len_, ok);
       if (ok) parse_(cb); else ++crc_errors;
       ++telegrams;
       len_ = 0;
@@ -102,6 +109,7 @@ class DsmrParser {
   char buf_[2048];
   size_t len_{0};
   bool in_telegram_{false}, crc_pending_{false};
+  RawCallback raw_cb_{};
 };
 
 }  // namespace gplug_dsmr

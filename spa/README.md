@@ -29,7 +29,7 @@ state change, not a page reload:
 |---|---|---|
 | Live | `live/live-tab.js` | current power with direction, 1 h area chart from `/api/ring`, import/export counters, per-phase bars with V/A (hidden when the preset has no per-phase registers) |
 | Verlauf | `live/hist-tab.js` | 60 Min from the RAM ring (10 s resolution), plus Tag/Woche/Monat/Jahr from `/api/history` – power for the short ranges, energy per bucket for the long ones. History is fetched once per range and cached, never on the 10 s poll, because it reads flash on the device |
-| Datenstrom | `live/stream-tab.js` | the last 5 captured raw DLMS frames: CRC verdict, hex body (raw ciphertext or decrypted), copy/download, multi-select export. DLMS only – a DSMR device gets an explanatory empty state |
+| Datenstrom | `live/stream-tab.js` | the last 5 frames the device received, whatever the profile speaks: CRC verdict, body, copy/download, multi-select export. The two view modes follow the protocol – ciphertext vs decrypted APDU (hex) for DLMS, hex vs the telegram's own ASCII for DSMR, which the firmware signals with `encoding` |
 | Setup | `live/setup-tab.js` | reachable addresses, WLAN ändern (reuses `steps/wifi.js`), GUEK status (masked, never fetched), night mode |
 
 With no hash yet (first load), the app picks a screen once `/api/status` answers: live view if
@@ -55,8 +55,8 @@ Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows "Schl�
 | GET | `/api/live` | `{smid, age, no_data, p, pi, po, ei, eo, key_invalid?, values:{…}, last_qh:{qh, values:{…}}}` — no per-phase power field; the Live tab takes that from `/api/ring`'s latest sample. `last_qh` is every register the meter sent as of the last stored quarter hour |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}`, 360 samples = 1 h at 10 s resolution |
 | GET | `/api/history?range=day\|week\|month\|year` | flash-backed 15-min history, downsampled server-side to ≤365 points: `{period:900, bucket, qh_epoch, epoch_valid, now_qh, count, pts:[[qh, d_ei_wh, d_eo_wh, p_min, p_max, p_avg, flags],…]}`. `qh` = quarter-hours since 2020-01-01Z, `null` when the record predates a clock sync; the energy deltas are `null` when a counter is absent or the chain is broken (meter swap, config change) |
-| GET | `/api/frames` | `{protocol, cap, len, count, frames:[{i, age, ok, raw_len, raw_trunc, plain_len, plain_trunc},…]}` — metadata only, newest first; `protocol` is `dlms`/`dsmr`/`none` and only `dlms` ever fills the ring |
-| GET | `/api/frames/<i>/raw\|plain` | `text/plain` hex dump of one captured frame (ciphertext or decrypted plaintext); 404 when the slot or that half is empty |
+| GET | `/api/frames` | `{protocol, encoding, cap, len, count, frames:[{i, age, ok, raw_len, raw_trunc, plain_len, plain_trunc},…]}` — metadata only, newest first. `protocol` is `dlms`/`dsmr`/`none`; `encoding` is `hex` (DLMS) or `text` (DSMR), i.e. what the readable view of a frame is. `ok` = HDLC FCS/HCS valid, or telegram CRC valid |
+| GET | `/api/frames/<i>/raw\|plain` | `text/plain` body of one captured frame. DLMS: hex of the ciphertext / of the decrypted APDU. DSMR: hex of the telegram / the telegram verbatim — one capture, two views, nothing stored twice. 404 when the slot or that half is empty |
 
 Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js` (wizard),
 `src/live/*.js` (the four tabs), `src/api.js`, `src/fmt.js` (German numbers + quarter-hour dates),

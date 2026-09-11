@@ -57,7 +57,7 @@ static std::vector<uint8_t> glo_cipher(const uint8_t key[16], std::vector<uint8_
 
 // Mirrors GplugSmi::loop()'s DLMS branch: feed one byte, and whenever frame_seq() bumps, push a
 // capture into the log exactly as loop() does.
-static void feed_and_capture(DlmsDecoder &d, FrameLog<5, 768> &log, const std::vector<uint8_t> &bytes,
+static void feed_and_capture(DlmsDecoder &d, FrameLog<5, 768, 768> &log, const std::vector<uint8_t> &bytes,
                               uint32_t &seq_seen, uint32_t ts) {
   for (uint8_t c : bytes) {
     bool full_ok = d.feed(c);
@@ -73,7 +73,7 @@ static void feed_and_capture(DlmsDecoder &d, FrameLog<5, 768> &log, const std::v
 int main() {
   // --- 1. pure ring behaviour, no DLMS involved ---
   {
-    FrameLog<5, 16> log;
+    FrameLog<5, 16, 16> log;
     uint8_t a[4] = {1, 2, 3, 4};
     log.push(100, true, a, 4, nullptr, 0);
     log.push(200, false, a, 4, nullptr, 0);
@@ -100,7 +100,7 @@ int main() {
   // --- 2. good authenticated-frame-free (unauthenticated) push, correct key ---
   {
     DlmsDecoder d; d.set_key(key);
-    FrameLog<5, 768> log; uint32_t seq = 0;
+    FrameLog<5, 768, 768> log; uint32_t seq = 0;
     feed_and_capture(d, log, hdlc(glo_cipher(key, plaintext(), 1)), seq, 1000);
     CHECK(log.count() == 1);
     CHECK(log.at(0)->ok);
@@ -111,7 +111,7 @@ int main() {
   {
     DlmsDecoder d; d.set_key(key);
     auto f = hdlc(glo_cipher(key, plaintext(), 1)); f[f.size() - 2] ^= 0xFF;
-    FrameLog<5, 768> log; uint32_t seq = 0;
+    FrameLog<5, 768, 768> log; uint32_t seq = 0;
     feed_and_capture(d, log, f, seq, 2000);
     CHECK(log.count() == 1);
     CHECK(!log.at(0)->ok);
@@ -123,7 +123,7 @@ int main() {
   //        distinction from on_frame_()'s CRC-ok flag vs. the overall decode outcome. ---
   {
     DlmsDecoder d; d.set_key(bad_key);
-    FrameLog<5, 768> log; uint32_t seq = 0;
+    FrameLog<5, 768, 768> log; uint32_t seq = 0;
     feed_and_capture(d, log, hdlc(glo_cipher(key, plaintext(), 1)), seq, 3000);
     CHECK(log.count() == 1);
     CHECK(log.at(0)->ok);            // FCS/HCS fine
@@ -133,7 +133,7 @@ int main() {
   // --- 5. two frames fed sequentially land in the right order ---
   {
     DlmsDecoder d; d.set_key(key);
-    FrameLog<5, 768> log; uint32_t seq = 0;
+    FrameLog<5, 768, 768> log; uint32_t seq = 0;
     feed_and_capture(d, log, hdlc(glo_cipher(key, plaintext(), 1)), seq, 4000);
     feed_and_capture(d, log, hdlc(glo_cipher(key, plaintext(), 2)), seq, 4001);
     CHECK(log.count() == 2);

@@ -145,6 +145,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .hex { background: var(--deep); border: 1px solid var(--track); border-radius: 10px; padding: 11px 12px;
   font: .7rem/1.75 "JetBrains Mono", ui-monospace, Menlo, monospace; color: var(--green); white-space: pre-wrap; word-break: break-all;
   max-height: 150px; overflow: auto; }
+.hex.text { color: var(--fg); word-break: normal; }   /* a P1 telegram is lines, not a byte blob */
 .frame .body .row { margin-top: 10px; }
 .frame .body button { padding: 10px 0; font-size: .78rem; }
 .selrow { display: flex; align-items: center; gap: 10px; padding: 0 4px; margin: 10px 0; }

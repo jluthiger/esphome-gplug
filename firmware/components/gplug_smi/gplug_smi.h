@@ -20,11 +20,12 @@ namespace gplug_smi {
 static constexpr size_t MAX_OBIS = 48;
 static constexpr size_t RING_LEN = 360;      // 60 min at 10 s
 static constexpr uint32_t RING_PERIOD_MS = 10000;
-// Datenstrom capture: last FRAME_LOG_LEN raw DLMS HDLC frames, each capped at FRAME_LOG_CAP bytes
-// (real captured frames run 500-700B; 768 leaves headroom without paying for the 1280B worst case).
+// Datenstrom capture: the last FRAME_LOG_LEN frames as received -- DLMS HDLC frames or whole DSMR
+// telegrams, both raw and (for DLMS) decrypted. 1280 B covers the descriptor buffer ceiling.
 static constexpr size_t FRAME_LOG_LEN = 5;
-static constexpr size_t FRAME_LOG_CAP = 768;
-using FrameLog = ::gplug_framelog::FrameLog<FRAME_LOG_LEN, FRAME_LOG_CAP>;
+static constexpr size_t FRAME_LOG_RAW_CAP = 1280;    // a DLMS HDLC frame or a whole DSMR telegram
+static constexpr size_t FRAME_LOG_PLAIN_CAP = 768;   // decrypted DLMS APDU; unused on DSMR
+using FrameLog = ::gplug_framelog::FrameLog<FRAME_LOG_LEN, FRAME_LOG_RAW_CAP, FRAME_LOG_PLAIN_CAP>;
 // Persistent history: one record per quarter hour on the `data` partition (see history_store.h).
 // Lowering HIST_INTERVAL_S in a dev build is the only practical way to exercise sector rotation --
 // at 900 s a sector lasts 2.6 days.
@@ -152,7 +153,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::array<Sample, RING_LEN> ring_{};
   size_t ring_head_{0}, ring_count_{0};
   uint32_t last_sample_ms_{0};
-  FrameLog frames_;             // Datenstrom capture ring, DLMS only (see loop())
+  FrameLog frames_;             // Datenstrom capture ring: DLMS frames and DSMR telegrams alike
   uint32_t dlms_frame_seq_seen_{0};
 
   // Persistent quarter-hour history. Guarded by hist_mutex_, never by mutex_: a range=year scan

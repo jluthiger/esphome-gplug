@@ -45,6 +45,12 @@ void GplugSmi::setup() {
   this->apply_button_pin_();
   this->apply_led_pins_();
   this->hist_setup_();
+  // DSMR telegrams are captured for the Datenstrom view just like DLMS frames are. The parser
+  // hands them over before it parses (and rewrites its buffer), CRC-valid or not.
+  dsmr_.set_raw_callback([this](const char *data, size_t len, bool crc_ok) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    frames_.push(millis(), crc_ok, (const uint8_t *) data, len, nullptr, 0);
+  });
   // Compiled-in WiFi credentials (e.g. the `wifi:` block the ESPHome Device Builder adds to every
   // adopted config) would make the AP button pointless: it clears the *saved* credentials, the
   // device reboots and reconnects to the compiled-in network within 3 s. Once the button has been
@@ -639,6 +645,17 @@ static void json_escape(std::string &out, const char *s) {
   }
 }
 
+// A DSMR telegram verbatim, with control bytes other than CR/LF/TAB replaced so a stray byte can
+// neither break the response nor hide.
+static void bytes_to_text(std::string &out, const uint8_t *data, size_t n) {
+  out.reserve(out.size() + n + 1);
+  for (size_t i = 0; i < n; i++) {
+    uint8_t c = data[i];
+    out += (c >= 0x20 || c == '\r' || c == '\n' || c == '\t') && c != 0x7F ? (char) c : '.';
+  }
+  if (n && data[n - 1] != '\n') out += '\n';
+}
+
 // Uppercase hex, 16 bytes/line -- readable both inline (<pre>) and as a downloaded .txt.
 static void bytes_to_hex(std::string &out, const uint8_t *data, size_t n, size_t wrap = 16) {
   static const char *H = "0123456789ABCDEF";
@@ -758,9 +775,13 @@ std::string GplugSmi::json_ring_() {
 // per-frame via /api/frames/<i>/raw|plain (handle_frame_detail_) so the list stays cheap to poll.
 std::string GplugSmi::json_frames_() {
   std::lock_guard<std::mutex> lock(mutex_);
-  const char *proto = desc_.protocol == Descriptor::DLMS ? "dlms" : desc_.protocol == Descriptor::DSMR ? "dsmr" : "none";
+  bool dsmr = desc_.protocol == Descriptor::DSMR;
+  const char *proto = desc_.protocol == Descriptor::DLMS ? "dlms" : dsmr ? "dsmr" : "none";
   std::string s = "{\"protocol\":\""; s += proto; s += "\"";
-  s += ",\"cap\":" + std::to_string(FRAME_LOG_CAP) + ",\"len\":" + std::to_string(FRAME_LOG_LEN);
+  // What the readable ("plain") view of a frame is: a DSMR telegram is ASCII to begin with, a DLMS
+  // frame only becomes readable after AES-GCM decryption and is served as hex either way.
+  s += ",\"encoding\":\""; s += dsmr ? "text" : "hex"; s += "\"";
+  s += ",\"cap\":" + std::to_string(FRAME_LOG_RAW_CAP) + ",\"len\":" + std::to_string(FRAME_LOG_LEN);
   s += ",\"count\":" + std::to_string(frames_.count()) + ",\"frames\":[";
   uint32_t now = millis();
   for (size_t i = 0; i < frames_.count(); i++) {
@@ -793,9 +814,17 @@ void GplugSmi::handle_frame_detail_(AsyncWebServerRequest *req, const char *url)
     std::lock_guard<std::mutex> lock(mutex_);
     const auto *e = frames_.at((size_t) idx);
     if (!e) return send_json_(req, 404, "{\"error\":\"not found\"}");
-    size_t n = is_raw ? e->raw_len : e->plain_len;
-    if (!n) return send_json_(req, 404, "{\"error\":\"empty\"}");
-    bytes_to_hex(body, (is_raw ? e->raw : e->plain).data(), n);
+    if (desc_.protocol == Descriptor::DSMR) {
+      // One buffer, two views: the telegram's own ASCII, or a hex dump of the same bytes for
+      // looking at framing/stray bytes. Nothing is stored twice.
+      if (!e->raw_len) return send_json_(req, 404, "{\"error\":\"empty\"}");
+      if (is_raw) bytes_to_hex(body, e->raw.data(), e->raw_len);
+      else bytes_to_text(body, e->raw.data(), e->raw_len);
+    } else {
+      size_t n = is_raw ? e->raw_len : e->plain_len;
+      if (!n) return send_json_(req, 404, "{\"error\":\"empty\"}");
+      bytes_to_hex(body, is_raw ? e->raw.data() : e->plain.data(), n);
+    }
   }
   auto *res = req->beginResponse(200, "text/plain; charset=utf-8", body.c_str());
   res->addHeader("Cache-Control", "no-cache");

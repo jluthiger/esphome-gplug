@@ -95,14 +95,24 @@ function history(range, noEpoch) {
   };
 }
 
-// Mirrors /api/frames: last FRAME_LEN raw DLMS HDLC frame captures, newest-first, DLMS only --
-// same gating a DSMR-configured device gets from the real firmware (frame_log.h is never
-// populated for DSMR, see firmware/components/gplug_smi/gplug_smi.cpp's loop()).
-const FRAME_LEN = 5, FRAME_CAP = 768;
+// Mirrors /api/frames: the last FRAME_LEN captures, newest-first -- DLMS HDLC frames or DSMR P1
+// telegrams depending on the configured profile, exactly as the firmware does it. `encoding` tells
+// the SPA whether the readable view is hex or the telegram's own ASCII.
+const FRAME_LEN = 5, FRAME_CAP = 1280;
 function frames() {
   const protocol = state.meter?.descriptor?.protocol === "dlms" ? "dlms"
     : state.meter?.descriptor?.protocol === "dsmr" ? "dsmr" : "none";
-  if (protocol !== "dlms") return { protocol, cap: FRAME_CAP, len: FRAME_LEN, count: 0, frames: [] };
+  const encoding = protocol === "dsmr" ? "text" : "hex";
+  if (protocol === "none") return { protocol, encoding, cap: FRAME_CAP, len: FRAME_LEN, count: 0, frames: [] };
+  if (protocol === "dsmr") {
+    const n = Math.min(FRAME_LEN, Math.floor((Date.now() - state.t0) / 10000) + 1);
+    const list = [];
+    for (let i = 0; i < n; i++) {
+      const ok = i !== 2;
+      list.push({ i, age: i * 10, ok, raw_len: telegram(i).length, raw_trunc: false, plain_len: 0, plain_trunc: false });
+    }
+    return { protocol, encoding, cap: FRAME_CAP, len: FRAME_LEN, count: n, frames: list };
+  }
   const n = Math.min(FRAME_LEN, Math.floor((Date.now() - state.t0) / 10000) + 1);
   const list = [];
   for (let i = 0; i < n; i++) {
@@ -113,7 +123,30 @@ function frames() {
       plain_len: ok ? 160 + (i % 3) * 20 : 0, plain_trunc: false,
     });
   }
-  return { protocol, cap: FRAME_CAP, len: FRAME_LEN, count: n, frames: list };
+  return { protocol, encoding, cap: FRAME_CAP, len: FRAME_LEN, count: n, frames: list };
+}
+
+// A plausible P1 telegram, CRC line included. Frame 2 gets a mangled CRC so the failure state is
+// exercisable, matching the DLMS mock's convention.
+function telegram(i) {
+  const t = (Date.now() - state.t0) / 1000 - i * 10;
+  const p = (1.4 + 0.5 * Math.sin(t / 30)).toFixed(3);
+  return [
+    "/ISk5\\2MT382-1000",
+    "",
+    "1-3:0.2.8(50)",
+    "0-0:1.0.0(" + new Date().toISOString().slice(2, 19).replace(/[-:T]/g, "") + "W)",
+    "0-0:96.1.1(4B384547303034303436333935353037)",
+    "1-0:1.8.1(019087.213*kWh)",
+    "1-0:1.8.2(019087.000*kWh)",
+    "1-0:2.8.1(030836.881*kWh)",
+    "1-0:1.7.0(" + p + "*kW)",
+    "1-0:2.7.0(00.000*kW)",
+    "1-0:32.7.0(231.4*V)",
+    "1-0:31.7.0(001*A)",
+    "!" + (i === 2 ? "BEEF" : "A1B2"),
+    "",
+  ].join("\r\n");
 }
 
 function hexDump(seed, n) {
@@ -127,8 +160,14 @@ function hexDump(seed, n) {
 }
 
 function frameDetail(i, kind) {
-  const f = frames().frames.find((x) => x.i === i);
+  const all = frames();
+  const f = all.frames.find((x) => x.i === i);
   if (!f) return null;
+  if (all.encoding === "text") {
+    // One capture, two views: the telegram itself, or a hex dump of the same bytes.
+    const t = telegram(i);
+    return kind === "plain" ? t : hexDump(i + 1, t.length);
+  }
   const n = kind === "raw" ? f.raw_len : f.plain_len;
   if (!n) return null;
   return hexDump(i + 1, n);

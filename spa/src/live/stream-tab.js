@@ -13,10 +13,12 @@ function download(name, text) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-// Raw DLMS HDLC frame capture, DLMS-only (see firmware/components/gplug_smi/frame_log.h) -- a
-// DSMR-configured device never populates /api/frames, so there's a dedicated empty state for that
-// rather than pretending frames exist. "Ansicht eingefroren" only pauses this view's polling; the
-// device keeps capturing regardless, and the copy says so.
+// The frames the device actually received (firmware/components/gplug_smi/frame_log.h): DLMS HDLC
+// frames or DSMR P1 telegrams, whichever the configured profile speaks. The firmware says which via
+// `encoding`, and the two view modes mean different things per protocol -- ciphertext vs decrypted
+// APDU for DLMS, hex vs the telegram's own ASCII for DSMR.
+// "Ansicht eingefroren" only pauses this view's polling; the device keeps capturing, and the copy
+// says so.
 export function StreamTab() {
   const [frames, setFrames] = useState(null);
   const [err, setErr] = useState(null);
@@ -74,16 +76,19 @@ export function StreamTab() {
 
   if (err && !frames) return html`<div class="err">${err}</div>`;
   if (!frames) return html`<p><span class="spin"></span> ${S.loading}</p>`;
-  if (frames.protocol !== "dlms") return html`<div class="card"><p class="hint">${S.streamEmptyDsmr}</p></div>`;
+  if (frames.protocol === "none") return html`<div class="card"><p class="hint">${S.streamEmptyNone}</p></div>`;
 
+  // DSMR telegrams are ASCII to begin with, so "plain" is the telegram itself and "raw" is a hex
+  // dump of the same bytes -- one capture, two views. DLMS keeps ciphertext vs decrypted APDU.
+  const text = frames.encoding === "text";
   const list = frames.frames;
-  const kb = Math.round((frames.len * frames.cap * 2) / 1024);
+  const kb = Math.round((frames.len * frames.cap) / 1024);
   const allSel = list.length > 0 && sel.length === list.length;
 
   return html`
     <div class="seg">
-      <button class=${mode === "raw" ? "active" : ""} onClick=${() => pickMode("raw")}>${S.streamRaw}</button>
-      <button class=${mode === "plain" ? "active" : ""} onClick=${() => pickMode("plain")}>${S.streamPlain}</button>
+      <button class=${mode === "raw" ? "active" : ""} onClick=${() => pickMode("raw")}>${text ? S.streamHex : S.streamRaw}</button>
+      <button class=${mode === "plain" ? "active" : ""} onClick=${() => pickMode("plain")}>${text ? S.streamText : S.streamPlain}</button>
     </div>
     <div class="card switchrow">
       <div><div class="t">${tail ? S.tailOn : S.tailOff}</div><div class="s">${tail ? S.tailOnNote(frames.len, kb) : S.tailOffNote}</div></div>
@@ -97,7 +102,7 @@ export function StreamTab() {
       </div>
       ${list.map((f) => {
         const key = `${f.i}:${mode}`;
-        const len = mode === "raw" ? f.raw_len : f.plain_len;
+        const len = (text || mode === "raw") ? f.raw_len : f.plain_len;
         return html`
           <div class="card frame" style="border-color:${open === f.i ? "var(--border2)" : "var(--border)"}">
             <div class="head">
@@ -105,13 +110,13 @@ export function StreamTab() {
               <button class="open" onClick=${() => toggleOpen(f.i)}>
                 <span class="sq ${f.ok ? "" : "bad"}"></span>
                 <span class="ts">−${f.age} s</span>
-                <span class="meta">${len} B · ${mode === "raw" ? S.frameMetaRaw : S.frameMetaPlain}${(mode === "raw" ? f.raw_trunc : f.plain_trunc) ? " · …" : ""}</span>
+                <span class="meta">${len} B · ${text ? S.frameMetaTelegram : mode === "raw" ? S.frameMetaRaw : S.frameMetaPlain}${(mode === "raw" || text ? f.raw_trunc : f.plain_trunc) ? " · …" : ""}</span>
                 <span class="crc ${f.ok ? "" : "bad"}">${f.ok ? S.crcOk : S.crcFail}</span>
               </button>
             </div>
             ${open === f.i && html`
               <div class="body">
-                <div class="hex">${len ? (cache[key] ?? html`<span class="spin"></span>`) : "–"}</div>
+                <div class="hex ${text && mode === "plain" ? "text" : ""}">${len ? (cache[key] ?? html`<span class="spin"></span>`) : "–"}</div>
                 <div class="row">
                   <button class="primary" disabled=${!cache[key]} onClick=${() => download(`gplug-${mode}-frame${f.i}.txt`, cache[key])}>${S.frameTxt}</button>
                   <button disabled=${!cache[key]} onClick=${() => { navigator.clipboard?.writeText(cache[key]); setCopied(f.i); setTimeout(() => setCopied(null), 1500); }}>${copied === f.i ? S.copied : S.copy}</button>
@@ -123,10 +128,10 @@ export function StreamTab() {
         <div class="lbl">${sel.length ? S.exportSel : S.exportAll}</div>
         <p class="hint" style="margin:6px 0 0">${sel.length ? S.exportNoteSel(sel.length) : S.exportNoteAll(list.length)}</p>
         <div class="row" style="margin-top:12px">
-          <button class="primary" onClick=${() => exportAs("raw")}>${S.dlRaw}</button>
-          <button onClick=${() => exportAs("plain")}>${S.dlPlain}</button>
+          <button class="primary" onClick=${() => exportAs(text ? "plain" : "raw")}>${text ? S.dlText : S.dlRaw}</button>
+          <button onClick=${() => exportAs(text ? "raw" : "plain")}>${text ? S.streamHex + " .txt" : S.dlPlain}</button>
         </div>
-        <div class="mono" style="font-size:.7rem;color:var(--muted2);margin-top:9px">${S.dlHint}</div>
+        <div class="mono" style="font-size:.7rem;color:var(--muted2);margin-top:9px">${text ? S.dsmrNote : S.dlHint}</div>
       </div>`}
     ${err && html`<div class="err">${err}</div>`}`;
 }
