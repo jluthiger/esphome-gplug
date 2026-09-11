@@ -11,7 +11,9 @@
     "blue": 7,
     "button": 9
    },
-   "baud": 115200
+   "baud": 115200,
+   "parity": "N",
+   "serial_flags": 0
   },
   {
    "id": "gplugde",
@@ -24,7 +26,9 @@
     "blue": 7,
     "button": 9
    },
-   "baud": 115200
+   "baud": 115200,
+   "parity": "N",
+   "serial_flags": 0
   },
   {
    "id": "gplugk",
@@ -37,7 +41,9 @@
     "blue": 7,
     "button": 9
    },
-   "baud": 2400
+   "baud": 2400,
+   "parity": "N",
+   "serial_flags": 0
   },
   {
    "id": "gplugm",
@@ -50,7 +56,9 @@
     "blue": 3,
     "button": 9
    },
-   "baud": 2400
+   "baud": 2400,
+   "parity": "E",
+   "serial_flags": 12
   }
  ],
  "presets": [

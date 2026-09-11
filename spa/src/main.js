@@ -53,7 +53,7 @@ function App() {
       const [st, d] = await Promise.all([api.status(), api.presets()]);
       setStatus(st); setData(d);
       // Pre-select what the device already knows
-      if (st.hardware?.variant && !hw) setHw({ variant: st.hardware.variant, pins: st.hardware.pins });
+      if (st.hardware?.variant && !hw) setHw({ ...st.hardware });
       if (st.meter?.preset) setMeter((m) => ({ ...m, preset: st.meter.preset }));
     } catch (e) { setErr(String(e.message || e)); }
   }

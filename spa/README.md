@@ -48,6 +48,18 @@ often a cable or the meter as a wrong setting. When the device already holds a G
 offers "Gespeicherten Schlüssel verwenden" (on by default) and sends `keep_key` instead of the key,
 which the SPA never gets back – so fixing only the profile doesn't mean retyping 32 hex digits.
 
+**The meter step proposes the profile** (`steps/meter.js`). Committing the hardware step sends the
+variant's line parameters (`baud`, `parity`, `serial_flags` from `variants` in `presets.json`)
+with the pins, so the firmware's UART runs right away and its header sniffer reports what the line
+speaks in `/api/live` `detect` (`protocol_sniff.h` in the firmware). The meter step polls that and
+follows it: exactly one of the variant's profiles fits → it is selected and shown alone, the user
+only confirms (plus the GUEK when the line is encrypted); several fit (gPlugM has two DLMS
+profiles) → the list is narrowed to those. Tapping a card ends the following; "Anderes Profil
+wählen" and "Alle Profile anzeigen" widen the list on request. Until the first frame the card shows
+"Warte auf Signale…", after 30 s without a byte it hints at the cable / customer port. A firmware
+without `detect` gets the old manual list. The same sniffer feeds the `protocol` diagnosis ("Falsches
+Profil") when a configured profile contradicts the line. Mock: `MOCK_DETECT=dsmr|dlms|none npm run dev`.
+
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
 Its fonts and dunkelgrün-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`

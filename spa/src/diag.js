@@ -8,6 +8,7 @@ const DIAG = {
   silent: { pill: S.noData, title: S.dgSilent, hint: S.dgSilentHint, fix: [["hardware", S.fixHardware]] },
   garbled: { pill: S.dgGarbledPill, title: S.dgGarbled, hint: S.dgGarbledHint, fix: [["meter", S.fixMeter], ["hardware", S.fixHardware]] },
   no_match: { pill: S.dgNoMatchPill, title: S.dgNoMatch, hint: S.dgNoMatchHint, fix: [["meter", S.fixMeter]] },
+  protocol: { pill: S.dgProtocolPill, title: S.dgProtocol, hint: S.dgProtocolHint, fix: [["meter", S.fixMeter]] },
   key: { pill: S.keyWrong, title: S.dgKey, hint: S.dgKeyHint, fix: [["key", S.fixKey]] },
   // firmware without "diag": only the LED's no-data verdict is known
   nodata: { pill: S.noData, title: S.noData, hint: S.noDataHint, fix: [["meter", S.fixMeter], ["hardware", S.fixHardware]] },

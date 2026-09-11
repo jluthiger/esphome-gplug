@@ -11,15 +11,20 @@ ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().paren
 OUT = Path(sys.argv[2] if len(sys.argv) > 2 else Path(__file__).resolve().parents[2] / "firmware" / "components" / "gplug_smi" / "presets.json")
 
 # Hardware defaults per variant (from intent.md pin table)
+# baud / parity ("N" or "E") / serial_flags (Tasmota so2: 4 = invert RX, 8 = no pullup) describe the
+# variant's physical interface and are the same for every preset of a variant. The hardware step
+# sends them with the pins, so the firmware's UART already runs right before a profile is chosen and
+# the protocol sniffer can listen (GplugSmi::apply_hw_json_). Not the Tasmota `mode`: that also
+# encodes the protocol ("o" ASCII vs "r" raw), which differs between a variant's presets.
 VARIANTS = [
     {"id": "gplugd",  "name": "gPlugD",   "interface": "P1 (DSMR ASCII or HDLC/DLMS)",
-     "pins": {"rx": 4, "red": 6, "green": 5, "blue": 7, "button": 9}, "baud": 115200},
+     "pins": {"rx": 4, "red": 6, "green": 5, "blue": 7, "button": 9}, "baud": 115200, "parity": "N", "serial_flags": 0},
     {"id": "gplugde", "name": "gPlugD-E", "interface": "P1 (DSMR ASCII or HDLC/DLMS)",
-     "pins": {"rx": 4, "red": 5, "green": 6, "blue": 7, "button": 9}, "baud": 115200},
+     "pins": {"rx": 4, "red": 5, "green": 6, "blue": 7, "button": 9}, "baud": 115200, "parity": "N", "serial_flags": 0},
     {"id": "gplugk",  "name": "gPlugK",   "interface": "Kamstrup DLMS push",
-     "pins": {"rx": 4, "red": 5, "green": 6, "blue": 7, "button": 9}, "baud": 2400},
+     "pins": {"rx": 4, "red": 5, "green": 6, "blue": 7, "button": 9}, "baud": 2400, "parity": "N", "serial_flags": 0},
     {"id": "gplugm",  "name": "gPlugM",   "interface": "CII / M-Bus HDLC/DLMS",
-     "pins": {"rx": 7, "red": 1, "green": 4, "blue": 3, "button": 9}, "baud": 2400},
+     "pins": {"rx": 7, "red": 1, "green": 4, "blue": 3, "button": 9}, "baud": 2400, "parity": "E", "serial_flags": 12},
 ]
 
 MODE = {"o": "dsmr", "r": "dlms", "rE1": "dlms"}
@@ -123,6 +128,15 @@ for script in sorted(ROOT.glob("*/*/script.txt")):
         "obis": parsed["obis"],
         "source": str(script.relative_to(ROOT.parent)),
     })
+
+# The hardware step configures the line from the variant alone; a preset that disagreed would be
+# silently overridden by the wrong parameters until the meter step. Refuse to generate that.
+by_id = {v["id"]: v for v in VARIANTS}
+for p in presets:
+    v = by_id[p["variant"]]
+    for k in ("baud", "serial_flags"):
+        assert p[k] == v[k], f"{p['id']}: {k}={p[k]!r} differs from variant {v['id']} ({v[k]!r})"
+    assert (p["mode"] == "rE1") == (v["parity"] == "E"), f"{p['id']}: mode={p['mode']!r} vs variant parity {v['parity']!r}"
 
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text(json.dumps({"variants": VARIANTS, "presets": presets}, indent=1, ensure_ascii=False))

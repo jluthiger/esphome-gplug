@@ -16,3 +16,6 @@ test/test_raw
 test/test_replay
 test/test_structure
 secrets.yaml
+test/test_framelog
+test/test_history
+test/test_sniff

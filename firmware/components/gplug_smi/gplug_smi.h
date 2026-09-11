@@ -8,6 +8,7 @@
 #include "frame_log.h"
 #include "history_store.h"
 #include "partition_flash.h"
+#include "protocol_sniff.h"
 
 #include <array>
 #include <mutex>
@@ -144,6 +145,10 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool no_data_{false};         // LED's no-data verdict, exposed in /api/live so the SPA agrees with the LED
   ::gplug_dsmr::DsmrParser dsmr_;
   ::gplug_dlms::DlmsDecoder dlms_;
+  // Header sniffer, fed every HAN byte whatever the profile (also before one exists). Touched by the
+  // loop task only; config writers ask for a reset via sniff_reset_pending_ instead of reaching in.
+  ::gplug_sniff::ProtocolSniffer sniff_;
+  bool sniff_reset_pending_{false};
 
   // live state, guarded by mutex_ (HTTP runs on the httpd task)
   mutable std::mutex mutex_;
@@ -157,6 +162,12 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   uint32_t last_match_ms_{0};
   uint32_t rx_bytes_{0};
   uint32_t meter_applied_ms_{0};
+  // The sniffer's verdict as published for /api/live "detect" and diag_() (copied out of sniff_
+  // after each read burst). detect_ms_ is the last header hit, so a silent line goes stale.
+  ::gplug_sniff::ProtocolSniffer::Protocol detect_proto_{::gplug_sniff::ProtocolSniffer::NONE};
+  ::gplug_sniff::ProtocolSniffer::Tri detect_enc_{::gplug_sniff::ProtocolSniffer::UNKNOWN};
+  uint32_t detect_hits_{0};
+  uint32_t detect_ms_{0};
   bool key_invalid_{false};
   std::array<Sample, RING_LEN> ring_{};
   size_t ring_head_{0}, ring_count_{0};

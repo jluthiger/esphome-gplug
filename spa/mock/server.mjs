@@ -18,7 +18,7 @@ const state = {
   ota_auth: !!OTA_PASSWORD,
   hardware: null, meter: null,
   wifi: { connected: false, ssid: null, ip: null, rssi: null, error: null },
-  t0: Date.now(),
+  t0: Date.now(), hwT0: Date.now(),
 };
 
 const NETS = [
@@ -33,19 +33,40 @@ const NETS = [
 const MOCK_DIAG = process.env.MOCK_DIAG || "";
 const DIAG_GRACE_S = 8;
 
+// Header sniffing like GplugSmi's ProtocolSniffer: what the line "speaks" shows up in /api/live
+// `detect` DETECT_DELAY_S after the hardware step. Defaults follow the variant (gPlugD/D-E -> DSMR,
+// gPlugK/M -> encrypted DLMS); MOCK_DETECT=dsmr|dlms|none overrides it, e.g. `dlms` on a gPlugD
+// makes the wizard propose the encrypted P1 profile, `none` leaves the step in manual mode.
+const MOCK_DETECT = process.env.MOCK_DETECT || "";
+const DETECT_DELAY_S = 4;
+
+function detect() {
+  const none = { protocol: null, encrypted: null, hits: 0, age: null };
+  if (!state.hardware) return none;
+  const t = (Date.now() - state.hwT0) / 1000;
+  const proto = MOCK_DETECT || (["gplugk", "gplugm"].includes(state.hardware.variant) ? "dlms" : "dsmr");
+  if (proto === "none" || t < DETECT_DELAY_S) return none;
+  return { protocol: proto, encrypted: proto === "dlms", hits: Math.floor(t / 5) + 1, age: Math.floor(t % 5) };
+}
+
 function live() {
-  if (!state.meter) return { age: null, no_data: false, diag: "unconfigured" };
+  const d = detect();
+  const rxAge = state.hardware && MOCK_DETECT !== "none" ? Math.floor(((Date.now() - state.hwT0) / 1000) % 5) : null;
+  const base = { detect: d, rx_age: rxAge };
+  if (!state.meter) return { ...base, age: null, no_data: false, diag: "unconfigured" };
   const t = (Date.now() - state.t0) / 1000;
   const grace = t < DIAG_GRACE_S;
   const keyInvalid = state.meter.key !== undefined && state.meter.key?.toLowerCase().startsWith("dead");
-  if (keyInvalid) return { age: grace ? null : 3, no_data: false, key_invalid: !grace, diag: grace ? "waiting" : "key" };
+  if (keyInvalid) return { ...base, age: grace ? null : 3, no_data: false, key_invalid: !grace, diag: grace ? "waiting" : "key" };
+  // The sniffed protocol contradicting the profile is conclusive at once, no grace (GplugSmi::diag_).
+  if (d.protocol && d.hits >= 2 && d.protocol !== state.meter.descriptor?.protocol) return { ...base, age: null, no_data: true, diag: "protocol" };
   const forced = MOCK_DIAG && state.meterCommits <= 1;
-  if (grace && (forced || t < 3)) return { age: null, no_data: false, diag: "waiting" };
-  if (forced && MOCK_DIAG === "no_match") return { age: 3, no_data: false, diag: "no_match", values: {} };
-  if (forced) return { age: null, no_data: true, diag: MOCK_DIAG };
+  if (grace && (forced || t < 3)) return { ...base, age: null, no_data: false, diag: "waiting" };
+  if (forced && MOCK_DIAG === "no_match") return { ...base, age: 3, no_data: false, diag: "no_match", values: {} };
+  if (forced) return { ...base, age: null, no_data: true, diag: MOCK_DIAG };
   const p = 1.11 + 0.4 * Math.sin(t / 30);
   return {
-    smid: "55771146", age: Math.floor(t % 10), no_data: false, diag: "ok",
+    ...base, smid: "55771146", age: Math.floor(t % 10), no_data: false, diag: "ok",
     p, ei: 19087 + t / 3600, eo: 30836,
     // register snapshot keyed by preset name, like the firmware's `values` (subset: what the
     // Verlauf register list and the Live phase rows read)
@@ -207,7 +228,7 @@ const routes = {
     }, 4000);
     return { ok: true };
   },
-  "POST /api/config/hardware": (b) => { state.hardware = b; return { ok: true }; },
+  "POST /api/config/hardware": (b) => { state.hardware = b; state.hwT0 = Date.now(); return { ok: true }; },
   "POST /api/config/meter": (b) => {
     if (b.keep_key) {   // GplugSmi::merge_stored_keys_
       if (!state.meter?.key) return { __status: 400, error: "no stored key" };

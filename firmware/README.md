@@ -7,7 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
-cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
+cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history sniff; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
 ```
 
 **Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
@@ -163,6 +163,7 @@ with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin
 | `test/test_structure.cpp` | tests `decode_structure()` (the production DLMS decode path) against a real capture |
 | `test/test_capturelist.cpp` | tests `find_capture_list()` (gPlugM/L+G capture-list decode) against two real captures |
 | `test/test_history.cpp` | tests `history_store.h`: append/rotate/wrap, crash recovery (torn record, half-written timestamp, interrupted erase), timestamp back-patching, and the bucket aggregation |
+| `test/test_sniff.cpp` | tests `protocol_sniff.h`: DSMR ident line vs HDLC frame from the first bytes, ciphered/plain tag through LLC and GBT headers, a stray `/XYZ5` in ciphertext not flipping the verdict, reset |
 | `test/test_framelog.cpp` | tests `frame_log.h`'s ring buffer and its wiring to `DlmsDecoder`'s capture hook (`last_frame()`/`last_frame_ok()`/`frame_seq()`), incl. the CRC-ok-but-wrong-key case the Datenstrom view depends on |
 
 ## Component `gplug_smi`
@@ -282,11 +283,11 @@ by design: one setter, one call-site swap).
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
 | GET | `/api/status` | version, hostname, uptime, build, ota_auth, heap, wifi, hardware, meter counters |
-| GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}` |
+| GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |
 | GET | `/api/presets` | embedded presets (gzip) |
-| GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}}` |
+| GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}, baud?, parity?: "N"\|"E", serial_flags?}`. The line parameters are the variant's (from `variants` in `presets.json`, same for all its presets) and are applied to the UART at once, so the sniffer listens before a profile exists |
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
 | POST | `/api/reboot` | |
@@ -303,11 +304,23 @@ window and grace (after boot or a meter config change) as the LED's no-data verd
 | `waiting` | grace period, nothing conclusive yet | – |
 | `key` | frames arrive, the GUEK doesn't decrypt them | meter step, key field |
 | `no_match` | frames decode, but none of the profile's OBIS codes is in them | meter step (profile) |
+| `protocol` | the header sniffer has seen ≥ 2 frames/telegrams of the *other* protocol in the last 60 s; conclusive at once, no grace | meter step (profile; the detected one is proposed) |
 | `garbled` | bytes arrive but never form a valid frame/telegram (baud, parity, protocol) | meter step, then hardware |
 | `silent` | nothing on the line at all: pin/variant, cable, or the utility hasn't enabled the customer port | hardware step |
 | `unconfigured` | no meter descriptor | – |
 
-`no_match` also turns the LED red: before, frames without a single matching register kept it
+**Protocol sniffer (`protocol_sniff.h`, `detect` in `/api/live`).** Every HAN byte also runs
+through a header-only detector, whether or not a profile is configured: a P1 telegram opens with
+the IEC 62056-21 ident line `/` + 3 letters + baud digit (`/KFM5…`, `/LGF5…`), an HDLC type-3
+frame with `7E A?`; for DLMS the tag after the LLC `E6 E7 00` says ciphered (`DB`) or plain
+(`0F`), a GBT segment (`E0`, 7-byte header) is skipped to the same tag. The verdict is the protocol
+with more header hits since the last hw/meter config (ties go to DLMS: `A0..AF` never occur in
+DSMR ASCII, while ciphertext can contain a stray `/XYZ5`). It answers within the first frame and
+needs no key, which is what the wizard's meter step needs to propose the profile right after the
+hardware step -- the reason the hardware step now carries the line parameters. Host test:
+`test/test_sniff.cpp`.
+
+`no_match` and `protocol` also turn the LED red: before, frames without a single matching register kept it
 green while the app showed nothing. Verified on the gPlugK with nothing on its HAN port
 (`waiting` for 60 s, then `silent`, `rx_bytes` 0); `garbled`/`no_match` need bytes on GPIO4 and
 are covered by the mock only.

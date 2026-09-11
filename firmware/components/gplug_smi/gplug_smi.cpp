@@ -91,8 +91,14 @@ void GplugSmi::loop() {
   uint8_t c;
   size_t budget = 512;   // bytes per loop, keep the main loop responsive
   uint32_t got = 0;
+  bool sniff_hit = false;
+  if (sniff_reset_pending_) { sniff_.reset(); sniff_reset_pending_ = false; }
   while (budget-- && this->available() && this->read_byte(&c)) {
     got++;
+    // Every byte goes through the header sniffer, profile or not: before the meter step it is what
+    // lets the wizard propose the profile, afterwards it polices a profile that contradicts the
+    // line (diag "protocol").
+    sniff_hit |= sniff_.feed(c);
     if (desc_.protocol == Descriptor::DSMR) {
       dsmr_.feed((char) c, [this](const ::gplug_dsmr::DsmrValue &v) { this->on_dsmr_value_(v); });
     } else if (desc_.protocol == Descriptor::DLMS) {
@@ -115,6 +121,12 @@ void GplugSmi::loop() {
     std::lock_guard<std::mutex> lock(mutex_);
     rx_bytes_ += got;
     last_rx_ms_ = millis();
+    // The ciphering tag arrives after the header hit, so copy the verdict on every burst, not
+    // just on hits; only the timestamp is tied to a hit.
+    detect_proto_ = sniff_.protocol();
+    detect_enc_ = sniff_.encrypted();
+    detect_hits_ = sniff_.hits();
+    if (sniff_hit) detect_ms_ = millis();
   }
   // 10 s ring sample
   uint32_t now = millis();
@@ -352,6 +364,12 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
     meter_applied_ms_ = millis();
     key_invalid_ = false;
     setup_pending_ = false;
+    // A new profile may change the line parameters; what was sniffed at the old ones is void.
+    sniff_reset_pending_ = true;
+    detect_proto_ = ::gplug_sniff::ProtocolSniffer::NONE;
+    detect_enc_ = ::gplug_sniff::ProtocolSniffer::UNKNOWN;
+    detect_hits_ = 0;
+    detect_ms_ = 0;
     dlms_ = ::gplug_dlms::DlmsDecoder();
     if (nd.encrypted) dlms_.set_key(nd.key);
     if (nd.has_auth_key) dlms_.set_auth_key(nd.auth_key);
@@ -366,7 +384,8 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
   return true;
 }
 
-// {"variant":"gplugm","pins":{"rx":7,"red":1,"green":4,"blue":3,"button":9}}
+// {"variant":"gplugm","pins":{"rx":7,"red":1,"green":4,"blue":3,"button":9},"baud":2400,"parity":"E","serial_flags":12}
+// baud/parity/serial_flags are optional (older SPAs and stored configs don't send them).
 bool GplugSmi::apply_hw_json_(const std::string &json, std::string &err) {
   JsonDocument doc;
   if (deserializeJson(doc, json)) { err = "json"; return false; }
@@ -374,6 +393,20 @@ bool GplugSmi::apply_hw_json_(const std::string &json, std::string &err) {
   hw_json_ = json;
   int rx = doc["pins"]["rx"] | -1;
   if (rx >= 0) desc_.rx = rx;   // hardware pin wins over preset default
+  // The line parameters belong to the variant's physical interface, so they travel with the
+  // hardware step: the UART then already runs right for the sniffer before any profile is chosen.
+  // Every preset of a variant carries the same values, so a later meter step changes nothing here.
+  if (!doc["baud"].isNull()) desc_.baud = doc["baud"];
+  if (!doc["parity"].isNull()) desc_.parity_even = strcmp(doc["parity"] | "N", "E") == 0;
+  if (!doc["serial_flags"].isNull()) desc_.serial_flags = doc["serial_flags"];
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    sniff_reset_pending_ = true;
+    detect_proto_ = ::gplug_sniff::ProtocolSniffer::NONE;
+    detect_enc_ = ::gplug_sniff::ProtocolSniffer::UNKNOWN;
+    detect_hits_ = 0;
+    detect_ms_ = 0;
+  }
   this->apply_uart_();
   int button = doc["pins"]["button"] | -1;
   if (button != button_pin_num_) { button_pin_num_ = (int8_t) button; this->apply_button_pin_(); }
@@ -488,6 +521,7 @@ static const char *led_mode_name_(int8_t mode) {
 // the wizard step that fixes it. Uses the LED's 60 s grace after a config change or boot, so a
 // meter that pushes only every 10-30 s isn't declared broken while the user is still watching.
 //   ok        -- a configured OBIS code matched within the window
+//   protocol  -- the line's header bytes say DSMR/DLMS, the profile expects the other -> meter step, profile
 //   waiting   -- grace period, nothing conclusive yet
 //   key       -- frames arrive but the GUEK doesn't decrypt them          -> meter step, key
 //   no_match  -- frames decode but no configured OBIS code is in them     -> meter step, profile
@@ -500,6 +534,11 @@ const char *GplugSmi::diag_(uint32_t now) const {
   if (key_invalid_) return "key";
   auto recent = [now](uint32_t t) { return t != 0 && now - t < LED_NO_DATA_TIMEOUT_MS; };
   if (recent(last_match_ms_)) return "ok";
+  // Two header hits of the other protocol are conclusive on their own -- no need to sit out the
+  // grace period, and the meter step will propose the right profile.
+  using Sniff = ::gplug_sniff::ProtocolSniffer;
+  Sniff::Protocol expected = desc_.protocol == Descriptor::DSMR ? Sniff::DSMR : Sniff::DLMS;
+  if (recent(detect_ms_) && detect_hits_ >= 2 && detect_proto_ != Sniff::NONE && detect_proto_ != expected) return "protocol";
   bool grace = now - meter_applied_ms_ < LED_NO_DATA_TIMEOUT_MS;
   if (grace) return "waiting";
   if (recent(last_frame_ms_)) return "no_match";
@@ -530,11 +569,13 @@ void GplugSmi::update_led_() {
   uint32_t since_data = last_frame_ms_ == 0 ? now - meter_applied_ms_ : now - last_frame_ms_;
   bool no_data = !ap_mode && has_meter && since_data > LED_NO_DATA_TIMEOUT_MS;
   no_data_ = no_data;
-  // Frames arriving without a single configured OBIS code (wrong profile) is as broken as no data,
-  // and the SPA says so (diag "no_match") -- the LED must not stay green meanwhile.
-  bool no_match = !ap_mode && has_meter && !strcmp(diag_(now), "no_match");
+  // Frames arriving without a single configured OBIS code, or in the other protocol altogether
+  // (wrong profile), is as broken as no data, and the SPA says so (diag "no_match" / "protocol")
+  // -- the LED must not stay green meanwhile.
+  const char *d = has_meter ? diag_(now) : "";
+  bool wrong_profile = !ap_mode && has_meter && (!strcmp(d, "no_match") || !strcmp(d, "protocol"));
   // AP-fallback is the state that actually needs the user's attention, so it always wins the LED.
-  bool error = !ap_mode && (key_invalid_ || no_data || no_match);
+  bool error = !ap_mode && (key_invalid_ || no_data || wrong_profile);
   bool running = !ap_mode && has_meter && !error;
   int8_t candidate = ap_mode ? 0 : (error ? 3 : (running ? 2 : 1));
 
@@ -791,6 +832,16 @@ std::string GplugSmi::json_live_() {
   s += ",\"no_data\":" + std::string(no_data_ ? "true" : "false");
   s += ",\"diag\":\"" + std::string(diag_(millis())) + "\"";
   s += ",\"rx_bytes\":" + std::to_string(rx_bytes_);
+  s += ",\"rx_age\":" + (last_rx_ms_ ? std::to_string((millis() - last_rx_ms_) / 1000) : "null");
+  // What the line speaks according to its header bytes (protocol_sniff.h), available before any
+  // profile is configured: the wizard's meter step proposes the profile from it.
+  using Sniff = ::gplug_sniff::ProtocolSniffer;
+  s += ",\"detect\":{\"protocol\":";
+  s += detect_proto_ == Sniff::DSMR ? "\"dsmr\"" : detect_proto_ == Sniff::DLMS ? "\"dlms\"" : "null";
+  s += ",\"encrypted\":";
+  s += detect_enc_ == Sniff::YES ? "true" : detect_enc_ == Sniff::NO ? "false" : "null";
+  s += ",\"hits\":" + std::to_string(detect_hits_);
+  s += ",\"age\":" + (detect_ms_ ? std::to_string((millis() - detect_ms_) / 1000) : "null") + "}";
   if (smid_[0]) { s += ",\"smid\":\""; json_escape(s, smid_); s += "\""; }
   float pi = value_w_("Pi"), po = value_w_("Po");
   s += ",\"p\":"; append_num(s, (pi - po) / 1000.0f, 3);

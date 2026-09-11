@@ -10,8 +10,10 @@ export function Hardware({ variants, value, onChange, onNext, onBack }) {
   const [adv, setAdv] = useState(false);
   const sel = variants.find((v) => v.id === value?.variant);
 
+  // The line parameters go with the variant: the firmware sets the UART from them right away, so
+  // the protocol sniffer listens while the user is still on the way to the meter step.
   function pick(v) {
-    onChange({ variant: v.id, pins: { ...v.pins } });
+    onChange({ variant: v.id, pins: { ...v.pins }, baud: v.baud, parity: v.parity, serial_flags: v.serial_flags });
   }
   function setPin(k, raw) {
     const n = raw === "" ? null : Number(raw);
