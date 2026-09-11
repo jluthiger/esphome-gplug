@@ -145,6 +145,8 @@ export const S = {
   keySet: "gültig",
   keyInvalidBadge: "ungültig",
   keyNote: "Nur auf dem Gerät gespeichert. Wird nie im Klartext angezeigt oder exportiert.",
-  dimMode: "Nachtmodus",
-  dimModeHint: "Abgedunkelt für Schutzraum und Nachtdienst",
+  theme: "Darstellung",
+  themeHint: "Wird in diesem Browser gespeichert",
+  themeLight: "Hell",
+  themeDark: "Dunkel",
 };

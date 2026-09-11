@@ -3,7 +3,7 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 import { Wifi } from "../steps/wifi.js";
 
-export function SetupTab({ status, live, presets, dim, onToggleDim }) {
+export function SetupTab({ status, live, presets, theme, onTheme }) {
   const [showWifi, setShowWifi] = useState(false);
   const [wifiVal, setWifiVal] = useState({
     ssid: status?.wifi?.ssid || "",
@@ -42,8 +42,13 @@ export function SetupTab({ status, live, presets, dim, onToggleDim }) {
         <div class="keymask"><span class="m">•••• •••• •••• •••• •••• •••• •••• ••••</span><span class="badge ${keyBadge[0]}">${keyBadge[1]}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       </div>`}
-    <div class="card switchrow">
-      <div><div class="t">${S.dimMode}</div><div class="s">${S.dimModeHint}</div></div>
-      <button class="switch ${dim ? "on" : ""}" onClick=${onToggleDim}><span></span></button>
+    <div class="card">
+      <div class="lbl">${S.theme}</div>
+      <div class="seg" role="radiogroup">
+        ${[["light", S.themeLight], ["dark", S.themeDark]].map(([t, label]) => html`
+          <button role="radio" aria-checked=${theme === t} class=${theme === t ? "active" : ""}
+            onClick=${() => onTheme(t)}>${label}</button>`)}
+      </div>
+      <p class="hint" style="margin:0">${S.themeHint}</p>
     </div>`;
 }

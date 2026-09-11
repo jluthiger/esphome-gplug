@@ -240,8 +240,9 @@ branding, based on esphome 2026.6.5:
 - `captive.html` – the actual branding: same markup/JS/form-field contract as upstream's page
   (dynamic title/MAC/network-list from `/config.json`, `#ssid`/`#psk` fields posting to
   `/wifisave`, `/update` OTA form), only the `<style>` block and viewport/color-scheme meta
-  changed, using the SPA's tokens (`spa/src/style.css`): `--bg:#1f1f1f`, `--panel:#2a2a2a`,
-  `--accent:#ffd400` buttons, same border-radius scale (8/10/12px) and font stack. This is the
+  changed, using the SPA's tokens and font stack (`spa/src/style.css`, both themes: dark default,
+  light via `prefers-color-scheme` since the captive webview has no toggle). Keep the token values
+  in sync by hand when the SPA palette changes. This is the
   file to edit for future branding tweaks — no rebuild-time script needed, ESPHome
   gzip-compresses it automatically via `to_code()`.
 

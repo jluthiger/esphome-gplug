@@ -8,6 +8,7 @@ import { LiveTab } from "./live-tab.js";
 import { HistTab } from "./hist-tab.js";
 import { StreamTab } from "./stream-tab.js";
 import { SetupTab } from "./setup-tab.js";
+import { initialTheme, saveTheme } from "../theme.js";
 
 // Day-to-day home screen once the device is configured and on WiFi (see main.js routing).
 // Session-only tab state, not reflected in the URL hash -- only #setup/#live are real routes
@@ -17,7 +18,6 @@ import { SetupTab } from "./setup-tab.js";
 // so the header's status pill and the tabs never disagree. Fast enough to feel live, slow enough
 // not to matter on battery-backed phones or the device's own web server.
 const POLL_MS = 10000;
-const DIM_KEY = "gplug.dim";
 const TITLES = { live: "screenLive", hist: "screenHist", stream: "screenStream", setup: "screenSetup" };
 
 export function Live({ status, presets }) {
@@ -26,9 +26,7 @@ export function Live({ status, presets }) {
   const [ring, setRing] = useState(null);
   const [err, setErr] = useState(null);
   const [now, setNow] = useState(clock());
-  const [dim, setDim] = useState(() => {
-    try { return localStorage.getItem(DIM_KEY) === "1"; } catch { return false; }
-  });
+  const [theme, setTheme] = useState(initialTheme);
 
   useEffect(() => {
     let stop = false;
@@ -47,11 +45,7 @@ export function Live({ status, presets }) {
 
   useEffect(() => { document.getElementById("app").classList.add("live"); return () => document.getElementById("app").classList.remove("live"); }, []);
 
-  function toggleDim() {
-    const next = !dim;
-    setDim(next);
-    try { localStorage.setItem(DIM_KEY, next ? "1" : "0"); } catch { /* private mode, ignore */ }
-  }
+  function pickTheme(t) { saveTheme(t); setTheme(t); }
 
   const age = live?.age;
   // no_data is the firmware's verdict (same one that turns the LED red), so the pill and the LED
@@ -73,7 +67,6 @@ export function Live({ status, presets }) {
     ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} />`}
     ${tab === "hist" && html`<${HistTab} live=${live} ring=${ring} status=${status} presets=${presets} />`}
     ${tab === "stream" && html`<${StreamTab} />`}
-    ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} dim=${dim} onToggleDim=${toggleDim} />`}
-    <${TabBar} tab=${tab} onChange=${setTab} />
-    ${dim && html`<div class="dimlayer"></div>`}`;
+    ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} />`}
+    <${TabBar} tab=${tab} onChange=${setTab} />`;
 }

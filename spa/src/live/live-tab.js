@@ -25,7 +25,7 @@ export function LiveTab({ live, ring }) {
 
   return html`
     <div class="card">
-      <div class="between"><span class="lbl">${S.activePower}</span><span class="mono" style="font-size:.7rem;color:var(--mono)">−${age} s</span></div>
+      <div class="between"><span class="lbl">${S.activePower}</span><span class="num" style="font-size:.7rem;color:var(--sub)">−${age} s</span></div>
       <div class="big"><span class="v">${de(Math.abs(net), 2)}</span><span class="u">kW</span></div>
       <div class="dir">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>
       ${vals.length >= 2 && html`

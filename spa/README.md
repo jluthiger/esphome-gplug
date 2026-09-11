@@ -30,15 +30,16 @@ state change, not a page reload:
 | Live | `live/live-tab.js` | current power with direction, 1 h area chart from `/api/ring`, import/export counters, per-phase bars with V/A (hidden when the preset has no per-phase registers) |
 | Verlauf | `live/hist-tab.js` | 60 Min from the RAM ring (10 s resolution), plus Tag/Woche/Monat/Jahr from `/api/history` – power for the short ranges, energy per bucket for the long ones. History is fetched once per range and cached, never on the 10 s poll, because it reads flash on the device |
 | Datenstrom | `live/stream-tab.js` | the last 5 frames the device received, whatever the profile speaks: CRC verdict, body, copy/download, multi-select export. The two view modes follow the protocol – ciphertext vs decrypted APDU (hex) for DLMS, hex vs the telegram's own ASCII for DSMR, which the firmware signals with `encoding` |
-| Setup | `live/setup-tab.js` | reachable addresses, WLAN ändern (reuses `steps/wifi.js`), GUEK status (masked, never fetched), night mode |
+| Setup | `live/setup-tab.js` | reachable addresses, WLAN ändern (reuses `steps/wifi.js`), GUEK status (masked, never fetched), Darstellung Hell/Dunkel (`theme.js`) |
 
 With no hash yet (first load), the app picks a screen once `/api/status` answers: live view if
 the device already has hardware + meter configured and is connected to WiFi, wizard otherwise. The
 wizard's last step links to the live view; the wizard stays reachable at `#setup`.
 
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
-Its Google Fonts are deliberately not loaded – the SPA is a single self-contained blob served by a
-device that may have no WAN – so the mockup's own fallback stacks are used instead.
+Its fonts and dunkelgrün-only look are superseded (2026-09-11): one system-ui sans stack for the
+whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`
+(no colour literals outside the two token blocks).
 
 Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows "Schlüssel ungültig".
 

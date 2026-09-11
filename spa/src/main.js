@@ -8,6 +8,9 @@ import { Hardware } from "./steps/hardware.js";
 import { Meter } from "./steps/meter.js";
 import { Done } from "./steps/done.js";
 import { Live } from "./live/index.js";
+import { applyTheme, initialTheme } from "./theme.js";
+
+applyTheme(initialTheme());   // before the first render, so no flash of the wrong theme
 
 // No "wifi" step: this SPA is only ever reachable after the device has already joined WiFi
 // (the stock captive_portal handles that first join, before gplug_smi's own handler -- and

@@ -131,7 +131,7 @@ export function StreamTab() {
           <button class="primary" onClick=${() => exportAs(text ? "plain" : "raw")}>${text ? S.dlText : S.dlRaw}</button>
           <button onClick=${() => exportAs(text ? "raw" : "plain")}>${text ? S.streamHex + " .txt" : S.dlPlain}</button>
         </div>
-        <div class="mono" style="font-size:.7rem;color:var(--muted2);margin-top:9px">${text ? S.dsmrNote : S.dlHint}</div>
+        <div class="num" style="font-size:.7rem;color:var(--muted2);margin-top:9px">${text ? S.dsmrNote : S.dlHint}</div>
       </div>`}
     ${err && html`<div class="err">${err}</div>`}`;
 }

@@ -28,7 +28,7 @@ export function Meter({ presets, variant, value, onChange, onNext, onBack }) {
       <button onClick=${() => setAll(true)}>${S.showAll}</button>`}
     ${sel?.encrypted && html`
       <label>${S.key}</label>
-      <input class="mono" type="text" autocomplete="off" spellcheck="false" maxlength="32"
+      <input class="num" type="text" autocomplete="off" spellcheck="false" maxlength="32"
         value=${value.key} placeholder="0123456789ABCDEF0123456789ABCDEF"
         onInput=${(e) => onChange({ ...value, key: e.target.value.trim() })} />
       <p class="hint">${S.keyHint}</p>
@@ -36,7 +36,7 @@ export function Meter({ presets, variant, value, onChange, onNext, onBack }) {
     ${sel && html`
       <details>
         <summary>${S.values} (${sel.obis.length})</summary>
-        <div class="kv mono">
+        <div class="kv num">
           ${sel.obis.map((o) => html`<b>${o.obis}</b><span>${o.name}${o.unit ? " [" + o.unit + "]" : ""}</span>`)}
         </div>
       </details>`}

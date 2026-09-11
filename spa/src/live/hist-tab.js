@@ -50,7 +50,7 @@ export function HistTab({ live, ring, status, presets }) {
     <div class="card">
       <div class="between" style="margin-bottom:12px">
         <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
-        <span class="mono" style="font-size:.66rem;color:var(--muted2)">
+        <span class="num" style="font-size:.66rem;color:var(--muted2)">
           ${isRing ? S.samples(vals.length) : S.points(vals.length)}
         </span>
       </div>
