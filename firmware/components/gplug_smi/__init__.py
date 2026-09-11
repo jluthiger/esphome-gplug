@@ -22,6 +22,8 @@ CONF_SPA = "spa"
 CONF_PRESETS = "presets"
 CONF_SPA_RAW_ID = "spa_raw_id"
 CONF_PRESETS_RAW_ID = "presets_raw_id"
+CONF_OTA_PASSWORD = "ota_password"
+OTA_USERNAME = "admin"
 
 gplug_ns = cg.esphome_ns.namespace("gplug_smi")
 GplugSmi = gplug_ns.class_("GplugSmi", cg.Component, uart.UARTDevice)
@@ -62,6 +64,10 @@ CONFIG_SCHEMA = (
             cv.GenerateID(CONF_PRESETS_RAW_ID): cv.declare_id(cg.uint8),
             cv.Optional(CONF_SPA, default=None): _bundled(BUNDLED_SPA),
             cv.Optional(CONF_PRESETS, default=None): _bundled(BUNDLED_PRESETS),
+            # Optional: protects the browser OTA form (`/update`, from the captive portal's
+            # ota.web_server) with HTTP Basic auth, user "admin". Empty = no auth. gplug.yaml feeds
+            # the same value to `ota: password:` so both OTA paths share one password.
+            cv.Optional(CONF_OTA_PASSWORD, default=""): cv.sensitive(),
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
@@ -99,3 +105,11 @@ async def to_code(config):
     presets_gz = gzip.compress(minified, compresslevel=9, mtime=0)
     presets_arr = cg.static_const_array(config[CONF_PRESETS_RAW_ID], cg.ArrayInitializer(*presets_gz))
     cg.add(var.set_presets(presets_arr, len(presets_gz)))
+
+    # web_server_base wraps every handler registered via add_handler() -- only ota.web_server's
+    # /update here; the SPA and captive portal use add_handler_without_auth() -- in Basic auth once
+    # a username is set. Set before setup(), since the wrap happens when the handler is added.
+    if config[CONF_OTA_PASSWORD]:
+        cg.add_define("USE_WEBSERVER_AUTH")
+        cg.add(base.set_auth_username(OTA_USERNAME))
+        cg.add(base.set_auth_password(config[CONF_OTA_PASSWORD]))

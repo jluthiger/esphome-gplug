@@ -45,6 +45,31 @@ esphome upload dev.yaml --device /dev/cu.usbmodemXXXX         # flash only, no c
 esphome logs dev.yaml --device /dev/cu.usbmodemXXXX           # log only
 ```
 
+**OTA updates** (verified on hardware 2026-09-11, device on LAN). Two paths, both into the
+inactive app slot (`app0`/`app1`, 1408 kB each; image ~985 kB), nvs and `data` untouched so WiFi,
+hw/meter config and history survive:
+
+```
+esphome upload dev.yaml --device <ip|gplug.local>             # native ESPHome OTA, port 3232 (~6 s)
+curl -F update=@.esphome/build/gplug/.pioenvs/gplug/firmware.ota.bin http://<ip>/update   # browser form path (~12 s)
+```
+
+The `/update` form is on the captive-portal page, but the handler is live in STA mode too
+(`gplug_smi` starts `web_server_base` unconditionally). A bad image is rejected before the slot
+switch (`esp_ota_ops: OTA image has invalid magic byte`); an image that boots but crash-loops is
+rolled back by the bootloader (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`, `safe_mode` marks the app
+valid after 60 s) -- config-verified only, not provoked on hardware.
+
+**OTA password is optional**: substitution `ota_password` in `gplug.yaml`, default `""` = no auth,
+anyone on the LAN can flash. Non-empty protects both paths with the same password: native OTA
+(SHA256 challenge) and `/update` (HTTP Basic, user `admin`, via `gplug_smi: ota_password` →
+`web_server_base` credentials; the SPA and captive portal register with
+`add_handler_without_auth()` and stay open). Set it in the adopting config's `substitutions:` or
+per build with `esphome -s ota_password <pw> compile dev.yaml`. Gotcha: plain `esphome upload`
+(no `-s`) reuses the validated config of the *last compile* (`.esphome/storage/dev.yaml.validated.yaml`),
+password included -- so after a `-s` compile, pass the same `-s` to `upload` or it silently
+authenticates with the cached value.
+
 **Two configs, one firmware.** `gplug.yaml` is the *package*: self-contained, no path relative to
 any config directory, because it is what a foreign ESPHome Device Builder pulls in when a gPlug is
 adopted. Components come from `github://jluthiger/esphome-gplug` (`firmware/components`), the SPA
@@ -104,7 +129,7 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000   
 
 | File | Purpose |
 |---|---|
-| `gplug.yaml` | the package: wifi AP + captive portal, api, ota, sntp, uart, `gplug_smi`, project + dashboard_import, git component source, inline partitions (ESPHome's standard ESP-IDF layout: otadata, phy_init, app0 @ 0x10000 / app1 1408 kB each, nvs 448 kB, plus `data` 704 kB appended for the 15-min history) |
+| `gplug.yaml` | the package: wifi AP + captive portal, api, ota (optional `ota_password` substitution), sntp, uart, `gplug_smi`, project + dashboard_import, git component source, inline partitions (ESPHome's standard ESP-IDF layout: otadata, phy_init, app0 @ 0x10000 / app1 1408 kB each, nvs 448 kB, plus `data` 704 kB appended for the 15-min history) |
 | `dev.yaml` | `gplug.yaml` + local component source; what you build and flash while developing |
 | `base.yaml` | skeleton without the component, for size reference |
 | `components/gplug_smi/` | external component (see below) |

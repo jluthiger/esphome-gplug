@@ -8,6 +8,11 @@
 substitutions:
   name: gplug
   friendly_name: gPlug
+  # Optional OTA password, shared by native OTA (Device Builder / `esphome upload`) and the
+  # browser upload form (`/update`, HTTP Basic auth, user "admin"). Empty = no auth: anyone on the
+  # LAN can flash the device. Override in the adopting config's substitutions or with
+  # `esphome -s ota_password <pw> ...`.
+  ota_password: ""
 
 esphome:
   name: ${name}
@@ -67,6 +72,7 @@ api:
 
 ota:
   - platform: esphome
+    password: ${ota_password}   # empty still compiles the auth path, just skips the handshake
 
 time:
   - platform: sntp
@@ -82,3 +88,4 @@ uart:
 # SPA and presets default to the copies bundled in the component.
 gplug_smi:
   uart_id: han_uart
+  ota_password: ${ota_password}
