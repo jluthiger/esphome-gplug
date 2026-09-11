@@ -4,3 +4,4 @@ dist/
 .pnp.loader.mjs
 .yarn/
 yarn.lock
+.yarnrc.yml
