@@ -144,14 +144,19 @@ that portal network, not the compiled-in one. Harmless on builds without compile
 everything, hw/meter included:
 
 ```
-esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x9000 0x5000    # whole nvs partition
+esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region 0x2D0000 0x70000    # whole nvs partition (448 kB)
 ```
+
+The offsets come from the generated partition table, not from this file: check them before erasing
+with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin` (in ESP-IDF's
+`components/partition_table/`). An old command with `0x9000` would now hit otadata and phy_init.
 
 | File | Purpose |
 |---|---|
 | `gplug.yaml` | the package: wifi AP + captive portal, api, ota (optional `ota_password` substitution), sntp, uart, `gplug_smi`, project + dashboard_import, git component source, inline partitions (ESPHome's standard ESP-IDF layout: otadata, phy_init, app0 @ 0x10000 / app1 1408 kB each, nvs 448 kB, plus `data` 704 kB appended for the 15-min history) |
 | `dev.yaml` | `gplug.yaml` + local component source; what you build and flash while developing |
 | `base.yaml` | skeleton without the component, for size reference |
+| `MEMORY.md` | flash and RAM breakdown: partition table, what the app image and static RAM are made of, heap consumers |
 | `components/gplug_smi/` | external component (see below) |
 | `components/captive_portal/` | forked+re-styled external component, shadows ESPHome's built-in one (see below) |
 | `test/test_dsmr.cpp` | host unit test for the DSMR parser |
@@ -345,7 +350,7 @@ pass `ESP_INTR_FLAG_IRAM` anyway).
 
 - Firmware is 1007 kB flash / 60 kB static RAM of a 1408 kB app slot and 320 kB SRAM (890 kB before
   adopting mbedtls — a real crypto library is bigger than the hand-rolled one it replaced; +8 kB RAM
-  for the raw-frame capture ring, +0.6 kB for the history store).
+  for the raw-frame capture ring, +0.6 kB for the history store). Full breakdown in `MEMORY.md`.
 - Full pipeline (HDLC framing, AES-128-GCM decrypt, OBIS decode) validated end-to-end against **real**
   gPlugK captures (`test/captures/`, gitignored, not committed — raw frames + device key):
   `test_raw.cpp` decrypts 3 consecutive live frames with the real key, checks frame-counter continuity,
