@@ -2,16 +2,9 @@ import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
+import { copyText, download } from "../dl.js";
 
 const POLL_MS = 10000;
-
-function download(name, text) {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-}
 
 // The frames the device actually received (firmware/components/gplug_smi/frame_log.h): DLMS HDLC
 // frames or DSMR P1 telegrams, whichever the configured profile speaks. The firmware says which via
@@ -119,7 +112,13 @@ export function StreamTab() {
                 <div class="hex ${text && mode === "plain" ? "text" : ""}">${len ? (cache[key] ?? html`<span class="spin"></span>`) : "–"}</div>
                 <div class="row">
                   <button class="primary" disabled=${!cache[key]} onClick=${() => download(`gplug-${mode}-frame${f.i}.txt`, cache[key])}>${S.frameTxt}</button>
-                  <button disabled=${!cache[key]} onClick=${() => { navigator.clipboard?.writeText(cache[key]); setCopied(f.i); setTimeout(() => setCopied(null), 1500); }}>${copied === f.i ? S.copied : S.copy}</button>
+                  <button disabled=${!cache[key]} onClick=${async () => {
+                    // Only report success when the clipboard actually took it: over plain HTTP
+                    // this can fail, and a button that lies is worse than one that says no.
+                    const ok = await copyText(cache[key]);
+                    setCopied(ok ? f.i : "x" + f.i);
+                    setTimeout(() => setCopied(null), 2500);
+                  }}>${copied === f.i ? S.copied : copied === "x" + f.i ? S.copyFailedShort : S.copy}</button>
                 </div>
               </div>`}
           </div>`;

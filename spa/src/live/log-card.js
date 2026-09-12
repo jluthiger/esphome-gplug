@@ -3,6 +3,7 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 import { dur } from "../fmt.js";
+import { copyText, download } from "../dl.js";
 
 // The device's persistent event log (/api/log, event_log.h). The device stores codes, not
 // sentences: 12 bytes per record, and the words are put together here so they come out in the
@@ -50,7 +51,7 @@ function asText(events) {
 export function LogCard() {
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(null);   // null | "ok" | "fail"
 
   useEffect(() => {
     let stop = false;
@@ -60,12 +61,13 @@ export function LogCard() {
     return () => { stop = true; };
   }, []);
 
+  // navigator.clipboard does not exist on a plain-HTTP origin, which is exactly how the device is
+  // reached, so copyText() falls back and reports whether it worked. When even that fails the card
+  // points at the download, which has no such restriction.
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(asText(newestFirst));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* clipboard blocked (insecure origin, permissions): the list is still readable */ }
+    const ok = await copyText(asText(newestFirst));
+    setCopied(ok ? "ok" : "fail");
+    setTimeout(() => setCopied(null), 3000);
   }
 
   // The device appends, so the newest is last; support reads the other way round.
@@ -91,6 +93,10 @@ export function LogCard() {
       })}
       ${events && events.length > 0 && html`
         <p class="hint" style="margin:10px 0 0">${S.logHint}</p>
-        <button style="width:100%;margin-top:10px" onClick=${copy}>${copied ? S.copied : S.logCopy}</button>`}
+        <div class="row" style="margin-top:10px">
+          <button onClick=${copy}>${copied === "ok" ? S.copied : copied === "fail" ? S.copyFailedShort : S.logCopy}</button>
+          <button class="primary" onClick=${() => download("gplug-log.txt", asText(newestFirst))}>${S.logDownload}</button>
+        </div>
+        ${copied === "fail" && html`<p class="hint" style="margin:8px 0 0">${S.copyFailed}</p>`}`}
     </div>`;
 }

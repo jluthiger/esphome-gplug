@@ -98,6 +98,15 @@ The French and Italian wording follows Swiss grid-operator usage rather than lit
 front of customers; the terminology was chosen deliberately, but only the German is a first
 language here.
 
+**Copying text needs a fallback on this device** (`src/dl.js`). `navigator.clipboard` exists only
+in a *secure context*, and the gPlug serves plain HTTP on the local network, so on a real device
+the modern one-liner is simply absent. Developing against `http://localhost` hides this, because
+localhost counts as secure: the copy buttons worked all the way through development and did
+nothing on hardware. `copyText()` therefore tries the modern API, falls back to a off-screen
+textarea with `document.execCommand("copy")`, and **returns whether it worked** so a button never
+claims a copy that did not happen. The event log also offers a plain download, which has no
+secure-context restriction at all and is the better thing to attach to a support mail anyway.
+
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
 Its fonts and dark-green-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`
