@@ -135,6 +135,7 @@ export const de = {
   netPower: "Netto-Leistung",
   energyPerBucket: "Energie je Intervall",
   samples: (n) => `${n} Samples`,
+  samplesLive: (n) => `${n} Live-Werte`,
   points: (n) => `${n} Werte`,
   statMin: "Min",
   statMax: "Max",

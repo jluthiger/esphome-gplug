@@ -136,6 +136,7 @@ export const it = {
   netPower: "Potenza netta",
   energyPerBucket: "Energia per intervallo",
   samples: (n) => `${n} campioni`,
+  samplesLive: (n) => `${n} valori in diretta`,
   points: (n) => `${n} valori`,
   statMin: "Min",
   statMax: "Max",

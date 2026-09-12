@@ -56,7 +56,7 @@ export function HistTab({ live, ring, day, status, presets }) {
       <div class="between" style="margin-bottom:12px">
         <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
         <span class="num" style="font-size:.66rem;color:var(--muted2)">
-          ${isRing ? S.samples(hour?.live || 0) : S.points(vals.length)}
+          ${isRing ? (hour?.fromStore ? S.samplesLive(hour.live) : S.samples(hour?.live || 0)) : S.points(vals.length)}
         </span>
       </div>
       ${loading && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
@@ -214,7 +214,7 @@ function Bars({ bars }) {
   const zero = hasNeg ? h * 0.62 : h - 2;
   const bw = w / bars.length;
   return html`
-    <svg viewBox="0 0 ${w} ${h}" class="hist">
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="hist">
       <line x1="0" y1=${zero} x2=${w} y2=${zero} class="zero" />
       ${bars.map((b, i) => {
         const x = (i * bw + (bw > 3 ? 1 : 0.2)).toFixed(1);
