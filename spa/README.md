@@ -28,7 +28,7 @@ state change, not a page reload:
 | Tab | File | What |
 |---|---|---|
 | Live | `live/live-tab.js` | current power with direction, 1 h area chart from `/api/ring`, import/export counters, per-phase bars with V/A (hidden when the preset has no per-phase registers) |
-| History | `live/hist-tab.js` | 60 min from the RAM ring (10 s resolution), plus Day/Week/Month/Year from `/api/history` – power for the short ranges, energy per bucket for the long ones. History is fetched once per range and cached, never on the 10 s poll, because it reads flash on the device |
+| History | `live/hist-tab.js` | 60 min from the RAM ring (10 s) merged with the stored 15-min records (`hour.js`, see below), plus Day/Week/Month/Year from `/api/history` – power for the short ranges, energy per bucket for the long ones. The longer ranges are fetched once per range and cached, never on the 10 s poll, because they read flash on the device |
 | Data Stream | `live/stream-tab.js` | the last 5 frames the device received, whatever the profile speaks: CRC verdict, body, copy/download, multi-select export. The two view modes follow the protocol – ciphertext vs decrypted APDU (hex) for DLMS, hex vs the telegram's own ASCII for DSMR, which the firmware signals with `encoding` |
 | Setup | `live/setup-tab.js` | reachable addresses, Wi-Fi change (reuses `steps/wifi.js`), GUEK status (masked, never fetched), firmware update (`live/firmware-card.js`: header check, upload with progress, confirmation by image identity), event log (`live/log-card.js`), language, light/dark appearance (`theme.js`) |
 
@@ -97,6 +97,16 @@ The French and Italian wording follows Swiss grid-operator usage rather than lit
 (ZEV/LEG in German). **Both tables still want a native-speaker review** before this is put in
 front of customers; the terminology was chosen deliberately, but only the German is a first
 language here.
+
+**The last hour comes from two places** (`src/hour.js`). `/api/ring` is 360 samples at 10 s held in
+RAM, and RAM does not survive a restart -- so for a full hour after every reboot, *including every
+firmware update*, the Live chart and the "60 min" view were empty while the same hour sat on flash
+as 15-minute records. `lastHour()` merges them: the ring covers the recent part at full
+resolution, stored records fill the rest, and slots neither can account for stay `null` so the
+charts draw a gap rather than a line through zero, which would read as a measured 0 kW. The
+stored part is a step function, one average per quarter hour, and the card says so instead of
+passing it off as live data. The Live screen owns the day-range fetch and hands it to both tabs,
+so the device is not asked for the same flash scan twice.
 
 **Copying text needs a fallback on this device** (`src/dl.js`). `navigator.clipboard` exists only
 in a *secure context*, and the gPlug serves plain HTTP on the local network, so on a real device

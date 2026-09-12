@@ -2,8 +2,9 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 import { num } from "../fmt.js";
 import { DiagCard, diagInfo, diagOf } from "../diag.js";
+import { lastHour } from "../hour.js";
 
-export function LiveTab({ live, ring }) {
+export function LiveTab({ live, ring, day }) {
   const age = live?.age;
   const d = diagOf(live);
   // A setup problem (silent line, wrong profile or key) gets a card with the way back into the
@@ -15,8 +16,12 @@ export function LiveTab({ live, ring }) {
 
   const net = live.p ?? 0;   // kW, positive = draw from grid
   const samples = ring?.samples || [];
-  const vals = samples.map(([pi, po]) => pi - po);
-  const max = vals.length ? Math.max(0, ...vals) : 0;
+  // The hour comes from the ring where it can and from the stored 15-min records where it cannot,
+  // which is what keeps this chart from being empty for an hour after every restart.
+  const hour = lastHour(ring, day);
+  const vals = hour.vals;
+  const known = vals.filter((v) => v !== null);
+  const max = known.length ? Math.max(0, ...known) : 0;
 
   // Per-phase power isn't in /api/live (the meter descriptor decides which named registers
   // exist) -- take it from the ring's latest sample, which the firmware always fills (0 when the
@@ -33,9 +38,10 @@ export function LiveTab({ live, ring }) {
       <div class="between"><span class="lbl">${S.activePower}</span><span class="num" style="font-size:.7rem;color:var(--sub)">−${age} s</span></div>
       <div class="big"><span class="v">${num(Math.abs(net), 2)}</span><span class="u">kW</span></div>
       <div class="dir">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>
-      ${vals.length >= 2 && html`
+      ${known.length >= 2 && html`
         <${Chart} vals=${vals} />
-        <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>`}
+        <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>
+        ${hour.fromStore > 0 && html`<p class="hint" style="margin:8px 0 0">${S.histFromStore}</p>`}`}
     </div>
     <div class="grid2">
       <div class="card stat"><div class="lbl">${S.importLbl}</div><div class="v">${num(live.ei)}</div><div class="u">kWh</div></div>
@@ -54,18 +60,34 @@ export function LiveTab({ live, ring }) {
       </div>`}`;
 }
 
+// `vals` may contain nulls: an interval the device has no record of (it was off, or the meter
+// delivered nothing). Those are drawn as a break in the line rather than a line through zero,
+// which would read as "0 kW" -- a measurement the device never made.
 function Chart({ vals }) {
   const w = 320, h = 104;
-  const min = Math.min(0, ...vals), max = Math.max(0, ...vals), span = max - min || 1;
+  const known = vals.filter((v) => v !== null);
+  const min = Math.min(0, ...known), max = Math.max(0, ...known), span = max - min || 1;
   const X = (i) => (i / (vals.length - 1)) * w, Y = (v) => h - ((v - min) / span) * h;
-  const pts = vals.map((v, i) => `${X(i).toFixed(1)} ${Y(v).toFixed(1)}`);
-  const line = "M" + pts.join(" L ");
   const zeroY = Y(0).toFixed(1);
+
+  const runs = [];
+  let cur = [];
+  vals.forEach((v, i) => {
+    if (v === null) { if (cur.length) runs.push(cur); cur = []; return; }
+    cur.push(`${X(i).toFixed(1)} ${Y(v).toFixed(1)}`);
+  });
+  if (cur.length) runs.push(cur);
+
+  const lastIdx = vals.length - 1;
   return html`
     <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart">
-      <path d="${line} L ${w} ${zeroY} L 0 ${zeroY} Z" class="area" />
+      ${runs.map((r) => {
+        const line = "M" + r.join(" L ");
+        const x0 = r[0].split(" ")[0], x1 = r[r.length - 1].split(" ")[0];
+        return html`<path d="${line} L ${x1} ${zeroY} L ${x0} ${zeroY} Z" class="area" />`;
+      })}
       <line x1="0" y1=${zeroY} x2=${w} y2=${zeroY} class="zero" />
-      <path d=${line} class="line" />
-      <circle cx=${w} cy=${Y(vals[vals.length - 1]).toFixed(1)} r="3.5" class="head" />
+      ${runs.map((r) => html`<path d=${"M" + r.join(" L ")} class="line" />`)}
+      ${vals[lastIdx] !== null && html`<circle cx=${w} cy=${Y(vals[lastIdx]).toFixed(1)} r="3.5" class="head" />`}
     </svg>`;
 }

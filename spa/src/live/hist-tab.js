@@ -3,6 +3,7 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 import { num, bucketLabel, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
+import { lastHour } from "../hour.js";
 
 // "60 Min" is the in-RAM ring the Live tab already polls -- free, and the only range with 10 s
 // resolution. Everything longer comes from the flash history (/api/history), fetched once per
@@ -13,7 +14,7 @@ const HF_CONFIG_CHANGE = 8, HF_NO_DATA = 16;
 const MAX_BARS = 400;
 const cache = new Map();
 
-export function HistTab({ live, ring, status, presets }) {
+export function HistTab({ live, ring, day, status, presets }) {
   const [range, setRange] = useState("60");
   const [hist, setHist] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -21,6 +22,9 @@ export function HistTab({ live, ring, status, presets }) {
 
   useEffect(() => {
     if (range === "60") { setErr(null); return; }
+    // The live screen already holds the day range (it needs it to fill the last hour), so taking
+    // it from there saves the device a second flash scan for data the app has in hand.
+    if (range === "day" && day) { cache.set("day", day); setHist(day); setErr(null); return; }
     if (cache.has(range)) { setHist(cache.get(range)); setErr(null); return; }
     let stop = false;
     setLoading(true); setHist(null); setErr(null);
@@ -29,11 +33,12 @@ export function HistTab({ live, ring, status, presets }) {
       .catch((e) => { if (!stop) setErr(String(e.message || e)); })
       .finally(() => { if (!stop) setLoading(false); });
     return () => { stop = true; };
-  }, [range]);
+  }, [range, day]);
 
   const isRing = range === "60";
   const energy = range === "week" || range === "month" || range === "year";
-  const bars = isRing ? ringBars(ring) : histBars(hist, range);
+  const hour = isRing ? lastHour(ring, day) : null;
+  const bars = isRing ? ringBars(hour) : histBars(hist, range);
   const vals = bars.filter((b) => !b.missing).map((b) => b.v);
   const estimated = !isRing && hist && hist.pts.some((p) => p[0] === null);
 
@@ -51,7 +56,7 @@ export function HistTab({ live, ring, status, presets }) {
       <div class="between" style="margin-bottom:12px">
         <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
         <span class="num" style="font-size:.66rem;color:var(--muted2)">
-          ${isRing ? S.samples(vals.length) : S.points(vals.length)}
+          ${isRing ? S.samples(hour?.live || 0) : S.points(vals.length)}
         </span>
       </div>
       ${loading && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
@@ -61,6 +66,7 @@ export function HistTab({ live, ring, status, presets }) {
         <div class="axis">
           ${axisLabels(bars).map((l) => html`<span>${l}</span>`)}
         </div>`}
+      ${isRing && hour?.fromStore > 0 && html`<p class="hint" style="margin:8px 0 0">${S.histFromStore}</p>`}
     </div>
     ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
     ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}
@@ -74,16 +80,18 @@ export function HistTab({ live, ring, status, presets }) {
       </div>`}`;
 }
 
-// Ring -> bars: same 40-bucket mean over net power the tab has always drawn, in W.
-function ringBars(ring) {
-  const samples = ring?.samples || [];
-  const vals = samples.map(([pi, po]) => pi - po);
-  if (vals.length < 2) return [];
+// The last hour -> bars: the same 40-bucket mean over net power this tab has always drawn, but
+// over the merged series (hour.js), so the view is not empty for an hour after a restart. A
+// bucket with nothing known in it becomes a gap, exactly as in the longer ranges.
+function ringBars(hour) {
+  const vals = hour?.vals || [];
+  if (vals.filter((v) => v !== null).length < 2) return [];
   const per = Math.ceil(vals.length / 40);
   const out = [];
   for (let i = 0; i < vals.length; i += per) {
-    const c = vals.slice(i, i + per);
-    out.push({ v: c.reduce((a, b) => a + b, 0) / c.length, label: null });
+    const c = vals.slice(i, i + per).filter((v) => v !== null);
+    out.push(c.length ? { v: c.reduce((a, b) => a + b, 0) / c.length, label: null }
+                      : { v: 0, missing: true, label: null });
   }
   return out;
 }

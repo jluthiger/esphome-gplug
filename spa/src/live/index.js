@@ -19,12 +19,17 @@ import { diagInfo, diagOf } from "../diag.js";
 // so the header's status pill and the tabs never disagree. Fast enough to feel live, slow enough
 // not to matter on battery-backed phones or the device's own web server.
 const POLL_MS = 10000;
+// The stored 15-min history is only needed to fill the part of the last hour the RAM ring cannot
+// cover, which matters after a restart and stops mattering an hour later. Re-read occasionally
+// rather than on the live poll: it reads flash on the device.
+const HIST_MS = 300000;
 const TITLES = { live: "screenLive", hist: "screenHist", stream: "screenStream", setup: "screenSetup" };
 
 export function Live({ status, presets }) {
   const [tab, setTab] = useState("live");
   const [live, setLive] = useState(null);
   const [ring, setRing] = useState(null);
+  const [day, setDay] = useState(null);
   const [err, setErr] = useState(null);
   const [now, setNow] = useState(clock());
   const [theme, setTheme] = useState(initialTheme);
@@ -41,6 +46,19 @@ export function Live({ status, presets }) {
     }
     tick();
     const id = setInterval(tick, POLL_MS);
+    return () => { stop = true; clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    let stop = false;
+    async function readHistory() {
+      try {
+        const h = await api.history("day");
+        if (!stop) setDay(h);
+      } catch { /* the live view works without it; the charts just start where the ring does */ }
+    }
+    readHistory();
+    const id = setInterval(readHistory, HIST_MS);
     return () => { stop = true; clearInterval(id); };
   }, []);
 
@@ -65,8 +83,8 @@ export function Live({ status, presets }) {
       <span class="badge ${pill[0]}">${pill[1]}</span>
     </div>
     ${err && html`<div class="err">${err}</div>`}
-    ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} />`}
-    ${tab === "hist" && html`<${HistTab} live=${live} ring=${ring} status=${status} presets=${presets} />`}
+    ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} day=${day} />`}
+    ${tab === "hist" && html`<${HistTab} live=${live} ring=${ring} day=${day} status=${status} presets=${presets} />`}
     ${tab === "stream" && html`<${StreamTab} />`}
     ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} />`}
     <${TabBar} tab=${tab} onChange=${setTab} />`;
