@@ -15,8 +15,8 @@ npm run dev       # mock device API + SPA on http://localhost:8080
 `src/main.js` routes between two top-level screens, kept in `location.hash` so switching is a
 state change, not a page reload:
 
-- **`#setup`** – the wizard: Welcome → Gerät (variant + pins) → Smart Meter (preset + GUEK) →
-  Abschluss (`src/steps/{welcome,hardware,meter,done}.js`). No separate WLAN step: this SPA is
+- **`#setup`** – the wizard: Welcome → Device (variant + pins) → Smart Meter (preset + GUEK) →
+  Done (`src/steps/{welcome,hardware,meter,done}.js`). No separate Wi-Fi step: this SPA is
   only ever reached after the device has already joined WiFi (ESPHome's stock `captive_portal`
   handles that first join before `gplug_smi`'s handler, and thus this SPA, resumes serving `/`).
   Everything is saved to the device as each step is left, so an interrupted wizard doesn't lose
@@ -28,9 +28,9 @@ state change, not a page reload:
 | Tab | File | What |
 |---|---|---|
 | Live | `live/live-tab.js` | current power with direction, 1 h area chart from `/api/ring`, import/export counters, per-phase bars with V/A (hidden when the preset has no per-phase registers) |
-| Verlauf | `live/hist-tab.js` | 60 Min from the RAM ring (10 s resolution), plus Tag/Woche/Monat/Jahr from `/api/history` – power for the short ranges, energy per bucket for the long ones. History is fetched once per range and cached, never on the 10 s poll, because it reads flash on the device |
-| Datenstrom | `live/stream-tab.js` | the last 5 frames the device received, whatever the profile speaks: CRC verdict, body, copy/download, multi-select export. The two view modes follow the protocol – ciphertext vs decrypted APDU (hex) for DLMS, hex vs the telegram's own ASCII for DSMR, which the firmware signals with `encoding` |
-| Setup | `live/setup-tab.js` | reachable addresses, WLAN ändern (reuses `steps/wifi.js`), GUEK status (masked, never fetched), Firmware-Update (`live/firmware-card.js`: header check, upload with progress, reboot confirmation via `build`), Darstellung Hell/Dunkel (`theme.js`) |
+| History | `live/hist-tab.js` | 60 min from the RAM ring (10 s resolution), plus Day/Week/Month/Year from `/api/history` – power for the short ranges, energy per bucket for the long ones. History is fetched once per range and cached, never on the 10 s poll, because it reads flash on the device |
+| Data Stream | `live/stream-tab.js` | the last 5 frames the device received, whatever the profile speaks: CRC verdict, body, copy/download, multi-select export. The two view modes follow the protocol – ciphertext vs decrypted APDU (hex) for DLMS, hex vs the telegram's own ASCII for DSMR, which the firmware signals with `encoding` |
+| Setup | `live/setup-tab.js` | reachable addresses, Wi-Fi change (reuses `steps/wifi.js`), GUEK status (masked, never fetched), firmware update (`live/firmware-card.js`: header check, upload with progress, reboot confirmation via `build`), light/dark appearance (`theme.js`) |
 
 With no hash yet (first load), the app picks a screen once `/api/status` answers: live view if
 the device already has hardware + meter configured and is connected to WiFi, wizard otherwise. The
@@ -39,13 +39,14 @@ step directly (the last one with the stored key deliberately not kept).
 
 **Setup check and the way back** (`src/diag.js`). The wizard's last step (`steps/done.js`) doesn't
 hand over to the live view until the meter has been read: it polls `/api/live` and shows either
-"Daten empfangen" with the meter ID and value count, or – after the firmware's 60 s grace – the
-diagnosis from its `diag` verdict with a button to the step that fixes it (table in
-`../firmware/README.md`, "Setup diagnosis"). "Trotzdem zur Live-Ansicht" stays available: a
-customer port the utility hasn't enabled yet is not a setup error. The Live tab shows the same card
-when the problem appears later; there is deliberately no automatic redirect, since "no data" is as
-often a cable or the meter as a wrong setting. When the device already holds a GUEK, the meter step
-offers "Gespeicherten Schlüssel verwenden" (on by default) and sends `keep_key` instead of the key,
+a "data received" message with the meter ID and value count, or – after the firmware's 60 s grace –
+the diagnosis from its `diag` verdict with a button to the step that fixes it (table in
+`../firmware/README.md`, "Setup diagnosis"). A "continue to live view anyway" option stays
+available: a customer port the utility hasn't enabled yet is not a setup error. The Live tab shows
+the same card when the problem appears later; there is deliberately no automatic redirect, since
+"no data" is as often a cable or the meter as a wrong setting. When the device already holds a
+GUEK, the meter step offers a "use stored key" toggle (on by default) and sends `keep_key` instead
+of the key,
 which the SPA never gets back – so fixing only the profile doesn't mean retyping 32 hex digits.
 
 **The meter step proposes the profile** (`steps/meter.js`). Committing the hardware step sends the
@@ -54,18 +55,19 @@ with the pins, so the firmware's UART runs right away and its header sniffer rep
 speaks in `/api/live` `detect` (`protocol_sniff.h` in the firmware). The meter step polls that and
 follows it: exactly one of the variant's profiles fits → it is selected and shown alone, the user
 only confirms (plus the GUEK when the line is encrypted); several fit (gPlugM has two DLMS
-profiles) → the list is narrowed to those. Tapping a card ends the following; "Anderes Profil
-wählen" and "Alle Profile anzeigen" widen the list on request. Until the first frame the card shows
-"Warte auf Signale…", after 30 s without a byte it hints at the cable / customer port. A firmware
-without `detect` gets the old manual list. The same sniffer feeds the `protocol` diagnosis ("Falsches
-Profil") when a configured profile contradicts the line. Mock: `MOCK_DETECT=dsmr|dlms|none npm run dev`.
+profiles) → the list is narrowed to those. Tapping a card ends the following; a "choose a
+different profile" action and a "show all profiles" toggle widen the list on request. Until the
+first frame the card shows a "waiting for signal" message, after 30 s without a byte it hints at
+the cable / customer port. A firmware without `detect` gets the old manual list. The same sniffer
+feeds the `protocol` diagnosis (shown as "wrong profile") when a configured profile contradicts
+the line. Mock: `MOCK_DETECT=dsmr|dlms|none npm run dev`.
 
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
-Its fonts and dunkelgrün-only look are superseded (2026-09-11): one system-ui sans stack for the
+Its fonts and dark-green-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`
 (no colour literals outside the two token blocks).
 
-Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows "Schlüssel ungültig".
+Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows a "key invalid" message.
 `MOCK_OTA_PASSWORD=x npm run dev` puts the mock's `/update` behind Basic auth (user `admin`); a
 successful upload "reboots" the mock (API down 6 s) and bumps its `build`. The mock's `diag` uses an
 8 s grace; `MOCK_DIAG=silent|garbled|no_match npm run dev` makes the first meter config fail that
@@ -84,6 +86,7 @@ way and the next one work, to walk the whole fix loop.
 | GET | `/api/live` | `{smid, age, no_data, diag, rx_bytes, p, pi, po, ei, eo, key_invalid?, values:{…}, last_qh:{qh, values:{…}}}` — no per-phase power field; the Live tab takes that from `/api/ring`'s latest sample. `last_qh` is every register the meter sent as of the last stored quarter hour |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}`, 360 samples = 1 h at 10 s resolution |
 | GET | `/api/history?range=day\|week\|month\|year` | flash-backed 15-min history, downsampled server-side to ≤365 points: `{period:900, bucket, qh_epoch, epoch_valid, now_qh, count, pts:[[qh, d_ei_wh, d_eo_wh, p_min, p_max, p_avg, flags],…]}`. `qh` = quarter-hours since 2020-01-01Z, `null` when the record predates a clock sync; the energy deltas are `null` when a counter is absent or the chain is broken (meter swap, config change) |
+| GET | `/api/history.csv?from=<qh>&to=<qh>&format=…` | Load-profile download (History tab → "export load profile"): every stored 15-min record, `text/csv` as attachment. `format=full` (default): `;`-separated, integers in Wh / W, local interval times; column names are the implementation's own (German), see `../firmware/components/gplug_smi/history_csv.h`. Two other `format` values select the CKW customer-portal shape instead (tab separated, `DD.MM.YY HH:MM`, kWh with 3 decimals, one direction per file) for a line-by-line compare against a real CKW export -- one value per direction, exact spelling in `../firmware/components/gplug_smi/gplug_smi.cpp`. `from` inclusive, `to` exclusive quarter-hour indices (the tab derives them from a local date range); no params = everything including records without a timestamp. Navigated to, not fetched. Columns and the rules for empty cells: `../firmware/components/gplug_smi/history_csv.h`. Mock: `MOCK_HIST_DAYS=n` (default 40) |
 | GET | `/api/frames` | `{protocol, encoding, cap, len, count, frames:[{i, age, ok, raw_len, raw_trunc, plain_len, plain_trunc},…]}` — metadata only, newest first. `protocol` is `dlms`/`dsmr`/`none`; `encoding` is `hex` (DLMS) or `text` (DSMR), i.e. what the readable view of a frame is. `ok` = HDLC FCS/HCS valid, or telegram CRC valid |
 | POST | `/update` | ESPHome's `ota.web_server`: multipart field `update` = `firmware.ota.bin`, `text/plain` "Update Successful!"/"Update Failed!", then the device reboots. HTTP Basic (user `admin`) when `ota_auth`. Not under `/api` – it is ESPHome's handler, not `gplug_smi`'s |
 | GET | `/api/frames/<i>/raw\|plain` | `text/plain` body of one captured frame. DLMS: hex of the ciphertext / of the decrypted APDU. DSMR: hex of the telegram / the telegram verbatim — one capture, two views, nothing stored twice. 404 when the slot or that half is empty |

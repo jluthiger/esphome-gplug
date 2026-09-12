@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { de, bucketLabel } from "../fmt.js";
+import { de, bucketLabel, qhDate, QH_EPOCH } from "../fmt.js";
 
 // "60 Min" is the in-RAM ring the Live tab already polls -- free, and the only range with 10 s
 // resolution. Everything longer comes from the flash history (/api/history), fetched once per
@@ -64,6 +64,7 @@ export function HistTab({ live, ring, status, presets }) {
     </div>
     ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
     ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}
+    <${ExportCard} status=${status} />
     ${regs.length > 0 && html`
       <div class="card">
         <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
@@ -111,6 +112,56 @@ function histBars(hist, range) {
     if (qh !== null) prevQh = qh;
   }
   return out;
+}
+
+// Lastgang download: the same 15-min records the charts are built from, but every one of them at
+// native resolution, as a CSV the user takes to their grid operator or ZEV/LEG settlement. A date
+// range picks quarter-hour indices (local midnight to local midnight, end exclusive); the "all"
+// link drops the window, which is the only way to get records that never got a timestamp.
+const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const qhOfDate = (iso) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return Math.floor((new Date(y, m - 1, d).getTime() / 1000 - QH_EPOCH) / 900);
+};
+const dayAfter = (iso) => { const [y, m, d] = iso.split("-").map(Number); return isoDate(new Date(y, m - 1, d + 1)); };
+
+function ExportCard({ status }) {
+  const h = status?.history;
+  const count = h?.count || 0;
+  const timed = h?.oldest_qh > 0 && h?.newest_qh > 0;
+  const oldest = timed ? isoDate(qhDate(h.oldest_qh)) : null;
+  const newest = timed ? isoDate(qhDate(h.newest_qh)) : null;
+  const [from, setFrom] = useState(null);
+  const [to, setTo] = useState(null);
+  const [fmt, setFmt] = useState("full");
+  const FORMATS = [["full", S.csvFmtFull], ["ckw", S.csvFmtCkw], ["ckw-einspeisung", S.csvFmtCkwOut]];
+  const f = from ?? oldest ?? isoDate(new Date());
+  const t = to ?? newest ?? isoDate(new Date());
+  const ordered = f <= t;
+  const download = () => { window.location.assign(api.historyCsvUrl(qhOfDate(f), qhOfDate(dayAfter(t)), fmt)); };
+
+  return html`
+    <div class="card">
+      <div class="t">${S.csvTitle}</div>
+      <p class="hint">${S.csvHint}</p>
+      <p class="hint">${count ? (timed ? S.csvStored(count, oldest, newest) : S.csvStoredNoTime(count)) : S.noHistory}</p>
+      <div class="row" style="margin:12px 0">
+        <label><div class="lbl" style="margin-bottom:4px">${S.csvFrom}</div>
+          <input type="date" value=${f} max=${t} onInput=${(e) => setFrom(e.target.value)} /></label>
+        <label><div class="lbl" style="margin-bottom:4px">${S.csvTo}</div>
+          <input type="date" value=${t} min=${f} onInput=${(e) => setTo(e.target.value)} /></label>
+      </div>
+      <div class="lbl" style="margin-bottom:4px">${S.csvFormat}</div>
+      <div class="seg" style="margin:0 0 6px">
+        ${FORMATS.map(([id, label]) => html`
+          <button class=${fmt === id ? "active" : ""} onClick=${() => setFmt(id)}>${label}</button>`)}
+      </div>
+      <p class="hint" style="margin:0 0 12px">${fmt === "full" ? S.csvFmtFullHint : S.csvFmtCkwHint}</p>
+      ${!ordered && html`<div class="err">${S.csvOrder}</div>`}
+      <button class="primary" style="width:100%" disabled=${!count || !ordered || !timed} onClick=${download}>${S.csvDownload}</button>
+      ${count > 0 && html`<p class="hint" style="margin-top:10px;text-align:center">
+        <a href=${api.historyCsvUrl(null, null, fmt)}>${S.csvAll}</a></p>`}
+    </div>`;
 }
 
 function axisLabels(bars) {

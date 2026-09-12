@@ -131,6 +131,76 @@ function history(range, noEpoch) {
   };
 }
 
+// Mirrors /api/history.csv and the `history` block of /api/status: MOCK_HIST_DAYS (default 40)
+// days of synthetic 15-min records, same load/PV curve as history() above, with the same
+// degraded cases (a hole, a reboot, a config change, undated records at the end).
+const HIST_DAYS = Number(process.env.MOCK_HIST_DAYS || 40);
+const HF_PARTIAL = 2;
+function histRecords() {
+  const nowQh = Math.floor((Date.now() / 1000 - QH_EPOCH) / 900);
+  const n = HIST_DAYS * 96;
+  const out = [];
+  let ei = 12345678, eo = 2345678;
+  for (let i = n; i > 0; i--) {
+    const qh = nowQh - i;
+    const load = 1400 + 900 * Math.sin(qh / 9) + 300 * Math.sin(qh / 2.3);
+    const pv = Math.max(0, 2600 * Math.sin(((qh % 96) / 96) * Math.PI));
+    const net = Math.round(load - pv);
+    ei += Math.round(Math.max(0, net) / 4); eo += Math.round(Math.max(0, -net) / 4);
+    if (i > 500 && i <= 512) continue;                              // device was off for 3 h
+    let flags = 0;
+    if (i === 500) flags |= HF_BOOT | HF_PARTIAL;
+    if (i === 300) flags |= HF_CONFIG;
+    if (i === 200) flags |= HF_NO_DATA;
+    out.push({ qh: i <= 2 ? null : qh, ei, eo, pAvg: net, pMin: net - 400, pMax: net + 600, flags });
+  }
+  return state.meter ? out : [];
+}
+function historyMeta() {
+  const r = histRecords();
+  const dated = r.filter((x) => x.qh !== null);
+  return { ok: true, count: r.length, oldest_qh: dated[0]?.qh || 0, newest_qh: dated.at(-1)?.qh || 0 };
+}
+const pad2 = (v) => String(v).padStart(2, "0");
+function csvTime(qh) {
+  const d = new Date((QH_EPOCH + qh * 900) * 1000);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+const ckwTime = (qh) => { const t = csvTime(qh); return `${t.slice(8, 10)}.${t.slice(5, 7)}.${t.slice(2, 4)} ${t.slice(11)}`; };
+const kwh3 = (wh) => `${Math.floor(wh / 1000)}.${String(wh % 1000).padStart(3, "0")}`;
+function historyCsv(from, to, format) {
+  const windowed = from || to;
+  const ckw = format === "ckw" || format === "ckw-einspeisung";
+  let s = ckw ? `Zeitraum\t${format === "ckw" ? "Energieverbrauch" : "Energieeinspeisung"} (kWh)\r\n`
+              : "von;bis;bezug_zaehler_wh;einspeisung_zaehler_wh;bezug_wh;einspeisung_wh;p_avg_w;p_min_w;p_max_w;hinweise\r\n";
+  let prev = null;
+  for (const r of histRecords()) {
+    const emit = !windowed || (r.qh !== null && r.qh >= from && (!to || r.qh < to));
+    const contiguous = prev && ((r.qh !== null && prev.qh !== null && r.qh === prev.qh + 1) ||
+                                (r.qh === null && prev.qh === null && !(r.flags & HF_BOOT)));
+    if (emit && ckw) {
+      const chain = contiguous && !(r.flags & HF_CONFIG);
+      if (r.qh !== null) {
+        const d = format === "ckw" ? r.ei - (prev?.ei ?? 0) : r.eo - (prev?.eo ?? 0);
+        s += `${ckwTime(r.qh)}\t${chain ? kwh3(d) : ""}\r\n`;
+      }
+    } else if (emit) {
+      const chain = contiguous && !(r.flags & HF_CONFIG);
+      const notes = [];
+      if (r.qh === null) notes.push("zeit_unbekannt");
+      if (prev && !contiguous) notes.push("luecke_davor");
+      if (r.flags & HF_BOOT) notes.push("neustart");
+      if (r.flags & HF_CONFIG) notes.push("konfig_geaendert");
+      if (r.flags & HF_PARTIAL) notes.push("teilintervall");
+      if (r.flags & HF_NO_DATA) notes.push("keine_daten");
+      s += [r.qh === null ? "" : csvTime(r.qh), r.qh === null ? "" : csvTime(r.qh + 1), r.ei, r.eo,
+            chain ? r.ei - prev.ei : "", chain ? r.eo - prev.eo : "", r.pAvg, r.pMin, r.pMax, notes.join(",")].join(";") + "\r\n";
+    }
+    prev = r;
+  }
+  return s;
+}
+
 // Mirrors /api/frames: the last FRAME_LEN captures, newest-first -- DLMS HDLC frames or DSMR P1
 // telegrams depending on the configured profile, exactly as the firmware does it. `encoding` tells
 // the SPA whether the readable view is hex or the telegram's own ASCII.
@@ -216,7 +286,8 @@ function statusMeter() {
 }
 
 const routes = {
-  "GET /api/status": () => ({ ...state, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000, heap: 123456 }),
+  "GET /api/status": () => ({ ...state, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000, heap: 123456,
+    time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta() }),
   "GET /api/presets": () => presets,
   "GET /api/frames": () => frames(),
   "GET /api/wifi/scan": () => new Promise((r) => setTimeout(() => r(NETS), 1200)),
@@ -275,6 +346,14 @@ createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify(history(url.searchParams.get("range") || "day",
                                           url.searchParams.get("noepoch") === "1")));
+  }
+
+  if (req.method === "GET" && path === "/api/history.csv") {
+    console.log(key, url.search);
+    res.writeHead(200, { "content-type": "text/csv; charset=utf-8",
+                         "content-disposition": `attachment; filename="${state.hostname}-lastgang.csv"` });
+    return res.end(historyCsv(Number(url.searchParams.get("from") || 0), Number(url.searchParams.get("to") || 0),
+                              url.searchParams.get("format") || "full"));
   }
 
   // /api/frames/<i>/raw|plain -- text/plain, not in the flat JSON route table above.

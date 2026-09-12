@@ -345,6 +345,22 @@ class HistoryStore {
     return done;
   }
 
+  // One whole sector, raw, for a scan that must not hold the store's lock across a network write
+  // (the CSV export): the caller locks, copies 4 kB, unlocks, then formats at leisure. `limit` is
+  // the number of slots that can hold data (the current sector is only filled up to meta_.slot),
+  // `seq` the sector's sequence number so the caller can tell a sector recycled after its
+  // snapshot was taken. Returns false for a sector without a valid header.
+  bool read_sector(uint16_t sec, uint8_t *buf4k, uint16_t *limit, uint32_t *seq) {
+    if (!ok_ || sec >= sectors_) return false;
+    if (!flash_.read(sec_base_(sec), buf4k, HIST_SECTOR)) return false;
+    HistSecHdr h;
+    memcpy(&h, buf4k, HIST_HDR);
+    if (!hdr_valid_(h)) return false;
+    *limit = (sec == meta_.cur_sec) ? meta_.slot : (uint16_t) HIST_SLOTS;
+    *seq = h.seq;
+    return true;
+  }
+
   // Oldest -> newest. `buf`/`buf_len` is caller-provided scratch (never a stack local on the httpd
   // task); fn is called as fn(const HistRecord&, uint32_t qh, bool have_qh).
   //

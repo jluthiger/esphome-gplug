@@ -7,7 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
-cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history sniff; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
+cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history csv sniff; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
 ```
 
 **Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
@@ -54,7 +54,7 @@ esphome upload dev.yaml --device <ip|gplug.local>             # native ESPHome O
 curl -F update=@.esphome/build/gplug/.pioenvs/gplug/firmware.ota.bin http://<ip>/update   # what the SPA's firmware card does (~12 s)
 ```
 
-For end users the entry point is the SPA: Setup tab → **Firmware-Update** (`spa/src/live/firmware-card.js`).
+For end users the entry point is the SPA: Setup tab → **firmware update** (`spa/src/live/firmware-card.js`).
 It checks the file's image header in the browser (ESP32-C3 app image; a `firmware.factory.bin` is
 refused, it starts with the bootloader), POSTs it to `/update` (ESPHome's `ota.web_server`, which
 `gplug_smi` auto-loads), then polls `/api/status` until a fresh uptime appears and compares its
@@ -104,7 +104,7 @@ while developing** -- `gplug.yaml` alone compiles whatever is on GitHub `main`, 
 mDNS TXT records carry `package_import_url`, `project_name` and `project_version`
 (`esphome/zeroconf.py`, `DashboardImportDiscovery`); anything else is silently used just for the
 online dot of configs the dashboard already has. That is why the gPlug was invisible to the
-Device Builder in the same WLAN before 2026-09-10 although `dns-sd -B _esphomelib._tcp` on a Mac
+Device Builder on the same Wi-Fi network before 2026-09-10 although `dns-sd -B _esphomelib._tcp` on a Mac
 showed it fine. `esphome: project:` plus `dashboard_import:` in `gplug.yaml` provide the three
 records; adopting fetches the import URL and writes a small config with `packages:` pointing at it,
 a fresh API key and the adopter's WiFi. Every build of `gplug.yaml` (via `dev.yaml` too) advertises
@@ -164,7 +164,7 @@ with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin
 | `test/test_capturelist.cpp` | tests `find_capture_list()` (gPlugM/L+G capture-list decode) against two real captures |
 | `test/test_history.cpp` | tests `history_store.h`: append/rotate/wrap, crash recovery (torn record, half-written timestamp, interrupted erase), timestamp back-patching, and the bucket aggregation |
 | `test/test_sniff.cpp` | tests `protocol_sniff.h`: DSMR ident line vs HDLC frame from the first bytes, ciphered/plain tag through LLC and GBT headers, a stray `/XYZ5` in ciphertext not flipping the verdict, reset |
-| `test/test_framelog.cpp` | tests `frame_log.h`'s ring buffer and its wiring to `DlmsDecoder`'s capture hook (`last_frame()`/`last_frame_ok()`/`frame_seq()`), incl. the CRC-ok-but-wrong-key case the Datenstrom view depends on |
+| `test/test_framelog.cpp` | tests `frame_log.h`'s ring buffer and its wiring to `DlmsDecoder`'s capture hook (`last_frame()`/`last_frame_ok()`/`frame_seq()`), incl. the CRC-ok-but-wrong-key case the Data Stream view depends on |
 
 ## Component `gplug_smi`
 
@@ -201,7 +201,7 @@ with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin
   Tag verified only when an authentication key is configured; otherwise plaintext sanity check (first
   byte 0x0F) drives `key_invalid`.
 - `frame_log.h` – fixed-size ring of the last 5 raw DLMS HDLC frames (ciphertext, capped 768 B, plus
-  decrypted plaintext when available), for the SPA's Datenstrom view (`/api/frames`,
+  decrypted plaintext when available), for the SPA's Data Stream view (`/api/frames`,
   `/api/frames/<i>/raw|plain`). Header-only, no ESPHome deps, and a generic byte-blob ring with no
   notion of "key" — structurally incapable of exposing key material. Captures whatever the profile
   speaks: DLMS HDLC frames (raw ciphertext + decrypted APDU) or whole DSMR P1 telegrams, which the
@@ -291,6 +291,7 @@ by design: one setter, one call-site swap).
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
 | POST | `/api/reboot` | |
+| GET | `/api/history.csv?from=<qh>&to=<qh>&format=…` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. `format=full` (default) = all columns, field names are the implementation's own (German), see `history_csv.h`; two other `format` values (exact spelling in `handle_history_csv_()` below) mirror the CKW customer-portal export instead (tab separated, interval-start timestamp as `DD.MM.YY HH:MM`, one kWh column with 3 decimals), one per direction, for a line-by-line compare. Format and rules in `history_csv.h`; streamed sector by sector (below) |
 
 **Setup diagnosis (`diag` in `/api/live`, `GplugSmi::diag_`)** says why there are no values, so
 the SPA can send the user to the wizard step that fixes it. Three timestamps feed it: any byte on
@@ -349,6 +350,47 @@ esptool --chip esp32c3 --port /dev/cu.usbmodemXXXX erase_region <addr> 0xB0000
 ```
 
 The device reformats one sector on the next boot; NVS (WiFi, hw/meter config) is untouched.
+
+**Load-profile export (`/api/history.csv`, `history_csv.h`, History tab → "export load profile").**
+The stored records, one CSV row each, for checking the grid operator's bill and for ZEV/LEG
+settlement. Two things make it settlement-grade rather than chart-grade:
+
+- **Counters are exact.** `values_[]` is `float`; past ~10 MWh a counter only has ~10 Wh of
+  resolution there, invisible on a gauge but exactly the jitter a per-interval energy must not
+  carry. The decoders therefore also hand Ei/Eo to `note_energy_exact_()` as a `double` in Wh
+  (`ei_wh_exact_`/`eo_wh_exact_`), and that is what goes into the record. Older records written by
+  the float path keep whatever rounding they got.
+- **A delta is printed only when it is one interval's energy.** The row's import-energy /
+  export-energy columns come from the counter difference to the previous record, and stay empty
+  when that record is not the directly preceding quarter hour (flagged as a gap), the meter config
+  was replaced (flagged as a config change), a counter is absent, or the jump is implausible
+  (> 30 kW average). The counters themselves are always printed, so nothing is lost -- the reader
+  just cannot misattribute a multi-interval delta to one row. Column and flag names in the file
+  itself are the implementation's own (German), see `history_csv.h`; `test/test_csv.cpp` pins
+  every rule.
+- **A reboot does not break the chain.** Until 2026-09-12 every boot re-applied the stored meter
+  config through `apply_meter_json_()`, which flags the next record `HF_CONFIG_CHANGE`, so the first
+  interval after any power cut or OTA lost its energy in the export. `setup()` now resets the
+  pending flags to `HF_BOOT_BEFORE | HF_PARTIAL` after loading the stored config: the counters are
+  the meter's and absolute, only a *replaced* config (other register mapped to "Ei", swapped meter)
+  breaks the chain. Verified on the gPlugK: the first record after an OTA reboot carries the
+  reboot and partial-interval flags and keeps its delta.
+- **A second shape mirrors the grid operator's own export.** CKW's customer portal hands out a
+  two-column export (interval period, then energy consumption in kWh) with `DD.MM.YY HH:MM`
+  interval starts and kWh to three decimals (their values carry float32 noise in the 9th digit,
+  e.g. `0.156000003`, so compare at 1 Wh). Two `format` values (one per direction, exact
+  spelling in `handle_history_csv_()`) produce exactly those two columns, undated records left
+  out, an unattributable interval kept as a row with an empty value so the two files stay aligned
+  line by line. The feed-in column's header text is a guess at CKW's wording; check against a
+  real feed-in export.
+
+A full year is ~35k rows / ~2.5 MB, so the response is chunked, and the store's mutex is never
+held across a socket write: the handler snapshots the sector range, then per sector locks, copies
+4 kB, unlocks, formats and sends (`HistoryStore::read_sector`). The main loop's quarter-hour append
+only `try_lock`s, so it is never stalled by an export. Local times come from ESPHome's time
+component, whose timezone `gplug.yaml` pins to `Europe/Zurich` (the default would be whichever
+machine compiled the image). Verified against the mock (`spa/mock`, `MOCK_HIST_DAYS`); not yet on
+hardware.
 
 **Erase timing.** A 4 kB sector erase runs with the flash cache disabled and
 `CONFIG_UART_ISR_IN_IRAM` is off, so nothing drains the UART FIFO for 30-50 ms — at 115200 baud that

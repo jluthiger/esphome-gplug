@@ -74,9 +74,12 @@ ota:
   - platform: esphome
     password: ${ota_password}   # empty still compiles the auth path, just skips the handshake
 
+# Timezone pinned: the CSV export (/api/history.csv) prints local interval times and must not
+# depend on the timezone of whichever machine compiled the image (ESPHome's default).
 time:
   - platform: sntp
     id: sntp_time
+    timezone: Europe/Zurich
 
 # HAN input. Pin/baud are defaults only; gplug_smi reconfigures at runtime from the stored descriptor.
 uart:

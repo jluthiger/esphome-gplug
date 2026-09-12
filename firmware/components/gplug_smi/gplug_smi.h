@@ -99,6 +99,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void on_dsmr_value_(const ::gplug_dsmr::DsmrValue &v);
   void on_dlms_apdu_();
   void apply_dlms_value_(ObisEntry &e, uint8_t i, const ::gplug_dlms::Value &v);
+  void note_energy_exact_(const ObisEntry &e, double raw);
   float value_w_(const char *name) const;   // value of a named sensor converted to W, 0 if absent
   float value_(const char *name, float def) const;
 
@@ -112,6 +113,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_frames_();
   void handle_frame_detail_(AsyncWebServerRequest *req, const char *url);
   std::string json_history_(const char *range);
+  void handle_history_csv_(AsyncWebServerRequest *req);
   void hist_setup_();
   void hist_close_interval_(uint32_t qh_tag, bool expect_full);
   void hist_backpatch_(uint32_t qh_now);
@@ -154,6 +156,10 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   mutable std::mutex mutex_;
   float values_[MAX_OBIS];
   bool have_[MAX_OBIS]{};
+  // Ei/Eo again, in Wh as a double, straight from the decoder. values_[] is float: past ~10 MWh a
+  // counter only has ~10 Wh of resolution there, which is invisible on a gauge but is exactly the
+  // jitter a 15-min settlement export must not carry. Negative = not seen since the last config.
+  double ei_wh_exact_{-1}, eo_wh_exact_{-1};
   char smid_[40]{};
   uint32_t last_frame_ms_{0};
   // Setup diagnosis (diag_()): any byte on the HAN line, and any value that matched a configured OBIS

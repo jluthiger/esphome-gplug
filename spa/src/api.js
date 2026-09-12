@@ -46,6 +46,15 @@ export const api = {
   // Bulk read of the flash history; range=year scans the whole partition on the device, so it gets
   // a longer timeout than the polled endpoints.
   history: (range) => req("GET", "/api/history?range=" + range, null, 10000),
+  // Full-resolution CSV download (Content-Disposition: attachment): navigated to, not fetched, so
+  // the browser streams it straight to a file. from/to are quarter-hour indices, both optional;
+  // format is "full" (every column) or "ckw" / "ckw-einspeisung" (the grid operator's own shape).
+  historyCsvUrl: (from, to, format = "full") => {
+    const q = [];
+    if (from != null) q.push(`from=${from}`, `to=${to}`);
+    if (format !== "full") q.push(`format=${format}`);
+    return BASE + "/api/history.csv" + (q.length ? "?" + q.join("&") : "");
+  },
   frames: () => req("GET", "/api/frames", null, 4000),
   frameRaw: (i) => req("GET", `/api/frames/${i}/raw`, null, 4000),
   framePlain: (i) => req("GET", `/api/frames/${i}/plain`, null, 4000),
