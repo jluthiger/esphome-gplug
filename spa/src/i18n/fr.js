@@ -231,7 +231,7 @@ export const fr = {
   fwDone: "Micrologiciel mis à jour",
   fwRestarted: "Redémarré",
   fwReload: "Recharger la page",
-  fwSameBuild: "L'appareil fonctionne à nouveau, mais avec un build inchangé : soit le même fichier a été installé, soit l'appareil est revenu au micrologiciel précédent après un démarrage manqué.",
+  fwSameBuild: "L'appareil fonctionne à nouveau, mais avec le micrologiciel qu'il avait déjà : soit c'était le même fichier, soit l'appareil est revenu à la version précédente après un démarrage manqué.",
   fwFailed: "Échec de la mise à jour",
   fwAuth: "Mot de passe OTA incorrect.",
   fwRejected: "L'appareil a refusé le fichier.",

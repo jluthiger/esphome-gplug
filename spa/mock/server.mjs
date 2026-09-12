@@ -12,9 +12,17 @@ const presets = JSON.parse(readFileSync(join(here, "..", "..", "firmware", "comp
 
 // MOCK_OTA_PASSWORD=x puts /update behind Basic auth (user "admin"), like gplug_smi's ota_password.
 const OTA_PASSWORD = process.env.MOCK_OTA_PASSWORD || "";
+// MOCK_OTA_ROLLBACK=1 accepts the upload and reboots, but comes back running the image it had
+// before -- what the bootloader does with an image that crash-loops. The firmware card should
+// report that, and can only see it by comparing image identities (`app`), not build timestamps.
+const OTA_ROLLBACK = process.env.MOCK_OTA_ROLLBACK === "1";
 
 const state = {
   version: "0.1.0-mock", hostname: "gplug-a1b2c3", build: Math.floor(Date.now() / 1000) - 86400,
+  // Like the device's `app`: the first 16 hex digits of the running image's ELF SHA-256. The
+  // firmware card compares it against the file it uploaded, so the mock has to take the uploaded
+  // file's own hash on a successful "update" -- otherwise the success path is untestable here.
+  app: "0f1e2d3c4b5a6978",
   ota_auth: !!OTA_PASSWORD,
   hardware: null, meter: null,
   wifi: { connected: false, ssid: null, ip: null, rssi: null, error: null },
@@ -332,7 +340,14 @@ createServer(async (req, res) => {
     console.log(key, buf.length, "bytes", ok ? "ok" : "bad image");
     res.writeHead(200, { "content-type": "text/plain" });
     res.end(ok ? "Update Successful!" : "Update Failed!");
-    if (ok) { state.rebootUntil = Date.now() + 6000; state.t0 = Date.now(); state.build = Math.floor(Date.now() / 1000); }
+    if (ok) {
+      state.rebootUntil = Date.now() + 6000;
+      state.t0 = Date.now();
+      state.build = Math.floor(Date.now() / 1000);
+      // esp_app_desc_t.app_elf_sha256 sits at 0xB0 of the image; `start` is where the image begins
+      // inside the multipart body.
+      if (!OTA_ROLLBACK) state.app = buf.subarray(start + 0xb0, start + 0xb8).toString("hex");
+    }
     return;
   }
   if (state.rebootUntil && Date.now() < state.rebootUntil && path.startsWith("/api/")) { req.destroy(); return; }

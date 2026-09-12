@@ -9,6 +9,7 @@
 #include "esphome/components/esp32/gpio.h"
 
 #include <ArduinoJson.h>
+#include <esp_app_desc.h>
 #include <esp_http_server.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
@@ -805,6 +806,25 @@ std::string GplugSmi::json_status_() {
   // build: lets the SPA's firmware card tell the new image from the old one after an OTA reboot
   // (version is the ESPHome release and usually doesn't change between our builds).
   s += ",\"build\":" + std::to_string((uint32_t) App.get_build_time());
+  // Which image is actually running, as the first 16 hex digits of its ELF SHA-256. `build` cannot
+  // answer that: it is ESPHome's ESPHOME_BUILD_TIME, which ESPHome caches per config hash, so an
+  // update that changes only embedded assets (the SPA, the presets, the captive page) ships the
+  // previous timestamp and looks like "nothing was installed" to the firmware card. The ELF hash
+  // moves with any byte of the image, and the same 32 bytes sit at offset 0xB0 of an OTA file
+  // (esp_app_desc_t.app_elf_sha256), so the browser can compare the file it just uploaded against
+  // what came back up -- a positive identification instead of "the timestamp differs".
+  // Straight from the descriptor, not esp_app_get_elf_sha256(): that helper truncates to
+  // CONFIG_APP_RETRIEVE_LEN_ELF_SHA, which is 9 characters by default and would not line up with
+  // the 16 the browser reads out of the file.
+  s += ",\"app\":\"";
+  if (const esp_app_desc_t *d = esp_app_get_description()) {
+    static const char H[] = "0123456789abcdef";
+    for (int i = 0; i < 8; i++) {
+      s += H[d->app_elf_sha256[i] >> 4];
+      s += H[d->app_elf_sha256[i] & 0xF];
+    }
+  }
+  s += "\"";
   s += ",\"ota_auth\":" + std::string(ota_auth_ ? "true" : "false");
   s += ",\"heap\":" + std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
   s += ",\"wifi\":{\"connected\":" + std::string(conn ? "true" : "false");

@@ -229,7 +229,7 @@ export const de = {
   fwDone: "Firmware aktualisiert",
   fwRestarted: "Neu gestartet",
   fwReload: "Seite neu laden",
-  fwSameBuild: "Gerät läuft wieder, aber mit unverändertem Build: entweder dieselbe Datei installiert, oder das Gerät ist nach einem Fehlstart zur vorherigen Firmware zurückgekehrt.",
+  fwSameBuild: "Gerät läuft wieder, aber mit der bisherigen Firmware: entweder war es dieselbe Datei, oder das Gerät ist nach einem Fehlstart zur vorherigen Version zurückgekehrt.",
   fwFailed: "Update fehlgeschlagen",
   fwAuth: "OTA-Passwort falsch.",
   fwRejected: "Das Gerät hat die Datei abgelehnt.",

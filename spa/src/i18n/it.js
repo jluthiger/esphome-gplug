@@ -230,7 +230,7 @@ export const it = {
   fwDone: "Firmware aggiornato",
   fwRestarted: "Riavviato",
   fwReload: "Ricaricare la pagina",
-  fwSameBuild: "Il dispositivo funziona di nuovo, ma con un build invariato: o è stato installato lo stesso file, oppure il dispositivo è tornato al firmware precedente dopo un avvio fallito.",
+  fwSameBuild: "Il dispositivo funziona di nuovo, ma con il firmware che aveva prima: o era lo stesso file, oppure è tornato alla versione precedente dopo un avvio fallito.",
   fwFailed: "Aggiornamento non riuscito",
   fwAuth: "Password OTA errata.",
   fwRejected: "Il dispositivo ha rifiutato il file.",

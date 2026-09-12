@@ -105,7 +105,10 @@ whole app, monospace only in raw hex/telegram dumps, and a light + dark token se
 
 Mock quirks: WiFi password `wrong` fails, GUEK starting with `dead` shows a "key invalid" message.
 `MOCK_OTA_PASSWORD=x npm run dev` puts the mock's `/update` behind Basic auth (user `admin`); a
-successful upload "reboots" the mock (API down 6 s) and bumps its `build`. The mock's `diag` uses an
+successful upload "reboots" the mock (API down 6 s), bumps its `build` and takes on the uploaded
+file's image identity. `MOCK_OTA_ROLLBACK=1` accepts and reboots but keeps the old identity, the
+way the bootloader behaves with an image that crash-loops -- the only way to exercise the card's
+rollback verdict without breaking a real device. The mock's `diag` uses an
 8 s grace; `MOCK_DIAG=silent|garbled|no_match npm run dev` makes the first meter config fail that
 way and the next one work, to walk the whole fix loop.
 
@@ -113,7 +116,7 @@ way and the next one work, to walk the whole fix loop.
 
 | Method | Path | Body / result |
 |---|---|---|
-| GET | `/api/status` | `{version, hostname, uptime, build, ota_auth, heap, hardware?, meter?, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}` |
+| GET | `/api/status` | `{version, hostname, uptime, build, app, ota_auth, heap, hardware?, meter?, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}`. `app` is the first 16 hex digits of the running image's ELF SHA-256; the firmware card reads the same bytes at offset `0xB0` of the file it uploads and compares the two after the reboot, because `build` does not move when only embedded assets change |
 | GET | `/api/presets` | `{variants:[…], presets:[…]}` (see `../firmware/components/gplug_smi/presets.json`) |
 | GET | `/api/wifi/scan` | `[{ssid, rssi, secure}]` |
 | POST | `/api/config/wifi` | `{ssid, psk}` |

@@ -61,16 +61,26 @@ refused, it starts with the bootloader), POSTs it to `/update` (ESPHome's `ota.w
 `build` (compile time) with the one before, so a boot-loop rollback to the old image is reported
 rather than shown as success. Measured on the gPlugK: 13 s upload, confirmed new build at 19 s.
 
-**That success check has a blind spot, found on 2026-09-12.** `build` is `App.get_build_time()`,
-i.e. ESPHome's `ESPHOME_BUILD_TIME`, and ESPHome caches that value in `.esphome/build/gplug/
-build_info.json` keyed by the *config hash*. An update that changes only bundled assets -- the
-SPA, the presets, the captive page -- leaves the YAML config untouched, so the timestamp is
-reused and the new image reports the same `build` as the old one. The card then shows its
-"unchanged build, possibly rolled back" message for an update that in fact succeeded. Seen
-exactly that way when flashing the four-language SPA: the device served the new 35 kB bundle and
-still reported the previous build time. Not fixed yet; the obvious candidates are including the
-embedded assets in what the card compares (the SPA's byte length is already known to the
-firmware) or touching the config so the hash moves.
+**The check compares image identity, not build timestamps** (changed 2026-09-12). `build` is
+`App.get_build_time()`, i.e. ESPHome's `ESPHOME_BUILD_TIME`, and ESPHome caches that value in
+`.esphome/build/gplug/build_info.json` keyed by the *config hash*. An update that changes only
+bundled assets -- the SPA, the presets, the captive page -- leaves the YAML config untouched, so
+the timestamp is reused and the new image reports the same `build` as the old one. The card used
+to read that as "unchanged build, possibly rolled back" for an update that had in fact succeeded,
+which is exactly what flashing the four-language SPA produced: the device served the new 35 kB
+bundle and still reported the previous build time. The timestamp is also wrong in the other
+direction -- it moves on a rebuild even when the device ends up back on the old image.
+
+`/api/status` therefore also reports `app`, the first 16 hex digits of the running image's
+`esp_app_desc_t.app_elf_sha256` (read straight from `esp_app_get_description()`, not through
+`esp_app_get_elf_sha256()`, which truncates to `CONFIG_APP_RETRIEVE_LEN_ELF_SHA` -- 9 characters
+by default). The same 32 bytes sit at offset `0xB0` of an OTA file, so the firmware card reads
+the identity of the file it is about to upload and, after the reboot, compares the two: equal
+means this exact image is running. Comparing instead against the identity from before the upload
+catches the bootloader rollback. Only a firmware too old to report `app` falls back to the
+timestamp. Both verdicts were walked through the real card against the mock
+(`MOCK_OTA_ROLLBACK=1` makes it accept an upload and come back on the old image), and the hash a
+real gPlugK reports matches the one read out of the flashed `firmware.bin` at `0xB0`.
 There is no OTA on the captive-portal page any more (removed 2026-09-11): that page is onboarding
 only. A bad image is rejected before the slot
 switch (`esp_ota_ops: OTA image has invalid magic byte`); an image that boots but crash-loops is
@@ -299,7 +309,7 @@ by design: one setter, one call-site swap).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
-| GET | `/api/status` | version, hostname, uptime, build, ota_auth, heap, wifi, hardware, meter counters |
+| GET | `/api/status` | version, hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap, wifi, hardware, meter counters |
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |

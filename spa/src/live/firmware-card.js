@@ -10,6 +10,7 @@ import { api } from "../api.js";
 const APP_SLOT = 0x160000;         // app0/app1 size in gplug.yaml's partition table (1408 kB)
 const CHIP_ESP32C3 = 5;            // esp_image_header_t.chip_id
 const APP_DESC_MAGIC = 0xabcd5432; // esp_app_desc_t.magic_word, at 0x20 in an app image only
+const ELF_SHA_OFF = 0xb0;          // esp_app_desc_t.app_elf_sha256: 0x20 + 144, 32 bytes
 const REBOOT_TIMEOUT_MS = 120000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -21,12 +22,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // bootloader at offset 0 -- but carries no app descriptor there, which is how it is told apart.
 async function inspect(file) {
   if (file.size > APP_SLOT) return { error: "fwTooBig" };
-  const b = new Uint8Array(await file.slice(0, 0xb0).arrayBuffer());
-  if (b.length < 0xb0 || b[0] !== 0xe9) return { error: "fwNotImage" };
+  const b = new Uint8Array(await file.slice(0, 0xd0).arrayBuffer());
+  if (b.length < 0xd0 || b[0] !== 0xe9) return { error: "fwNotImage" };
   if (new DataView(b.buffer).getUint32(0x20, true) !== APP_DESC_MAGIC) return { error: "fwFactory" };
   if ((b[12] | (b[13] << 8)) !== CHIP_ESP32C3) return { error: "fwWrongChip" };
   const str = (o) => new TextDecoder().decode(b.subarray(o, o + 32)).replace(/\0[\s\S]*$/, "");
-  return { version: str(0x30), name: str(0x50) };
+  // esp_app_desc_t.app_elf_sha256, the image's own identity. The device reports the same first
+  // 16 hex digits for whatever it is running (`app` in /api/status), so after the reboot the two
+  // can be compared directly: equal means this exact file is running.
+  const sha = [...b.subarray(ELF_SHA_OFF, ELF_SHA_OFF + 8)].map((x) => x.toString(16).padStart(2, "0")).join("");
+  return { version: str(0x30), name: str(0x50), app: sha };
 }
 
 const fmtBuild = (t) => t ? new Date(t * 1000).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" }) : null;
@@ -54,8 +59,12 @@ export function FirmwareCard({ status }) {
   function reset() { setFile(null); setInfo(null); setPhase("idle"); setMsg(""); setProgress(0); }
 
   async function install() {
-    let before = build;
-    try { before = (await api.status()).build; } catch { /* keep the last known build */ }
+    let before = build, beforeApp = status?.app;
+    try {
+      const st = await api.status();
+      before = st.build;
+      beforeApp = st.app;
+    } catch { /* keep the last known build */ }
     const pw = status?.ota_auth ? password : "";
     setPhase("upload"); setProgress(0); setMsg("");
     let r;
@@ -77,7 +86,14 @@ export function FirmwareCard({ status }) {
         const s = await api.status();
         if (s.uptime * 1000 < Date.now() - t0 + 5000) {
           setBuild(s.build);
-          setPhase(s.build && s.build === before ? "same" : "done");
+          // Identify the image that came back up. The ELF hash is exact, so it is asked first and
+          // both ways round: matching the uploaded file proves success, matching what ran before
+          // proves the device fell back. Only a firmware too old to report `app` at all (or one
+          // rolled back to such a version) falls through to comparing build timestamps, which
+          // cannot see an update that changed only embedded assets.
+          if (s.app && info?.app) setPhase(s.app === info.app ? "done" : "same");
+          else if (s.app && beforeApp) setPhase(s.app === beforeApp ? "same" : "done");
+          else setPhase(s.build && s.build === before ? "same" : "done");
           return;
         }
       } catch { /* still rebooting */ }
