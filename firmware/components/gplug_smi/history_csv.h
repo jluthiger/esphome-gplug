@@ -18,31 +18,14 @@
 //                               into one row)
 //   p_avg_w, p_min_w, p_max_w   net power over the interval (import positive), from the 10 s samples
 //   hinweise                    comma-separated quality tokens, empty = clean interval
-//
-// Second shape, CSV_CKW: the grid operator CKW's own customer-portal export, mirrored column for
-// column so the two files diff line by line: tab separated, "Zeitraum" = interval start as
-// "DD.MM.YY HH:MM", one energy column in kWh with three decimals, Bezug or Einspeisung per file.
-// Undated records are left out (no Zeitraum to align on); an interval whose energy cannot be
-// attributed (see above) keeps its row with an empty value, so the alignment holds.
 #pragma once
 #include "history_store.h"
-#include <cstdio>
 #include <string>
 
 namespace gplug_hist {
 
-enum CsvFormat : uint8_t {
-  CSV_FULL,              // every column, above
-  CSV_CKW_BEZUG,         // CKW portal shape, import energy
-  CSV_CKW_EINSPEISUNG,   // CKW portal shape, export energy
-};
-
-inline const char *csv_header(CsvFormat f) {
-  switch (f) {
-    case CSV_CKW_BEZUG: return "Zeitraum\tEnergieverbrauch (kWh)\r\n";
-    case CSV_CKW_EINSPEISUNG: return "Zeitraum\tEnergieeinspeisung (kWh)\r\n";
-    default: return "von;bis;bezug_zaehler_wh;einspeisung_zaehler_wh;bezug_wh;einspeisung_wh;p_avg_w;p_min_w;p_max_w;hinweise\r\n";
-  }
+inline const char *csv_header() {
+  return "von;bis;bezug_zaehler_wh;einspeisung_zaehler_wh;bezug_wh;einspeisung_wh;p_avg_w;p_min_w;p_max_w;hinweise\r\n";
 }
 static constexpr uint32_t CSV_MAX_DELTA_WH = 7500;   // > 30 kW average over a quarter hour: not real
 static constexpr size_t CSV_ROW_MAX = 180;           // upper bound of one row (every token set), for chunk sizing
@@ -58,14 +41,9 @@ struct CsvState {
 // Formats one record, or -- with `out` null -- only advances the state (records before an export
 // window still carry the counter the first row's delta is measured against). `local_time` is
 // called as local_time(uint32_t epoch, char *out, size_t out_len) and writes "YYYY-MM-DD HH:MM".
-// "YYYY-MM-DD HH:MM" -> "DD.MM.YY HH:MM" (CKW's Zeitraum), in place of the same buffer.
-inline void csv_ckw_time(const char *iso, char *out, size_t n) {
-  snprintf(out, n, "%.2s.%.2s.%.2s %.5s", iso + 8, iso + 5, iso + 2, iso + 11);
-}
-
 template<class Fn>
 inline void csv_row(std::string *out, const HistRecord &r, uint32_t qh, bool have_qh, bool estimated, CsvState &st,
-                    Fn &&local_time, CsvFormat fmt = CSV_FULL) {
+                    Fn &&local_time) {
   // Is the previous record the directly preceding interval? With timestamps that is a qh check.
   // Without (pre-sync records of one boot) they were closed back to back on the millis() cadence,
   // unless a reboot sits in between.
@@ -74,24 +52,7 @@ inline void csv_row(std::string *out, const HistRecord &r, uint32_t qh, bool hav
                      (!have_qh && !st.have_prev_qh && !(r.flags & HF_BOOT_BEFORE)));
   bool gap = st.have_prev && !contiguous;
 
-  if (out && fmt != CSV_FULL) {
-    if (have_qh) {
-      std::string &s = *out;
-      char iso[20], t[20];
-      local_time(HIST_EPOCH + qh * HIST_INTERVAL_S, iso, sizeof iso);
-      csv_ckw_time(iso, t, sizeof t);
-      s += t;
-      s += '\t';
-      bool chain = contiguous && !(r.flags & HF_CONFIG_CHANGE);
-      uint32_t d;
-      bool is_ei = fmt == CSV_CKW_BEZUG;
-      if (chain && HistBucket::delta(is_ei ? st.prev_ei : st.prev_eo, is_ei ? r.ei_wh : r.eo_wh, CSV_MAX_DELTA_WH, &d)) {
-        snprintf(t, sizeof t, "%u.%03u", (unsigned) (d / 1000), (unsigned) (d % 1000));
-        s += t;
-      }
-      s += "\r\n";
-    }
-  } else if (out) {
+  if (out) {
     std::string &s = *out;
     char t[20];
     if (have_qh) {

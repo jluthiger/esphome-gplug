@@ -1354,11 +1354,10 @@ static void csv_local_time(uint32_t epoch, char *out, size_t n) {
   snprintf(out, n, "%04d-%02d-%02d %02d:%02d", t.year, t.month, t.day_of_month, t.hour, t.minute);
 }
 
-// /api/history.csv?from=<qh>&to=<qh>&format=full|ckw|ckw-einspeisung -- every stored record at
-// native 15-min resolution, as a download (formats: history_csv.h; the `ckw` ones mirror the
-// grid operator's own portal export for a line-by-line compare). `from` inclusive, `to`
-// exclusive, both quarter-hour indices; none = everything, including records that never got a
-// timestamp (a device without NTP), which a window has to leave out since it cannot place them.
+// /api/history.csv?from=<qh>&to=<qh> -- every stored record at native 15-min resolution, as a
+// download (columns: history_csv.h). `from` inclusive, `to` exclusive, both quarter-hour indices;
+// none = everything, including records that never got a timestamp (a device without NTP), which a
+// window has to leave out since it cannot place them.
 //
 // A full year is ~35k rows, ~2.5 MB: far beyond one response body, so it is chunked, and far
 // longer than the store's lock may be held (the main loop only try_locks around the quarter-hour
@@ -1374,9 +1373,6 @@ void GplugSmi::handle_history_csv_(AsyncWebServerRequest *req) {
   uint32_t from = pf ? (uint32_t) strtoul(pf->value().c_str(), nullptr, 10) : 0;
   uint32_t to = pt ? (uint32_t) strtoul(pt->value().c_str(), nullptr, 10) : 0;
   bool windowed = from || to;
-  auto *pfmt = req->getParam("format");
-  const char *fmt_s = pfmt ? pfmt->value().c_str() : "full";
-  CsvFormat fmt = !strcmp(fmt_s, "ckw") ? CSV_CKW_BEZUG : !strcmp(fmt_s, "ckw-einspeisung") ? CSV_CKW_EINSPEISUNG : CSV_FULL;
 
   // 4 kB sector copy on the heap: the httpd task's stack is ~4 kB in total.
   std::unique_ptr<uint8_t[]> sec_buf(new (std::nothrow) uint8_t[HIST_SECTOR]);
@@ -1393,15 +1389,14 @@ void GplugSmi::handle_history_csv_(AsyncWebServerRequest *req) {
 
   httpd_req_t *r = *req;
   char disp[80];
-  snprintf(disp, sizeof disp, "attachment; filename=\"%s-lastgang%s.csv\"", App.get_name().c_str(),
-           fmt == CSV_CKW_BEZUG ? "-ckw-bezug" : fmt == CSV_CKW_EINSPEISUNG ? "-ckw-einspeisung" : "");
+  snprintf(disp, sizeof disp, "attachment; filename=\"%s-lastgang.csv\"", App.get_name().c_str());
   httpd_resp_set_type(r, "text/csv; charset=utf-8");
   httpd_resp_set_hdr(r, "Content-Disposition", disp);
   httpd_resp_set_hdr(r, "Cache-Control", "no-cache");
 
   std::string out;
   out.reserve(2048 + CSV_ROW_MAX);
-  out += csv_header(fmt);
+  out += csv_header();
   CsvState st;
   uint32_t rows = 0;
   bool alive = true;
@@ -1430,7 +1425,7 @@ void GplugSmi::handle_history_csv_(AsyncWebServerRequest *req) {
       bool est = false;
       bool have = qh_tag_parse(rec.qh_tag, &qh, &est);
       bool emit = !windowed || (have && qh >= from && (!to || qh < to));
-      csv_row(emit ? &out : nullptr, rec, qh, have, est, st, csv_local_time, fmt);
+      csv_row(emit ? &out : nullptr, rec, qh, have, est, st, csv_local_time);
       if (emit) rows++;
       if (out.size() >= 2048) flush(false);
     }

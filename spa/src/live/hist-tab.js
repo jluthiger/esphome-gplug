@@ -120,12 +120,10 @@ function ExportCard({ status }) {
   const newest = timed ? isoDate(qhDate(h.newest_qh)) : null;
   const [from, setFrom] = useState(null);
   const [to, setTo] = useState(null);
-  const [fmt, setFmt] = useState("full");
-  const FORMATS = [["full", S.csvFmtFull], ["ckw", S.csvFmtCkw], ["ckw-einspeisung", S.csvFmtCkwOut]];
   const f = from ?? oldest ?? isoDate(new Date());
   const t = to ?? newest ?? isoDate(new Date());
   const ordered = f <= t;
-  const download = () => { window.location.assign(api.historyCsvUrl(qhOfDate(f), qhOfDate(dayAfter(t)), fmt)); };
+  const download = () => { window.location.assign(api.historyCsvUrl(qhOfDate(f), qhOfDate(dayAfter(t)))); };
 
   return html`
     <div class="card">
@@ -140,16 +138,11 @@ function ExportCard({ status }) {
         <label><div class="lbl" style="margin-bottom:4px">${S.csvTo}</div>
           <input type="date" value=${t} min=${f} onInput=${(e) => setTo(e.target.value)} /></label>
       </div>
-      <div class="lbl" style="margin-bottom:4px">${S.csvFormat}</div>
-      <div class="seg" style="margin:0 0 6px">
-        ${FORMATS.map(([id, label]) => html`
-          <button class=${fmt === id ? "active" : ""} onClick=${() => setFmt(id)}>${label}</button>`)}
-      </div>
-      <p class="hint" style="margin:0 0 12px">${fmt === "full" ? S.csvFmtFullHint : S.csvFmtCkwHint}</p>
+      <p class="hint" style="margin:0 0 12px">${S.csvFmtFullHint}</p>
       ${!ordered && html`<div class="err">${S.csvOrder}</div>`}
       <button class="primary" style="width:100%" disabled=${!count || !ordered || !timed} onClick=${download}>${S.csvDownload}</button>
       ${count > 0 && html`<p class="hint" style="margin-top:10px;text-align:center">
-        <a href=${api.historyCsvUrl(null, null, fmt)}>${S.csvAll}</a></p>`}
+        <a href=${api.historyCsvUrl()}>${S.csvAll}</a></p>`}
     </div>`;
 }
 

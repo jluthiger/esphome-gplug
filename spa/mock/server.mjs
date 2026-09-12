@@ -174,25 +174,15 @@ function csvTime(qh) {
   const d = new Date((QH_EPOCH + qh * 900) * 1000);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
-const ckwTime = (qh) => { const t = csvTime(qh); return `${t.slice(8, 10)}.${t.slice(5, 7)}.${t.slice(2, 4)} ${t.slice(11)}`; };
-const kwh3 = (wh) => `${Math.floor(wh / 1000)}.${String(wh % 1000).padStart(3, "0")}`;
-function historyCsv(from, to, format) {
+function historyCsv(from, to) {
   const windowed = from || to;
-  const ckw = format === "ckw" || format === "ckw-einspeisung";
-  let s = ckw ? `Zeitraum\t${format === "ckw" ? "Energieverbrauch" : "Energieeinspeisung"} (kWh)\r\n`
-              : "von;bis;bezug_zaehler_wh;einspeisung_zaehler_wh;bezug_wh;einspeisung_wh;p_avg_w;p_min_w;p_max_w;hinweise\r\n";
+  let s = "von;bis;bezug_zaehler_wh;einspeisung_zaehler_wh;bezug_wh;einspeisung_wh;p_avg_w;p_min_w;p_max_w;hinweise\r\n";
   let prev = null;
   for (const r of histRecords()) {
     const emit = !windowed || (r.qh !== null && r.qh >= from && (!to || r.qh < to));
     const contiguous = prev && ((r.qh !== null && prev.qh !== null && r.qh === prev.qh + 1) ||
                                 (r.qh === null && prev.qh === null && !(r.flags & HF_BOOT)));
-    if (emit && ckw) {
-      const chain = contiguous && !(r.flags & HF_CONFIG);
-      if (r.qh !== null) {
-        const d = format === "ckw" ? r.ei - (prev?.ei ?? 0) : r.eo - (prev?.eo ?? 0);
-        s += `${ckwTime(r.qh)}\t${chain ? kwh3(d) : ""}\r\n`;
-      }
-    } else if (emit) {
+    if (emit) {
       const chain = contiguous && !(r.flags & HF_CONFIG);
       const notes = [];
       if (r.qh === null) notes.push("zeit_unbekannt");
@@ -398,8 +388,7 @@ createServer(async (req, res) => {
     console.log(key, url.search);
     res.writeHead(200, { "content-type": "text/csv; charset=utf-8",
                          "content-disposition": `attachment; filename="${state.hostname}-lastgang.csv"` });
-    return res.end(historyCsv(Number(url.searchParams.get("from") || 0), Number(url.searchParams.get("to") || 0),
-                              url.searchParams.get("format") || "full"));
+    return res.end(historyCsv(Number(url.searchParams.get("from") || 0), Number(url.searchParams.get("to") || 0)));
   }
 
   // /api/frames/<i>/raw|plain -- text/plain, not in the flat JSON route table above.

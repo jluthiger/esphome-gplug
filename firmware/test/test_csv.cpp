@@ -42,7 +42,7 @@ int main() {
 
   // --- 1. header, first row (no previous record: counters yes, deltas no) ---
   {
-    CHECK_EQ(std::string(csv_header(CSV_FULL)),
+    CHECK_EQ(std::string(csv_header()),
              "von;bis;bezug_zaehler_wh;einspeisung_zaehler_wh;bezug_wh;einspeisung_wh;p_avg_w;p_min_w;p_max_w;hinweise\r\n");
     CsvState st;
     CHECK_EQ(row(rec(1000000, 20000, 700), QH, true, false, st),
@@ -111,29 +111,6 @@ int main() {
     std::string s = row(rec(4000000000u, 4000000000u, -32768, HF_BOOT_BEFORE | HF_CONFIG_CHANGE | HF_PARTIAL | HF_NO_DATA | HF_LOCAL_ENERGY),
                         QH_MAX - 1, true, true, st);
     CHECK(s.size() <= CSV_ROW_MAX);
-  }
-
-  // --- 11. CKW portal shape: tab separated, DD.MM.YY HH:MM start, kWh with 3 decimals ---
-  {
-    CHECK_EQ(std::string(csv_header(CSV_CKW_BEZUG)), "Zeitraum\tEnergieverbrauch (kWh)\r\n");
-    CHECK_EQ(std::string(csv_header(CSV_CKW_EINSPEISUNG)), "Zeitraum\tEnergieeinspeisung (kWh)\r\n");
-    auto ckw = [](const HistRecord &r, uint32_t qh, bool have_qh, CsvState &st, CsvFormat f) {
-      std::string s;
-      csv_row(&s, r, qh, have_qh, false, st, utc_time, f);
-      return s;
-    };
-    CsvState st;
-    CHECK_EQ(ckw(rec(1000000, 20000, 700), QH, true, st, CSV_CKW_BEZUG), "11.09.26 14:00\t\r\n");   // no previous: empty value
-    CHECK_EQ(ckw(rec(1000156, 20050, 700), QH + 1, true, st, CSV_CKW_BEZUG), "11.09.26 14:15\t0.156\r\n");
-    CHECK_EQ(ckw(rec(1002156, 20050, 700), QH + 2, true, st, CSV_CKW_BEZUG), "11.09.26 14:30\t2.000\r\n");
-    CHECK_EQ(ckw(rec(1002156, 20330, 700), QH + 3, true, st, CSV_CKW_EINSPEISUNG), "11.09.26 14:45\t0.280\r\n");
-    CHECK_EQ(ckw(rec(1002200, 20330, 700), 0, false, st, CSV_CKW_BEZUG), "");   // undated: no row at all
-    CHECK_EQ(ckw(rec(1002300, 20330, 700, HF_CONFIG_CHANGE), QH + 5, true, st, CSV_CKW_BEZUG), "11.09.26 15:15\t\r\n");
-    // state keeps flowing through undated / empty rows exactly like the full format
-    CHECK_EQ(ckw(rec(1002400, 20330, 700), QH + 6, true, st, CSV_CKW_BEZUG), "11.09.26 15:30\t0.100\r\n");
-    // date wraps the year correctly in the DD.MM.YY rearrangement
-    CsvState st2;
-    CHECK_EQ(ckw(rec(1, 0, 0), (1767225600u - HIST_EPOCH) / 900, true, st2, CSV_CKW_BEZUG), "01.01.26 00:00\t\r\n");
   }
 
   printf(fails ? "%d FAILED\n" : "all ok\n", fails);

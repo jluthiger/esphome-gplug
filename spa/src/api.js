@@ -60,13 +60,11 @@ export const api = {
   // a longer timeout than the polled endpoints.
   history: (range) => req("GET", "/api/history?range=" + range, null, 10000),
   // Full-resolution CSV download (Content-Disposition: attachment): navigated to, not fetched, so
-  // the browser streams it straight to a file. from/to are quarter-hour indices, both optional;
-  // format is "full" (every column) or "ckw" / "ckw-einspeisung" (the grid operator's own shape).
-  historyCsvUrl: (from, to, format = "full") => {
-    const q = [];
-    if (from != null) q.push(`from=${from}`, `to=${to}`);
-    if (format !== "full") q.push(`format=${format}`);
-    return BASE + "/api/history.csv" + (q.length ? "?" + q.join("&") : "");
+  // the browser streams it straight to a file. from/to are quarter-hour indices, both optional --
+  // leaving them out is the only way to get records that never got a timestamp.
+  historyCsvUrl: (from, to) => {
+    const q = from != null ? `?from=${from}&to=${to}` : "";
+    return BASE + "/api/history.csv" + q;
   },
   frames: () => req("GET", "/api/frames", null, 4000),
   log: () => req("GET", "/api/log", null, 4000),

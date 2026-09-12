@@ -320,7 +320,7 @@ by design: one setter, one call-site swap).
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
 | POST | `/api/reboot` | |
 | GET | `/api/log` | the persistent event log: `{now, uptime, cap, events:[{t, up, code, detail, value, repeat},…]}`, oldest first. `t` is 0 for a record written before the clock had ever synced, which is what `up` (uptime in seconds) is for. Codes and details are numbers, deliberately: the SPA renders them in the user's language (see below) |
-| GET | `/api/history.csv?from=<qh>&to=<qh>&format=…` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. `format=full` (default) = all columns, field names are the implementation's own (German), see `history_csv.h`; two other `format` values (exact spelling in `handle_history_csv_()` below) mirror the CKW customer-portal export instead (tab separated, interval-start timestamp as `DD.MM.YY HH:MM`, one kWh column with 3 decimals), one per direction, for a line-by-line compare. Format and rules in `history_csv.h`; streamed sector by sector (below) |
+| GET | `/api/history.csv?from=<qh>&to=<qh>` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. Field names are the implementation's own (German). Columns and the rules for empty cells: `history_csv.h`; streamed sector by sector (below) |
 
 **Setup diagnosis (`diag` in `/api/live`, `GplugSmi::diag_`)** says why there are no values, so
 the SPA can send the user to the wizard step that fixes it. Three timestamps feed it: any byte on
@@ -457,21 +457,17 @@ settlement. Two things make it settlement-grade rather than chart-grade:
   the meter's and absolute, only a *replaced* config (other register mapped to "Ei", swapped meter)
   breaks the chain. Verified on the gPlugK: the first record after an OTA reboot carries the
   reboot and partial-interval flags and keeps its delta.
-- **A second shape mirrors the grid operator's own export.** CKW's customer portal hands out a
-  two-column export (interval period, then energy consumption in kWh) with `DD.MM.YY HH:MM`
-  interval starts and kWh to three decimals (their values carry float32 noise in the 9th digit,
-  e.g. `0.156000003`, so compare at 1 Wh). Two `format` values (one per direction, exact
-  spelling in `handle_history_csv_()`) produce exactly those two columns, undated records left
-  out, an unattributable interval kept as a row with an empty value so the two files stay aligned
-  line by line. The feed-in column's header text is a guess at CKW's wording; check against a
-  real feed-in export.
+- **There is one shape, not several.** An earlier version also served the CKW customer portal's own
+  two-column export, so the two files could be diffed line by line while the store's arithmetic was
+  being trusted for the first time. That shape was dropped on 2026-09-12: one grid operator's
+  portal layout is not something this firmware should track, and the full export carries the same
+  numbers with the counters beside them.
 
-**The export's own column names stay German while the app speaks four languages.** The CKW-shaped
-output has to: it mirrors the vendor's file byte for byte, and that file is German. The `full`
-format is this project's own, so its column names are a real decision and an open one -- either
-language-neutral English columns for everybody, or a `lang` parameter and four variants to test.
-Nothing was changed here on the way to the four-language UI, because the format is what a
-settlement is computed from and renaming its columns is not a documentation change.
+**The export's column names stay German while the app speaks four languages.** They are this
+project's own, so they are a real decision and an open one -- either language-neutral English
+columns for everybody, or a `lang` parameter and four variants to test. Nothing was changed here on
+the way to the four-language UI, because the format is what a settlement is computed from and
+renaming its columns is not a documentation change.
 
 A full year is ~35k rows / ~2.5 MB, so the response is chunked, and the store's mutex is never
 held across a socket write: the handler snapshots the sector range, then per sector locks, copies
