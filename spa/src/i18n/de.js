@@ -127,15 +127,12 @@ export const de = {
   phases: "Phasen · 21/41/61.7.0",
 
   // Verlauf
-  range60: "60 Min",
   rangeDay: "Tag",
   rangeWeek: "Woche",
   rangeMonth: "Monat",
   rangeYear: "Jahr",
   netPower: "Netto-Leistung",
   energyPerBucket: "Energie je Intervall",
-  samples: (n) => `${n} Samples`,
-  samplesLive: (n) => `${n} Live-Werte`,
   points: (n) => `${n} Werte`,
   statMin: "Min",
   statMax: "Max",

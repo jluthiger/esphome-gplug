@@ -128,15 +128,12 @@ export const it = {
   phases: "Fasi · 21/41/61.7.0",
 
   // Storico
-  range60: "60 min",
   rangeDay: "Giorno",
   rangeWeek: "Settimana",
   rangeMonth: "Mese",
   rangeYear: "Anno",
   netPower: "Potenza netta",
   energyPerBucket: "Energia per intervallo",
-  samples: (n) => `${n} campioni`,
-  samplesLive: (n) => `${n} valori in diretta`,
   points: (n) => `${n} valori`,
   statMin: "Min",
   statMax: "Max",

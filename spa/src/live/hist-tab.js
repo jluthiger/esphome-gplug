@@ -3,25 +3,22 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 import { num, bucketLabel, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
-import { lastHour } from "../hour.js";
-
-// "60 Min" is the in-RAM ring the Live tab already polls -- free, and the only range with 10 s
-// resolution. Everything longer comes from the flash history (/api/history), fetched once per
-// range and kept, so re-visiting a range costs the device nothing. That scan reads flash, which is
-// why it is not on the 10 s poll.
-const RANGES = [["60", "range60"], ["day", "rangeDay"], ["week", "rangeWeek"], ["month", "rangeMonth"], ["year", "rangeYear"]];
+// Every range here comes from the flash history (/api/history), fetched once per range and kept,
+// so re-visiting one costs the device nothing; the scan reads flash, which is why it is not on the
+// 10 s poll. There is deliberately no "last hour" range: that is live data, not stored history,
+// and the Live tab draws exactly the same series one tap away.
+const RANGES = [["day", "rangeDay"], ["week", "rangeWeek"], ["month", "rangeMonth"], ["year", "rangeYear"]];
 const HF_CONFIG_CHANGE = 8, HF_NO_DATA = 16;
 const MAX_BARS = 400;
 const cache = new Map();
 
-export function HistTab({ live, ring, day, status, presets }) {
-  const [range, setRange] = useState("60");
+export function HistTab({ live, day, status, presets }) {
+  const [range, setRange] = useState("day");
   const [hist, setHist] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
 
   useEffect(() => {
-    if (range === "60") { setErr(null); return; }
     // The live screen already holds the day range (it needs it to fill the last hour), so taking
     // it from there saves the device a second flash scan for data the app has in hand.
     if (range === "day" && day) { cache.set("day", day); setHist(day); setErr(null); return; }
@@ -35,12 +32,10 @@ export function HistTab({ live, ring, day, status, presets }) {
     return () => { stop = true; };
   }, [range, day]);
 
-  const isRing = range === "60";
   const energy = range === "week" || range === "month" || range === "year";
-  const hour = isRing ? lastHour(ring, day) : null;
-  const bars = isRing ? ringBars(hour) : histBars(hist, range);
+  const bars = histBars(hist, range);
   const vals = bars.filter((b) => !b.missing).map((b) => b.v);
-  const estimated = !isRing && hist && hist.pts.some((p) => p[0] === null);
+  const estimated = hist && hist.pts.some((p) => p[0] === null);
 
   const preset = presets?.find((p) => p.id === status?.meter?.preset);
   const values = live?.values || {};
@@ -56,17 +51,16 @@ export function HistTab({ live, ring, day, status, presets }) {
       <div class="between" style="margin-bottom:12px">
         <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
         <span class="num" style="font-size:.66rem;color:var(--muted2)">
-          ${isRing ? (hour?.fromStore ? S.samplesLive(hour.live) : S.samples(hour?.live || 0)) : S.points(vals.length)}
+          ${S.points(vals.length)}
         </span>
       </div>
       ${loading && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
-      ${!loading && bars.length < 2 && html`<p class="hint">${isRing ? S.waitingData : S.noHistory}</p>`}
+      ${!loading && bars.length < 2 && html`<p class="hint">${S.noHistory}</p>`}
       ${bars.length >= 2 && html`<${Bars} bars=${bars} />`}
       ${bars.length >= 2 && html`
         <div class="axis">
           ${axisLabels(bars).map((l) => html`<span>${l}</span>`)}
         </div>`}
-      ${isRing && hour?.fromStore > 0 && html`<p class="hint" style="margin:8px 0 0">${S.histFromStore}</p>`}
     </div>
     ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
     ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}
@@ -78,22 +72,6 @@ export function HistTab({ live, ring, day, status, presets }) {
           <div class="reg"><span class="o">${o.obis.replace(/^\d-\d:/, "")}</span><span class="n">${o.name}</span>
             <span class="v">${num(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
       </div>`}`;
-}
-
-// The last hour -> bars: the same 40-bucket mean over net power this tab has always drawn, but
-// over the merged series (hour.js), so the view is not empty for an hour after a restart. A
-// bucket with nothing known in it becomes a gap, exactly as in the longer ranges.
-function ringBars(hour) {
-  const vals = hour?.vals || [];
-  if (vals.filter((v) => v !== null).length < 2) return [];
-  const per = Math.ceil(vals.length / 40);
-  const out = [];
-  for (let i = 0; i < vals.length; i += per) {
-    const c = vals.slice(i, i + per).filter((v) => v !== null);
-    out.push(c.length ? { v: c.reduce((a, b) => a + b, 0) / c.length, label: null }
-                      : { v: 0, missing: true, label: null });
-  }
-  return out;
 }
 
 // History -> bars. Day keeps power (W, signed); longer ranges switch to energy per bucket (Wh,

@@ -38,7 +38,7 @@ First boot: the device has no WiFi yet, so it opens the `gPlug-Setup` access poi
 phone, the captive portal asks for your home WiFi, the device reboots into it, and the setup wizard
 is then at `http://gplug.local/` (pins, meter preset). From then on that address opens the live
 app instead — four tabs: **Live** (current power, 1 h chart, counters, per-phase), **History**
-(60 min from RAM, plus Day/Week/Month/Year from the device's own 15-min flash history, ~374 days),
+(Day/Week/Month/Year from the device's own 15-min flash history, ~374 days, with a CSV export),
 **Data Stream** (the last captured raw DLMS frames, with hex export, for diagnosing a meter that
 won't decode) and **Setup** (addresses, Wi-Fi change, key status, firmware update, event log, language, light/dark). The whole
 app speaks German, French, Italian and English, switched in the Setup tab and remembered per

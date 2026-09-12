@@ -127,15 +127,12 @@ export const en = {
   phases: "Phases · 21/41/61.7.0",
 
   // History
-  range60: "60 min",
   rangeDay: "Day",
   rangeWeek: "Week",
   rangeMonth: "Month",
   rangeYear: "Year",
   netPower: "Net power",
   energyPerBucket: "Energy per interval",
-  samples: (n) => `${n} samples`,
-  samplesLive: (n) => `${n} live values`,
   points: (n) => `${n} values`,
   statMin: "Min",
   statMax: "Max",

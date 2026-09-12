@@ -84,7 +84,7 @@ export function Live({ status, presets }) {
     </div>
     ${err && html`<div class="err">${err}</div>`}
     ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} day=${day} />`}
-    ${tab === "hist" && html`<${HistTab} live=${live} ring=${ring} day=${day} status=${status} presets=${presets} />`}
+    ${tab === "hist" && html`<${HistTab} live=${live} day=${day} status=${status} presets=${presets} />`}
     ${tab === "stream" && html`<${StreamTab} />`}
     ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} />`}
     <${TabBar} tab=${tab} onChange=${setTab} />`;

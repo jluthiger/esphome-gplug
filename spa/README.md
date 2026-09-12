@@ -28,7 +28,7 @@ state change, not a page reload:
 | Tab | File | What |
 |---|---|---|
 | Live | `live/live-tab.js` | current power with direction, 1 h area chart from `/api/ring`, import/export counters, per-phase bars with V/A (hidden when the preset has no per-phase registers) |
-| History | `live/hist-tab.js` | 60 min from the RAM ring (10 s) merged with the stored 15-min records (`hour.js`, see below), plus Day/Week/Month/Year from `/api/history` – power for the short ranges, energy per bucket for the long ones. The longer ranges are fetched once per range and cached, never on the 10 s poll, because they read flash on the device |
+| History | `live/hist-tab.js` | Day/Week/Month/Year from `/api/history` – power for the day, energy per bucket for the longer ones, fetched once per range and cached, never on the 10 s poll, because they read flash on the device. Deliberately no "last hour" range: that is live data rather than stored history, and the Live tab draws exactly the same series one tap away (it was the same call to `hour.js` in both places) |
 | Data Stream | `live/stream-tab.js` | the last 5 frames the device received, whatever the profile speaks: CRC verdict, body, copy/download, multi-select export. The two view modes follow the protocol – ciphertext vs decrypted APDU (hex) for DLMS, hex vs the telegram's own ASCII for DSMR, which the firmware signals with `encoding` |
 | Setup | `live/setup-tab.js` | reachable addresses, Wi-Fi change (reuses `steps/wifi.js`), GUEK status (masked, never fetched), firmware update (`live/firmware-card.js`: header check, upload with progress, confirmation by image identity), event log (`live/log-card.js`), language, light/dark appearance (`theme.js`) |
 
@@ -101,7 +101,7 @@ language here.
 **The last hour comes from two places** (`src/hour.js`). `/api/ring` is 360 samples at 10 s held in
 RAM, and RAM does not survive a restart -- so for a full hour after every reboot, *including every
 firmware update*, the Live chart and the "60 min" view were empty while the same hour sat on flash
-as 15-minute records. `lastHour()` merges them: the ring covers the recent part at full
+as 15-minute records. `lastHour()` merges them for the Live chart: the ring covers the recent part at full
 resolution, stored records fill the rest, and slots neither can account for stay `null` so the
 charts draw a gap rather than a line through zero, which would read as a measured 0 kW. The
 stored part is a step function, one average per quarter hour, and the card says so instead of
