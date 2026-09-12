@@ -174,15 +174,15 @@ function EnergyStats({ bars }) {
   const exp = known.reduce((a, b) => a + Math.max(0, -b.v), 0) / 1000;
   return html`
     <div class="grid3">
-      <${Stat} k=${S.statImport} v=${num(imp, 1)} u="kWh" />
-      <${Stat} k=${S.statExport} v=${num(exp, 1)} u="kWh" orange=${true} />
+      <${Stat} k=${S.statImport} v=${num(imp, 1)} u="kWh" dir="imp" />
+      <${Stat} k=${S.statExport} v=${num(exp, 1)} u="kWh" dir="exp" />
       <${Stat} k=${S.statSum} v=${num(imp - exp, 1)} u="kWh" />
     </div>`;
 }
 
-function Stat({ k, v, u, orange }) {
+function Stat({ k, v, u, dir }) {
   return html`<div class="card stat"><div class="lbl">${k}</div>
-    <div class="v ${orange ? "orange" : ""}" style="font-size:1.1rem">${v}</div><div class="u">${u}</div></div>`;
+    <div class="v ${dir || ""}" style="font-size:1.1rem">${v}</div><div class="u ${dir || ""}">${u}</div></div>`;
 }
 
 function Bars({ bars }) {

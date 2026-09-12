@@ -117,6 +117,14 @@ textarea with `document.execCommand("copy")`, and **returns whether it worked** 
 claims a copy that did not happen. The event log also offers a plain download, which has no
 secure-context restriction at all and is the better thing to attach to a support mail anyway.
 
+**Direction has its own colour pair** (`--import` / `--export` in `style.css`): red for energy drawn
+from the grid, green for energy fed back. It is deliberately not `--orange`, which marks errors --
+an import reading is not a fault, and the two must not be confusable. Everything that shows a
+direction uses it: the live power figure and its caption, both counters, the per-phase bars, the
+history bars, and the day/week/month/year totals. The Live chart splits its path at the zero
+crossing so each side carries its own colour rather than the whole hour taking the sign of the
+last sample.
+
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
 Its fonts and dark-green-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`
