@@ -45,6 +45,23 @@ You also want your Wi-Fi network name and password to hand, since the device for
 gPlugD, gPlugD-E, gPlugK and gPlugM, all of which are ESP32-C3. **gPlugE is not supported**: it is
 Ethernet hardware (WT32-ETH01) and out of scope for this firmware. Leave those on Tasmota.
 
+### Two ways to get the firmware onto the device
+
+**The short way — the web installer.** Every release is published as a ready-made image, and
+<https://jluthiger.github.io/esphome-gplug/> flashes it straight from the browser over USB. It
+needs Chrome or Edge on a computer (Safari and phones cannot talk to serial ports) and nothing
+else: no Python, no ESPHome, no toolchain, no compile. Plug the gPlug in, press *Install*, choose
+*Erase device*, and continue at [Step 6](#step-6-set-the-device-up). Steps 1 to 5 below exist for
+the other case.
+
+**The long way — build it yourself.** Do this if you want to change the firmware, if the browser
+route is not available to you, or if you would rather flash a binary you compiled. That is the
+rest of this guide. The single ready-made image also lives on each
+[release page](https://github.com/jluthiger/esphome-gplug/releases/latest) as
+`gplug-<version>.factory.bin` if you want the file but not the browser.
+
+Either way, the meter key has to be out of Tasmota before you start.
+
 ---
 
 ## Step 1: install the software

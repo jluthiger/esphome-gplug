@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Install gPlug firmware</title>
+<meta name="description" content="Flash the gPlug ESPHome firmware onto a gPlug smart-meter adapter straight from the browser." />
+<style>
+  :root { color-scheme: light dark; --bg:#fff; --fg:#15181d; --muted:#5b6470; --line:#e3e6ea; --card:#f7f8fa; --warn:#8a5a00; --warnbg:#fff5e0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171b; --fg:#e8ebef; --muted:#9aa4b0; --line:#2a2f36; --card:#1b1f25; --warn:#ffcf6b; --warnbg:#2a2416; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:24px 16px 56px; background:var(--bg); color:var(--fg);
+         font:16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 32px 0 8px; }
+  p, li { margin: 10px 0; }
+  .sub { color: var(--muted); margin-top: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin: 20px 0; }
+  .warn { background: var(--warnbg); border-color: transparent; color: var(--warn); }
+  code { background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 0.9em; }
+  a { color: inherit; }
+  ol, ul { padding-left: 20px; }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+  esp-web-install-button { --esp-tools-button-color: var(--fg); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Install gPlug firmware</h1>
+  <p class="sub">ESPHome firmware for <a href="https://gplug.ch/">gPlug</a> smart-meter adapters — flashed
+  from this page over USB, no tools to install. <span id="ver" class="muted"></span></p>
+
+  <div class="card warn" id="tasmota">
+    <strong>Still running Tasmota?</strong> Copy the meter key (<code>dKEY="…"</code>) out of the Tasmota
+    script <em>before</em> you flash. Erasing the device destroys the only copy you control. See
+    <a href="https://github.com/jluthiger/esphome-gplug/blob/main/migration.md">migration.md</a>.
+  </div>
+
+  <div class="card">
+    <p><strong>Plug the gPlug into this computer with a USB cable</strong>, then:</p>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate">Install gPlug firmware</button>
+      <span slot="unsupported" id="unsupported-msg">
+        This browser cannot talk to USB devices. Use Chrome or Edge on a desktop computer —
+        phones and Safari are not supported for flashing.
+      </span>
+      <span slot="not-allowed">Serial access needs a secure page (https).</span>
+    </esp-web-install-button>
+    <p class="muted">Choose <em>Erase device</em> when asked: the flash layout differs from Tasmota's, so a
+    first install has to start from an empty flash.</p>
+  </div>
+
+  <h2>After flashing</h2>
+  <ol>
+    <li>The gPlug opens a Wi-Fi access point called <strong>gPlug-Setup</strong>. Join it from your phone.</li>
+    <li>The captive portal asks for your home Wi-Fi; the device reboots into it.</li>
+    <li>Open <a href="http://gplug.local/">http://gplug.local/</a> — the setup wizard asks for the
+      gPlug variant and, on an encrypted meter, the key you saved.</li>
+  </ol>
+  <p>From then on that same address is the live app, and further updates need no cable: <em>Setup →
+  Firmware</em> takes the <code>.ota.bin</code> from the
+  <a href="https://github.com/jluthiger/esphome-gplug/releases/latest">latest release</a>.</p>
+
+  <h2>Prefer the command line?</h2>
+  <p>The same image as a file:
+  <a href="gplug-factory.bin">gplug-factory.bin</a></p>
+  <pre><code>esptool --chip esp32c3 --port &lt;PORT&gt; erase-flash
+esptool --chip esp32c3 --port &lt;PORT&gt; write-flash 0x0 gplug-factory.bin</code></pre>
+
+  <p class="muted">Source, documentation and releases:
+  <a href="https://github.com/jluthiger/esphome-gplug">github.com/jluthiger/esphome-gplug</a></p>
+</main>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+<script>
+  // Version comes from the manifest the button already loads, so the page has nothing to update.
+  fetch("manifest.json").then((r) => r.json())
+    .then((m) => { document.getElementById("ver").textContent = "Version " + m.version + "."; })
+    .catch(() => {});
+</script>
+</body>
+</html>

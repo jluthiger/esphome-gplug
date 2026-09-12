@@ -1,0 +1,17 @@
+{
+  "name": "gPlug",
+  "version": "__VERSION__",
+  "home_assistant_domain": "esphome",
+  "funding_url": "https://gplug.ch/",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "improv": false,
+      "parts": [
+        { "path": "gplug-factory.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

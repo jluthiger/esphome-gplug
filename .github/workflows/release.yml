@@ -1,0 +1,169 @@
+# Builds a release image and publishes it two ways:
+#   * GitHub Release assets -- gplug-<version>.ota.bin (upload in the app's Setup tab) and
+#     gplug-<version>.factory.bin (esptool, full flash from 0x0).
+#   * GitHub Pages -- install/ plus the factory image and an ESP Web Tools manifest, so a fresh
+#     gPlug can be flashed from Chrome over USB without installing anything.
+#
+# Trigger: push a tag (v1.2.3), or run manually with a version for a test build (no release, no
+# publish -- the images are left as a workflow artifact).
+name: Release firmware
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version for a dry-run build (no release, no Pages deploy)"
+        required: false
+        default: "0.0.0-dev"
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  # Pinned so a release is reproducible; gplug.yaml requires >= 2026.6.0.
+  ESPHOME_VERSION: "2026.6.5"
+
+permissions:
+  contents: write     # create the release
+  pages: write        # deploy the installer page
+  id-token: write     # actions/deploy-pages
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.version.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: version
+        name: Determine version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: spa/package-lock.json
+
+      # The gzipped SPA is committed, but the release must ship what src/ says, not what someone
+      # last remembered to rebuild: build it here and fail if the committed copy is stale.
+      # Compared after decompression -- gzip bytes depend on the zlib build, the HTML does not.
+      - name: Build the SPA
+        working-directory: spa
+        run: |
+          set -eu
+          npm ci
+          npm run build
+          BUNDLED=firmware/components/gplug_smi/spa.html.gz
+          built=$(gzip -dc "../$BUNDLED" | sha256sum | cut -d' ' -f1)
+          committed=$(git show "HEAD:$BUNDLED" | gzip -dc | sha256sum | cut -d' ' -f1)
+          if [ "$built" != "$committed" ]; then
+            echo "::error::$BUNDLED is stale -- run 'cd spa && npm run build' and commit it"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ESPHome
+        run: pip install "esphome==${ESPHOME_VERSION}"
+
+      # The ESP-IDF toolchain is ~1 GB and unchanged between releases.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.espressif
+            firmware/.esphome
+          key: esphome-${{ env.ESPHOME_VERSION }}-${{ hashFiles('firmware/*.yaml') }}
+          restore-keys: esphome-${{ env.ESPHOME_VERSION }}-
+
+      # dev.yaml = gplug.yaml with the components taken from this tree, so the image matches the
+      # tag rather than whatever github://...@main happens to hold.
+      - name: Compile the firmware
+        working-directory: firmware
+        run: esphome -s version "${{ steps.version.outputs.version }}" compile dev.yaml
+
+      - name: Collect the images
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -eu
+          BUILD=firmware/.esphome/build/gplug/.pioenvs/gplug
+          mkdir -p out/install
+          # App image: what the Setup tab's firmware card accepts over HTTP.
+          cp "$BUILD/firmware.ota.bin"     "out/gplug-${VERSION}.ota.bin"
+          # Full image incl. bootloader + partition table: esptool / ESP Web Tools, written at 0x0.
+          cp "$BUILD/firmware.factory.bin" "out/gplug-${VERSION}.factory.bin"
+          # Installer site: page, manifest, and the factory image under a stable name so an older
+          # bookmark of the page keeps working.
+          cp install/index.html out/install/index.html
+          cp "$BUILD/firmware.factory.bin" out/install/gplug-factory.bin
+          sed "s/__VERSION__/${VERSION}/g" install/manifest.json > out/install/manifest.json
+          ls -l out out/install
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ steps.version.outputs.version }}
+          path: out/*.bin
+          if-no-files-found: error
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.version.outputs.release == 'true'
+        with:
+          path: out/install
+
+      - name: Publish the release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cat > notes.md <<EOF
+          ## Install
+
+          **New gPlug, or one still running Tasmota** — open the
+          [web installer](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/)
+          in Chrome or Edge on a computer, plug the gPlug in over USB, and press *Install*. See
+          [migration.md](https://github.com/${{ github.repository }}/blob/main/migration.md) first if a meter
+          key is still stored in Tasmota — copying it out is the one step that cannot be undone.
+
+          **Already running this firmware** — open the device's app, *Setup → Firmware*, pick
+          \`gplug-${VERSION}.ota.bin\` and install. No tooling needed.
+
+          | Asset | For |
+          |---|---|
+          | \`gplug-${VERSION}.ota.bin\` | Update over the air from the device's own app (Setup tab) |
+          | \`gplug-${VERSION}.factory.bin\` | Full flash from \`0x0\` with esptool or the web installer |
+          EOF
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "gPlug ${VERSION}" \
+            --notes-file notes.md \
+            "out/gplug-${VERSION}.ota.bin" \
+            "out/gplug-${VERSION}.factory.bin"
+
+  # Serves install/index.html + manifest.json + gplug-factory.bin at the repo's Pages URL, so the
+  # page always installs the newest released image.
+  pages:
+    needs: build
+    if: needs.build.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -13,7 +13,34 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 | [`spa/`](spa/README.md) | Setup wizard + live app (Preact, no build framework), bundled into the firmware image and served from the device |
 | [`gplug/`](gplug) | Existing Tasmota scripts per variant/provider, source of the SPA's presets (`gPlugD`, `gPlugD-E`, `gPlugK`, `gPlugM`) |
 | [`intent/`](intent) | Intent doc: goal, scope, constraints |
+| [`install/`](install) | Web installer page (ESP Web Tools) + manifest, deployed to GitHub Pages by the release workflow |
 | [`migration.md`](migration.md) | Replacing Tasmota on an existing gPlug: what to save first, software setup for macOS, Linux and Windows, erasing, flashing, and the way back |
+
+## Ready-made firmware
+
+Releases are built and published by GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)),
+so nothing below is needed just to run the firmware:
+
+| Where | What | For |
+|---|---|---|
+| <https://jluthiger.github.io/esphome-gplug/> | Web installer (ESP Web Tools) | A fresh gPlug, or one still on Tasmota: flash over USB from Chrome or Edge, no tools installed |
+| [Latest release](https://github.com/jluthiger/esphome-gplug/releases/latest) | `gplug-<version>.ota.bin` | Updating a gPlug that already runs this firmware: *Setup → Firmware* in the device's own app |
+| | `gplug-<version>.factory.bin` | Full flash from `0x0` with esptool |
+
+Cutting a release: push a tag — `git tag v1.2.3 && git push origin v1.2.3`. The workflow rebuilds
+the SPA (and refuses to release if the committed `spa.html.gz` is stale), compiles `dev.yaml` with
+`version` substituted from the tag, attaches both images to the release and redeploys the installer
+page with the new image. `workflow_dispatch` does the same as a dry run: build artefacts only, no
+release, no deploy.
+
+A released image is built from the config in this repository, so two secrets in it are public: the
+OTA password is empty, meaning anyone on the LAN can reflash the device, and the API encryption key
+is the placeholder in `gplug.yaml`, meaning anyone on the LAN can talk to the ESPHome API. Neither
+exposes the meter key, which is entered on the device and never leaves it. If the LAN is not
+trusted, build an image of your own with
+`esphome -s ota_password <pw> -s version <v> compile dev.yaml` and your own API key.
+
+GitHub Pages must be set to *Deploy from GitHub Actions* once, in the repository settings.
 
 ## Quick start
 
