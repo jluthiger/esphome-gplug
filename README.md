@@ -13,6 +13,7 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 | [`spa/`](spa/README.md) | Setup wizard + live app (Preact, no build framework), bundled into the firmware image and served from the device |
 | [`gplug/`](gplug) | Existing Tasmota scripts per variant/provider, source of the SPA's presets (`gPlugD`, `gPlugD-E`, `gPlugK`, `gPlugM`) |
 | [`intent/`](intent) | Intent doc: goal, scope, constraints |
+| [`migration.md`](migration.md) | Replacing Tasmota on an existing gPlug: what to save first, software setup for macOS, Linux and Windows, erasing, flashing, and the way back |
 
 ## Quick start
 
@@ -29,6 +30,11 @@ cd ../firmware && esphome compile dev.yaml
 # 3. Flash over USB and watch the boot log (Ctrl+C to stop the log; add --no-logs to return after flashing)
 esphome run dev.yaml --device /dev/cu.usbmodemXXXX
 ```
+
+**Replacing Tasmota on a gPlug you already own?** Follow [`migration.md`](migration.md) instead of
+the three commands above. It covers the one irreversible step — copying the meter key out of the
+Tasmota script before erasing it — along with installing the tools on macOS, Linux or Windows, and
+the way back to Tasmota if you want it.
 
 Already have an ESPHome Device Builder (e.g. the Home Assistant add-on)? A flashed gPlug shows up
 there under *Discovered* and can be adopted; the adopted config pulls `firmware/gplug.yaml` from
