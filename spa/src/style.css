@@ -186,3 +186,11 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .tab.active { color: var(--accent2); }
 .tab.active i { background: currentColor; }
 
+
+.ev { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: .82rem; }
+.ev:first-of-type { border-top: 0; }
+.ev-t { color: var(--muted2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ev-w { display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.ev-n { font-weight: 600; }
+.ev-n.orange { color: var(--orange); }
+.ev-d, .ev-r { color: var(--muted); }

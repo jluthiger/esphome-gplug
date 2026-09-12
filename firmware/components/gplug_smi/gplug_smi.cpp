@@ -10,6 +10,7 @@
 
 #include <ArduinoJson.h>
 #include <esp_app_desc.h>
+#include <esp_system.h>
 #include <esp_http_server.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
@@ -54,6 +55,7 @@ void GplugSmi::setup() {
   this->apply_button_pin_();
   this->apply_led_pins_();
   this->hist_setup_();
+  this->log_setup_();
   // DSMR telegrams are captured for the Datenstrom view just like DLMS frames are. The parser
   // hands them over before it parses (and rewrites its buffer), CRC-valid or not.
   dsmr_.set_raw_callback([this](const char *data, size_t len, bool crc_ok) {
@@ -171,6 +173,7 @@ void GplugSmi::loop() {
     }
   }
   this->hist_service_();
+  this->log_service_();
 }
 
 // ---------------------------------------------------------------- decoding
@@ -474,6 +477,9 @@ void GplugSmi::poll_button_() {
     button_ap_triggered_ = false;
   } else if (button_down_ && !button_ap_triggered_ && now - button_down_ms_ >= 3000) {
     button_ap_triggered_ = true;
+    // Written (and flushed) before the credentials go, so the log explains the AP the user is
+    // about to find themselves in.
+    this->log_event_(::gplug_log::EV_BUTTON);
     // wifi::save_wifi_sta("", "") does NOT clear credentials -- it *saves* an empty-SSID STA
     // entry, which WiFiComponent::start() reloads and retries forever on every future boot too
     // (WiFiComponent::pref_ persists across reboots), producing an endless "No matching network
@@ -726,6 +732,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
       return send_json_(req, 200, json_history_(p ? p->value().c_str() : "day"));
     }
     if (url == "/api/history.csv") return handle_history_csv_(req);
+    if (url == "/api/log") return send_json_(req, 200, json_log_());
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
     return send_gz_(req, "text/html", spa_, spa_len_);   // SPA fallback (also captive page)
@@ -742,6 +749,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
   if (url == "/api/config/hardware") {
     std::string err;
     if (!apply_hw_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
+    this->log_event_(::gplug_log::EV_CONFIG, 1);
     this->defer([this, body]() { if (!this->nvs_save_("hw", body)) ESP_LOGE(TAG, "nvs_save_(hw) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
@@ -749,6 +757,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     std::string err;
     if (!merge_stored_keys_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
     if (!apply_meter_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
+    this->log_event_(::gplug_log::EV_CONFIG, 2);
     this->defer([this, body]() { if (!this->nvs_save_("meter", body)) ESP_LOGE(TAG, "nvs_save_(meter) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
@@ -756,6 +765,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     JsonDocument doc;
     if (deserializeJson(doc, body) || doc["ssid"].isNull()) return send_json_(req, 400, "{\"error\":\"ssid\"}");
     std::string ssid = doc["ssid"].as<const char *>(), psk = doc["psk"] | "";
+    this->log_event_(::gplug_log::EV_CONFIG, 3);
     this->defer([ssid, psk]() { wifi::global_wifi_component->save_wifi_sta(ssid.c_str(), psk.c_str()); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
@@ -991,6 +1001,150 @@ void GplugSmi::handle_frame_detail_(AsyncWebServerRequest *req, const char *url)
   req->send(res);
 }
 
+// ---------------------------------------------------------------- event log (NVS)
+
+// esp_reset_reason_t -> our own stable numbering (event_log.h): these values go to flash, IDF's
+// do not have to stay put.
+static uint8_t reset_reason_code() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return ::gplug_log::RR_POWERON;
+    case ESP_RST_EXT: return ::gplug_log::RR_EXT;
+    case ESP_RST_SW: return ::gplug_log::RR_SW;
+    case ESP_RST_PANIC: return ::gplug_log::RR_PANIC;
+    case ESP_RST_INT_WDT: return ::gplug_log::RR_INT_WDT;
+    case ESP_RST_TASK_WDT: return ::gplug_log::RR_TASK_WDT;
+    case ESP_RST_WDT: return ::gplug_log::RR_WDT;
+    case ESP_RST_DEEPSLEEP: return ::gplug_log::RR_DEEPSLEEP;
+    case ESP_RST_BROWNOUT: return ::gplug_log::RR_BROWNOUT;
+    case ESP_RST_SDIO: return ::gplug_log::RR_SDIO;
+    case ESP_RST_USB: return ::gplug_log::RR_USB;
+    case ESP_RST_JTAG: return ::gplug_log::RR_JTAG;
+    default: return ::gplug_log::RR_UNKNOWN;
+  }
+}
+
+static uint8_t app_id_hex(std::string &out) {
+  out.clear();
+  const esp_app_desc_t *d = esp_app_get_description();
+  if (!d) return 0;
+  static const char H[] = "0123456789abcdef";
+  for (int i = 0; i < 8; i++) { out += H[d->app_elf_sha256[i] >> 4]; out += H[d->app_elf_sha256[i] & 0xF]; }
+  return 1;
+}
+
+void GplugSmi::log_setup_() {
+  std::string blob;
+  if (this->nvs_load_("log", blob)) {
+    std::lock_guard<std::mutex> lock(log_mutex_);
+    if (!log_.load(blob.data(), blob.size())) ESP_LOGW(TAG, "event log: stored blob rejected, starting fresh");
+  }
+  // Why the last run ended. This is the whole point of the log: a panic, a watchdog or a brownout
+  // is invisible once the device is back up, and the serial console nobody was attached to is the
+  // only place it would otherwise have appeared.
+  uint32_t heap_kb = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) / 1024;
+  this->log_event_(::gplug_log::EV_BOOT, reset_reason_code(), (uint8_t) (heap_kb > 255 ? 255 : heap_kb));
+
+  // An update is a reboot into a different image, which is exactly what the identity comparison
+  // in /api/status sees -- so the log can record "updated" without hooking ESPHome's OTA at all.
+  std::string id, seen;
+  if (app_id_hex(id)) {
+    if (this->nvs_load_("app", seen) && seen != id) this->log_event_(::gplug_log::EV_OTA);
+    if (seen != id) this->nvs_save_("app", id);
+  }
+  this->log_flush_();
+}
+
+void GplugSmi::log_event_(uint8_t code, uint8_t detail, uint8_t value) {
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  uint32_t up = millis() / 1000;
+  bool fresh;
+  {
+    std::lock_guard<std::mutex> lock(log_mutex_);
+    fresh = log_.append(code, detail, value, ep > EPOCH_SANE ? ep : 0, up);
+  }
+  // A new record is worth a flash write immediately -- the next event may be a crash. A folded
+  // repeat (a flapping Wi-Fi) is not, so those are left to log_service_()'s rate limit.
+  if (fresh) this->log_flush_();
+}
+
+void GplugSmi::log_flush_() {
+  std::string blob;
+  {
+    std::lock_guard<std::mutex> lock(log_mutex_);
+    if (!log_.dirty()) return;
+    blob.assign((const char *) log_.data(), log_.size());
+    log_.mark_clean();
+  }
+  log_flush_ms_ = millis();
+  if (!this->nvs_save_("log", blob)) ESP_LOGW(TAG, "event log: NVS write failed");
+}
+
+// Watches the two states worth a record -- the Wi-Fi link and the meter verdict -- plus the
+// deferred work: back-dating this boot's entries once the clock syncs, and flushing folded
+// repeats. Called from loop(); everything here is cheap unless something actually changed.
+void GplugSmi::log_service_() {
+  // Once a second is plenty for state that changes on a human timescale, and it keeps the loop
+  // off mutex_ (which the HTTP task holds while rendering /api/live) on every single iteration.
+  uint32_t now = millis();
+  if (now - log_service_ms_ < 1000) return;
+  log_service_ms_ = now;
+
+  bool up = wifi::global_wifi_component->is_connected();
+  if (up != wifi_was_up_) {
+    wifi_was_up_ = up;
+    int rssi = up ? wifi::global_wifi_component->wifi_rssi() : 0;
+    if (rssi < -255) rssi = -255;
+    this->log_event_(up ? ::gplug_log::EV_WIFI_UP : ::gplug_log::EV_WIFI_LOST, 0,
+                     (uint8_t) (up ? -rssi : 0));
+  }
+
+  // The meter going quiet (and coming back) is the single most common support question, and diag_
+  // already distinguishes why. "waiting" is the grace period, not a verdict, so it is not logged.
+  std::string d;
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    d = this->diag_(millis());
+  }
+  if (d != "waiting" && d != last_diag_) {
+    bool was_ok = last_diag_ == "ok";
+    last_diag_ = d;
+    if (d == "ok") { if (!was_ok) this->log_event_(::gplug_log::EV_METER_OK); }
+    else if (d != "unconfigured") {
+      uint8_t why = d == "key" ? 1 : d == "no_match" ? 2 : d == "protocol" ? 3 : d == "garbled" ? 4 : 5;
+      this->log_event_(::gplug_log::EV_METER_LOST, why);
+    }
+  }
+
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  if (!log_backdated_ && ep > EPOCH_SANE) {
+    log_backdated_ = true;
+    {
+      std::lock_guard<std::mutex> lock(log_mutex_);
+      log_.backdate(ep, millis() / 1000);
+    }
+    this->log_flush_();
+  }
+  if (millis() - log_flush_ms_ > 60000) this->log_flush_();
+}
+
+std::string GplugSmi::json_log_() {
+  std::lock_guard<std::mutex> lock(log_mutex_);
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  std::string s = "{\"now\":" + std::to_string(ep > EPOCH_SANE ? ep : 0);
+  s += ",\"uptime\":" + std::to_string(millis() / 1000);
+  s += ",\"cap\":" + std::to_string((unsigned) ::gplug_log::LOG_CAP);
+  s += ",\"events\":[";
+  for (uint8_t i = 0; i < log_.count(); i++) {
+    const auto &e = log_.at(i);
+    if (i) s += ",";
+    s += "{\"t\":" + std::to_string(e.epoch) + ",\"up\":" + std::to_string(e.uptime_s);
+    s += ",\"code\":" + std::to_string((unsigned) e.code) + ",\"detail\":" + std::to_string((unsigned) e.detail);
+    s += ",\"value\":" + std::to_string((unsigned) e.value) + ",\"repeat\":" + std::to_string((unsigned) e.repeat) + "}";
+  }
+  s += "]}";
+  return s;
+}
+
 // ---------------------------------------------------------------- history (15 min, on flash)
 
 // Exact Wh (see ei_wh_exact_) to the record's uint32; negative = counter not seen. The cap keeps
@@ -1003,12 +1157,14 @@ static uint32_t wh_to_record(double wh) {
 void GplugSmi::hist_setup_() {
   if (!hist_flash_.begin()) {
     ESP_LOGW(TAG, "history: `data` partition not found, history disabled");
+    this->log_event_(::gplug_log::EV_STORAGE, 2);
     return;
   }
   std::lock_guard<std::mutex> lock(hist_mutex_);
   hist_ok_ = hist_.begin();
   if (!hist_ok_) {
     ESP_LOGW(TAG, "history: store init failed, history disabled");
+    this->log_event_(::gplug_log::EV_STORAGE, 2);
     return;
   }
   // Resume the fallback integrator where the last record left it, so a meter without Ei/Eo still
@@ -1054,6 +1210,7 @@ void GplugSmi::hist_close_interval_(uint32_t qh_tag, bool expect_full) {
     }
   } else {
     ESP_LOGW(TAG, "history: append failed");
+    this->log_event_(::gplug_log::EV_STORAGE, 1);
   }
   pending_flags_ = 0;
   acc_.reset(0);

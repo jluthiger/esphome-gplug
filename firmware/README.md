@@ -7,7 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
-cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history csv sniff; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
+cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history csv eventlog sniff; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
 ```
 
 **Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
@@ -183,6 +183,7 @@ with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin
 | `test/test_dsmr.cpp` | host unit test for the DSMR parser |
 | `test/test_structure.cpp` | tests `decode_structure()` (the production DLMS decode path) against a real capture |
 | `test/test_capturelist.cpp` | tests `find_capture_list()` (gPlugM/L+G capture-list decode) against two real captures |
+| `test/test_eventlog.cpp` | tests `event_log.h`: ring order and wrap, folding of repeated events, the saturating repeat counter, back-dating after a clock sync, and the NVS blob round-trip including rejection of a truncated or corrupt one |
 | `test/test_history.cpp` | tests `history_store.h`: append/rotate/wrap, crash recovery (torn record, half-written timestamp, interrupted erase), timestamp back-patching, and the bucket aggregation |
 | `test/test_sniff.cpp` | tests `protocol_sniff.h`: DSMR ident line vs HDLC frame from the first bytes, ciphered/plain tag through LLC and GBT headers, a stray `/XYZ5` in ciphertext not flipping the verdict, reset |
 | `test/test_framelog.cpp` | tests `frame_log.h`'s ring buffer and its wiring to `DlmsDecoder`'s capture hook (`last_frame()`/`last_frame_ok()`/`frame_seq()`), incl. the CRC-ok-but-wrong-key case the Data Stream view depends on |
@@ -318,6 +319,7 @@ by design: one setter, one call-site swap).
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
 | POST | `/api/reboot` | |
+| GET | `/api/log` | the persistent event log: `{now, uptime, cap, events:[{t, up, code, detail, value, repeat},…]}`, oldest first. `t` is 0 for a record written before the clock had ever synced, which is what `up` (uptime in seconds) is for. Codes and details are numbers, deliberately: the SPA renders them in the user's language (see below) |
 | GET | `/api/history.csv?from=<qh>&to=<qh>&format=…` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. `format=full` (default) = all columns, field names are the implementation's own (German), see `history_csv.h`; two other `format` values (exact spelling in `handle_history_csv_()` below) mirror the CKW customer-portal export instead (tab separated, interval-start timestamp as `DD.MM.YY HH:MM`, one kWh column with 3 decimals), one per direction, for a line-by-line compare. Format and rules in `history_csv.h`; streamed sector by sector (below) |
 
 **Setup diagnosis (`diag` in `/api/live`, `GplugSmi::diag_`)** says why there are no values, so
@@ -366,6 +368,40 @@ compile-time YAML sensor declarations (standard ESPHome model), not this project
 descriptor + SPA wizard. Per the user's decision (2026-09-10), the runtime-descriptor/SPA approach here
 remains a prototype; a future pass should reconcile the two rather than duplicate protocol work, with
 the SPA's role narrowing to WiFi onboarding, live view and history rather than meter-protocol selection.
+
+### Event log (`event_log.h`, `/api/log`)
+
+Thirty-two records in one NVS blob, answering the question a serial console cannot once the cable
+is unplugged: **why did it restart**. `esp_reset_reason()` is read at boot and stored, so a panic,
+a task or interrupt watchdog, and a brownout are told apart from a normal power-up or the
+software restart that an OTA and a config save perform. Alongside that: Wi-Fi up and down with
+the RSSI, the meter going quiet and coming back (with the `diag` verdict that says why), config
+changes, history-store failures, and the AP button erasing the Wi-Fi credentials.
+
+Four decisions worth knowing:
+
+- **NVS, not the `data` partition.** The write volume is a handful of records a day, which is what
+  NVS is for; it brings its own wear levelling and needs no partition-table change, so the feature
+  ships by OTA. The whole blob is 388 B (`4 + 32 x 12`), rewritten on each append.
+- **Codes, not sentences.** A record is 12 B of numbers. The wording lives in the SPA, in four
+  languages, and can be reworded without touching firmware or invalidating stored records. The
+  event and reset-reason numbers are therefore append-only: they are on flash, so never renumber.
+- **Repeats fold.** A flapping Wi-Fi would otherwise push every other record out within minutes
+  and write NVS each time, so an identical event within five minutes bumps a counter on the
+  newest record instead of adding one. A new record is flushed to NVS immediately (the next event
+  may be the crash); a folded one waits for the 60 s rate limit.
+- **Entries written before the first clock sync are back-dated**, the same trick the history store
+  uses: uptime is always known, so once SNTP lands, `epoch_now - (uptime_now - uptime_then)` dates
+  this boot's records. Records from a previous boot with no clock stay undated and the SPA shows
+  their uptime instead.
+
+An update is logged without hooking ESPHome's OTA at all: the image identity (the same ELF hash
+`/api/status` reports) is kept in NVS, and a boot that finds a different one logs "firmware
+updated". Verified on the gPlugK -- the first boot after flashing this recorded a software
+restart with 185 kB free heap, Wi-Fi at -39 dBm three seconds later, and meter data two seconds
+after that. A crash, a watchdog and a brownout are covered by the host tests and the mock rather
+than provoked on hardware; `test/test_eventlog.cpp` pins the ring, the folding, the back-dating
+and the blob round-trip, including rejection of a corrupt blob.
 
 **Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
 `esphome run`. To clear it, erase that region — take the offset from the boot log

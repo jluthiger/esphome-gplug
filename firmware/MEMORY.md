@@ -34,8 +34,8 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,036,230 B = 1012 kB in a 1408 kB slot: **71.9 % full, 396 kB headroom** (2026-09-12, after
-the load-profile CSV export and the four-language SPA).
+Image 1,041,930 B = 1018 kB in a 1408 kB slot: **72.3 % full, 390 kB headroom** (2026-09-12, after
+the load-profile CSV export, the four-language SPA and the event log).
 
 By section: 747 kB code run from flash, 176 kB read-only data, 59 kB IRAM code and 11 kB `.data`
 initial values (those two are stored in flash *and* occupy RAM).
@@ -51,7 +51,7 @@ By owner:
 | String literals from all code | 82.5 kB | 8.3 % |
 | ESPHome core and components | 57.6 kB | 5.8 % |
 | `gplug_smi` code | 40.6 kB | 4.1 % |
-| Embedded web files, gzipped: SPA 35.3 kB (four languages since 2026-09-12), presets 2.4 kB (from 26.4 kB JSON), captive page 3.1 kB | 40.8 kB | 4.0 % |
+| Embedded web files, gzipped: SPA 37.7 kB (four languages since 2026-09-12), presets 2.4 kB (from 26.4 kB JSON), captive page 3.1 kB | 43.2 kB | 4.2 % |
 | ESPHome-generated `main.cpp` setup code | 3.0 kB | 0.3 % |
 
 The platform (Wi-Fi, ESP-IDF, crypto, networking) is 79 % of the image; gPlug's own code and web
@@ -75,7 +75,8 @@ The C3 has 314 kB (321,296 B) of SRAM usable by the app; IRAM and DRAM share it.
 | ESPHome loop task stack (8 kB static) + TCB | 8.4 kB | 2.7 % |
 | lwIP and mDNS (DNS table, mDNS task stack) | 4.6 kB | 1.5 % |
 | Other component objects (logger buffer 1.4 kB, remaining ESPHome components) | 3.0 kB | 1.0 % |
-| **Static total** | **120.3 kB** | **38.4 %** |
+| Event log blob (`event_log.h`, mirrored in RAM, 388 B) plus its mutex | 0.4 kB | 0.1 % |
+| **Static total** | **120.7 kB** | **38.5 %** |
 | **Left for the heap at boot** | **193.4 kB** | **61.6 %** |
 
 ### Inside the 19.9 kB `GplugSmi` object

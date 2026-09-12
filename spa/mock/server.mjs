@@ -209,6 +209,36 @@ function historyCsv(from, to, format) {
   return s;
 }
 
+// Mirrors /api/log (event_log.h): a plausible field history, including the events a healthy bench
+// device never produces -- a crash, a watchdog, a brownout, a storage failure -- since those are
+// exactly the ones whose rendering has to be right when a support case finally needs them.
+// MOCK_LOG=empty serves an empty log instead.
+function eventLog() {
+  const now = Math.floor(Date.now() / 1000);
+  if (process.env.MOCK_LOG === "empty") return { now, uptime: 3600, cap: 32, events: [] };
+  const ago = (h) => now - Math.round(h * 3600);
+  //        [t,        up,   code, detail, value, repeat]
+  const raw = [
+    [ago(96),  2,    1, 1, 182, 0],   // boot, power applied
+    [ago(95),  8,    3, 0, 48,  0],   // wifi up
+    [ago(94),  120,  7, 2, 0,   0],   // meter configured
+    [ago(94),  180,  6, 0, 0,   0],   // meter data arrived
+    [ago(52),  0,    4, 0, 0,   7],   // wifi flapping, folded
+    [ago(52),  0,    3, 0, 61,  0],
+    [ago(30),  0,    5, 5, 0,   0],   // meter went silent
+    [ago(29),  0,    6, 0, 0,   0],   // and came back
+    [ago(20),  0,    1, 9, 176, 0],   // brownout
+    [ago(12),  0,    1, 4, 174, 0],   // crash
+    [ago(11),  0,    8, 1, 0,   2],   // history write failed
+    [ago(6),   0,    1, 3, 178, 0],   // software restart
+    [ago(6),   0,    2, 0, 0,   0],   // ... which was an update
+    [ago(2),   0,    9, 0, 0,   0],   // reset button
+    [0,        41,   1, 1, 180, 0],   // a boot before the clock synced: uptime only
+  ];
+  return { now, uptime: 4100, cap: 32,
+    events: raw.map(([t, up, code, detail, value, repeat]) => ({ t, up, code, detail, value, repeat })) };
+}
+
 // Mirrors /api/frames: the last FRAME_LEN captures, newest-first -- DLMS HDLC frames or DSMR P1
 // telegrams depending on the configured profile, exactly as the firmware does it. `encoding` tells
 // the SPA whether the readable view is hex or the telegram's own ASCII.
@@ -298,6 +328,7 @@ const routes = {
     time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta() }),
   "GET /api/presets": () => presets,
   "GET /api/frames": () => frames(),
+  "GET /api/log": () => eventLog(),
   "GET /api/wifi/scan": () => new Promise((r) => setTimeout(() => r(NETS), 1200)),
   "POST /api/config/wifi": (b) => {
     state.wifi = { connected: false, ssid: b.ssid, ip: null, rssi: null, error: null };

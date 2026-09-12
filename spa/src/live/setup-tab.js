@@ -3,6 +3,7 @@ import { html } from "../h.js";
 import { S, LANGS, getLang, setLang, presetLabel } from "../strings.js";
 import { Wifi } from "../steps/wifi.js";
 import { FirmwareCard } from "./firmware-card.js";
+import { LogCard } from "./log-card.js";
 
 export function SetupTab({ status, live, presets, theme, onTheme }) {
   const [showWifi, setShowWifi] = useState(false);
@@ -43,6 +44,7 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       </div>`}
     <${FirmwareCard} status=${status} />
+    <${LogCard} />
     <div class="card">
       <div class="lbl">${S.language}</div>
       <div class="seg" role="radiogroup">

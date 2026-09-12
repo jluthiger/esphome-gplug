@@ -20,3 +20,4 @@ test/test_framelog
 test/test_history
 test/test_csv
 test/test_sniff
+test/test_eventlog

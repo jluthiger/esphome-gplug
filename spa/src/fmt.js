@@ -44,6 +44,15 @@ export function dateShort(d) {
   return fmt("d", { year: "numeric", month: "short", day: "numeric" }).format(d);
 }
 
+// "45 s", "12 min", "3 h 20 min" -- for event-log entries written before the clock synced, where
+// uptime is all the device knows. The unit abbreviations are the same in all four languages.
+export function dur(sec) {
+  if (sec < 90) return `${Math.round(sec)} s`;
+  const m = Math.round(sec / 60);
+  if (m < 90) return `${m} min`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+}
+
 export function bucketLabel(range, qh) {
   const d = qhDate(qh);
   if (range === "day") return clock(d);

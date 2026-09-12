@@ -6,6 +6,7 @@
 #include "dsmr_parser.h"
 #include "dlms_decoder.h"
 #include "frame_log.h"
+#include "event_log.h"
 #include "history_store.h"
 #include "partition_flash.h"
 #include "protocol_sniff.h"
@@ -113,6 +114,12 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_frames_();
   void handle_frame_detail_(AsyncWebServerRequest *req, const char *url);
   std::string json_history_(const char *range);
+  std::string json_log_();
+  // Event log (event_log.h): rare, persistent "what happened" records in NVS.
+  void log_setup_();
+  void log_event_(uint8_t code, uint8_t detail = 0, uint8_t value = 0);
+  void log_service_();
+  void log_flush_();
   void handle_history_csv_(AsyncWebServerRequest *req);
   void hist_setup_();
   void hist_close_interval_(uint32_t qh_tag, bool expect_full);
@@ -201,6 +208,16 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool qh_have_[MAX_OBIS]{};
   uint32_t qh_snapshot_qh_{0};
   uint8_t hist_buf_[256];               // scan scratch; a member, not an httpd-task stack local
+
+  // Persistent event log. Guarded by its own mutex for the same reason hist_mutex_ exists: the
+  // HTTP task renders it while the loop task appends to it.
+  mutable std::mutex log_mutex_;
+  ::gplug_log::EventLog log_;
+  uint32_t log_flush_ms_{0};            // rate limit for folded events; new records flush at once
+  uint32_t log_service_ms_{0};          // log_service_() runs at 1 Hz, not every loop iteration
+  bool log_backdated_{false};
+  bool wifi_was_up_{false};
+  std::string last_diag_{"unconfigured"};
 };
 
 }  // namespace gplug_smi
