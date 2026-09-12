@@ -1,0 +1,58 @@
+/* Desktop layer. Loaded by index.html inside <style media="(min-width:800px)">, so nothing in
+   this file needs an @media of its own -- and nothing in it can ever reach a phone, whatever a
+   rule in here gets wrong. The mobile sheet (style.css) stays the base cascade: this layer only
+   adds, never restructures, matching the phone-first design.
+   Same app, more room -- not a second layout: the tab bar moves from the bottom edge to the top,
+   the column and the charts grow, and the card grids use the width they are given. */
+
+#app { max-width: 880px; padding: 16px 24px 48px; }
+/* No bar pinned over the bottom edge any more, so the live screen needs no space kept clear for
+   it -- and the tab bar, last in the DOM because a phone wants it under the thumb, is pulled to
+   the top where a pointer expects it. */
+#app.live { display: flex; flex-direction: column; padding: 0 24px 48px; }
+.tabbar { order: -1; }
+
+.tabbar { position: static; background: transparent; border-top: 0; border-bottom: 1px solid var(--border);
+  padding: 10px 0; }
+.tabbar .inner { max-width: none; gap: 8px; }
+.tab { flex: 0 0 auto; flex-direction: row; gap: 9px; padding: 9px 18px; border-radius: 999px; font-size: .8rem; }
+.tab.active { background: var(--panel); }
+
+.statusbar { padding: 14px 4px 2px; font-size: .8rem; }
+.screenhead { padding: 10px 4px 14px; }
+.screenhead .title { font-size: 1.9rem; }
+.screenhead .sub { font-size: .8rem; }
+
+/* Cards fill the width instead of stretching: two stats become four across, the wizard's
+   preset lists stop being one tall stack. */
+.grid2, .grid3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.card { padding: 18px 22px; }
+
+.big .v { font-size: 3.8rem; }
+.big .u { font-size: 1.25rem; }
+.stat .v { font-size: 1.5rem; }
+
+/* The chart geometry follows the element's measured size (see width.js), so a taller box here is
+   a taller chart, not a vertically stretched one. */
+.chart { height: 170px; }
+.hist { height: 210px; }
+.axis { font-size: .72rem; }
+
+.phase { margin-top: 14px; }
+.phase .kw { width: 64px; font-size: .85rem; }
+.phase .ui { width: 120px; font-size: .78rem; }
+
+.reg { padding: 10px 0; }
+.reg .o { width: 90px; font-size: .8rem; }
+.reg .n { font-size: .88rem; }
+.reg .v, .reg .u { font-size: .85rem; }
+
+/* Raw frames are the one place where more screen is worth spending: a wide hex dump is the
+   difference between reading a telegram and scrolling through one. */
+.hex { max-height: 420px; font-size: .78rem; }
+
+/* Full-width buttons are a thumb target, not a mouse one. */
+.nav { justify-content: flex-end; }
+.nav button { flex: 0 0 auto; min-width: 160px; }
+.fixes button { flex: 0 0 auto; }
+.seg { max-width: 520px; }

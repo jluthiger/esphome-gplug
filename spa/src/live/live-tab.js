@@ -1,8 +1,10 @@
+import { useRef } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { num } from "../fmt.js";
 import { DiagCard, diagInfo, diagOf } from "../diag.js";
 import { lastHour } from "../hour.js";
+import { useBox } from "../box.js";
 
 export function LiveTab({ live, ring, day }) {
   const age = live?.age;
@@ -64,7 +66,9 @@ export function LiveTab({ live, ring, day }) {
 // delivered nothing). Those are drawn as a break in the line rather than a line through zero,
 // which would read as "0 kW" -- a measurement the device never made.
 function Chart({ vals }) {
-  const w = 320, h = 104;
+  // Falls back to the CSS size until the first measurement lands, one frame later.
+  const svg = useRef(null);
+  const [w, h] = useBox(svg, 320, 104);
   const known = vals.filter((v) => v !== null);
   const min = Math.min(0, ...known), max = Math.max(0, ...known), span = max - min || 1;
   const X = (i) => (i / (vals.length - 1)) * w, Y = (v) => h - ((v - min) / span) * h;
@@ -95,7 +99,7 @@ function Chart({ vals }) {
   const lastIdx = vals.length - 1;
   const cls = (r) => (r.sign >= 0 ? "imp" : "exp");
   return html`
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart">
+    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart">
       ${runs.map((r) => {
         const line = "M" + r.pts.join(" L ");
         const x0 = r.pts[0].split(" ")[0], x1 = r.pts[r.pts.length - 1].split(" ")[0];

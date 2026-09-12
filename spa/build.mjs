@@ -45,9 +45,15 @@ const result = await build({
   legalComments: "none",
 });
 const js = result.outputFiles[0].text;
-const css = readFileSync("src/style.css", "utf8").replace(/\s+/g, " ").trim();
+const squish = (f) => readFileSync(f, "utf8").replace(/\s+/g, " ").trim();
+const css = squish("src/style.css");
+// Kept in its own file rather than as @media blocks at the bottom of style.css: the mobile sheet
+// stays the base cascade and the desktop rules stay reviewable (and removable) as one layer.
+// index.html scopes them with <style media>, so they still travel in the same single document.
+const cssDesktop = squish("src/style.desktop.css");
 const html = readFileSync("src/index.html", "utf8")
   .replace("/*CSS*/", () => css)
+  .replace("/*CSS-DESKTOP*/", () => cssDesktop)
   .replace("/*JS*/", () => js.replace(/<\/script/gi, "<\\/script"));
 
 mkdirSync("dist", { recursive: true });
@@ -57,5 +63,6 @@ writeFileSync("dist/index.html.gz", gz);
 // The copy the firmware actually embeds (committed; see firmware/components/gplug_smi/__init__.py).
 const BUNDLED = "../firmware/components/gplug_smi/spa.html.gz";
 writeFileSync(BUNDLED, gz);
+console.log(`css                 ${(css.length / 1024).toFixed(1)} kB mobile + ${(cssDesktop.length / 1024).toFixed(1)} kB desktop`);
 console.log(`dist/index.html     ${(html.length / 1024).toFixed(1)} kB`);
 console.log(`dist/index.html.gz  ${(gz.length / 1024).toFixed(1)} kB  -> ${BUNDLED}`);

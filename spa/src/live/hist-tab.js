@@ -1,8 +1,9 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 import { num, bucketLabel, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
+import { useBox } from "../box.js";
 // Every range here comes from the flash history (/api/history), fetched once per range and kept,
 // so re-visiting one costs the device nothing; the scan reads flash, which is why it is not on the
 // 10 s poll. There is deliberately no "last hour" range: that is live data, not stored history,
@@ -186,13 +187,16 @@ function Stat({ k, v, u, dir }) {
 }
 
 function Bars({ bars }) {
-  const w = 320, h = 130;
+  // Bar width and gap are in pixels, so a wider column means more bars' worth of room rather than
+  // wider bars (see box.js).
+  const svg = useRef(null);
+  const [w, h] = useBox(svg, 320, 130);
   const maxAbs = Math.max(1, ...bars.filter((b) => !b.missing).map((b) => Math.abs(b.v)));
   const hasNeg = bars.some((b) => !b.missing && b.v < 0);
   const zero = hasNeg ? h * 0.62 : h - 2;
   const bw = w / bars.length;
   return html`
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="hist">
+    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="hist">
       <line x1="0" y1=${zero} x2=${w} y2=${zero} class="zero" />
       ${bars.map((b, i) => {
         const x = (i * bw + (bw > 3 ? 1 : 0.2)).toFixed(1);

@@ -125,6 +125,22 @@ history bars, and the day/week/month/year totals. The Live chart splits its path
 crossing so each side carries its own colour rather than the whole hour taking the sign of the
 last sample.
 
+**Phone first, desktop as a layer** (`src/style.desktop.css`). The base sheet is the phone
+design and knows nothing about wide screens; the desktop rules live in their own file and are
+inlined by `build.mjs` into a second `<style media="(min-width:800px)">` block. Scoping by the
+media *attribute* rather than by an `@media` inside the file means nothing in that layer can
+reach a phone, whatever a rule in it gets wrong, and the layer can be read (or deleted) as one
+piece. On a wide screen the column grows to 880 px, the tab bar moves from the bottom edge to the
+top -- it is last in the DOM because a thumb wants it there, and `order: -1` pulls it up for a
+pointer -- the card grids fill the width, buttons stop being full-width thumb targets, and the
+charts and hex dumps get taller. It stays one layout, not two: no component renders differently.
+
+**Charts draw in the size they are given** (`src/box.js`). Both SVGs used a fixed `320 x h`
+viewBox with `preserveAspectRatio="none"`, which stretches whatever width the element has onto
+320 units -- invisible on a phone, visibly distorted strokes, bars and corner radii in the wider
+desktop column. `useBox()` measures the element with a `ResizeObserver` and the viewBox follows,
+so the mapping is 1:1 at any width and the desktop layer is free to change a chart's height.
+
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
 Its fonts and dark-green-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`
@@ -163,4 +179,4 @@ way and the next one work, to walk the whole fix loop.
 Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js` (wizard),
 `src/live/*.js` (the four tabs), `src/api.js`, `src/fmt.js` (locale-aware numbers and dates via
 `Intl`, quarter-hour helpers), `src/strings.js` + `src/i18n/*` (UI text in four languages),
-`src/style.css`.
+`src/style.css` (+ `src/style.desktop.css`, the wide-screen layer), `src/box.js`.
