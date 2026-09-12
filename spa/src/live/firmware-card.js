@@ -14,15 +14,17 @@ const REBOOT_TIMEOUT_MS = 120000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Returns a string *key* for a rejection rather than the sentence itself, so the message follows
+// a language switch made while the file is still selected (see msgText below).
 // An ESP-IDF app image starts with a 24-byte image header (magic 0xE9, chip id at 12) and one
 // segment header, then esp_app_desc_t. A factory image also starts with 0xE9 -- it is the
 // bootloader at offset 0 -- but carries no app descriptor there, which is how it is told apart.
 async function inspect(file) {
-  if (file.size > APP_SLOT) return { error: S.fwTooBig };
+  if (file.size > APP_SLOT) return { error: "fwTooBig" };
   const b = new Uint8Array(await file.slice(0, 0xb0).arrayBuffer());
-  if (b.length < 0xb0 || b[0] !== 0xe9) return { error: S.fwNotImage };
-  if (new DataView(b.buffer).getUint32(0x20, true) !== APP_DESC_MAGIC) return { error: S.fwFactory };
-  if ((b[12] | (b[13] << 8)) !== CHIP_ESP32C3) return { error: S.fwWrongChip };
+  if (b.length < 0xb0 || b[0] !== 0xe9) return { error: "fwNotImage" };
+  if (new DataView(b.buffer).getUint32(0x20, true) !== APP_DESC_MAGIC) return { error: "fwFactory" };
+  if ((b[12] | (b[13] << 8)) !== CHIP_ESP32C3) return { error: "fwWrongChip" };
   const str = (o) => new TextDecoder().decode(b.subarray(o, o + 32)).replace(/\0[\s\S]*$/, "");
   return { version: str(0x30), name: str(0x50) };
 }
@@ -36,7 +38,10 @@ export function FirmwareCard({ status }) {
   const [password, setPassword] = useState("");
   const [phase, setPhase] = useState("idle");   // idle | picked | upload | reboot | done | same | failed
   const [progress, setProgress] = useState(0);
+  // A string key, not the text: text resolved at set-time would freeze the language it was set
+  // in. api.js hands up already-translated sentences, which msgText() passes through unchanged.
   const [msg, setMsg] = useState("");
+  const msgText = (m) => (m && S[m] !== undefined ? S[m] : m);
   const [build, setBuild] = useState(status?.build);
 
   async function pick(e) {
@@ -55,13 +60,13 @@ export function FirmwareCard({ status }) {
     setPhase("upload"); setProgress(0); setMsg("");
     let r;
     try {
-      if (pw && !(await api.firmwareAuth(pw))) { setPhase("picked"); setMsg(S.fwAuth); return; }
+      if (pw && !(await api.firmwareAuth(pw))) { setPhase("picked"); setMsg("fwAuth"); return; }
       r = await api.firmware(file, pw, setProgress);
     } catch (e) {
       setPhase("failed"); setMsg(e.message); return;
     }
-    if (r.status === 401) { setPhase("picked"); setMsg(S.fwAuth); return; }
-    if (r.status !== 200 || !/success/i.test(r.text)) { setPhase("failed"); setMsg(S.fwRejected); return; }
+    if (r.status === 401) { setPhase("picked"); setMsg("fwAuth"); return; }
+    if (r.status !== 200 || !/success/i.test(r.text)) { setPhase("failed"); setMsg("fwRejected"); return; }
 
     // Accepted: the device reboots within a second. Wait until it answers again with a fresh uptime.
     setPhase("reboot");
@@ -78,7 +83,7 @@ export function FirmwareCard({ status }) {
       } catch { /* still rebooting */ }
       await sleep(2000);
     }
-    setPhase("failed"); setMsg(S.fwNoReturn);
+    setPhase("failed"); setMsg("fwNoReturn");
   }
 
   const busy = phase === "upload" || phase === "reboot";
@@ -102,13 +107,13 @@ export function FirmwareCard({ status }) {
           <div class="t">${file.name}</div>
           <div class="s">${(file.size / 1024).toFixed(0)} kB${info?.version ? ` · ESPHome ${info.version} · ${info.name}` : ""}</div>
         </div>
-        ${info?.error && html`<div class="err">${info.error}</div>`}
+        ${info?.error && html`<div class="err">${msgText(info.error)}</div>`}
         ${!info?.error && otherName && html`<div class="err">${S.fwOtherName(info.name, status.hostname)}</div>`}
         ${!info?.error && status?.ota_auth && html`
           <label>${S.fwPassword}</label>
           <input type="password" autocomplete="current-password" value=${password}
             onInput=${(e) => setPassword(e.target.value)} />`}
-        ${msg && html`<div class="err">${msg}</div>`}
+        ${msg && html`<div class="err">${msgText(msg)}</div>`}
         <div class="nav">
           <button onClick=${reset}>${S.fwCancel}</button>
           <button class="primary" disabled=${!!info?.error || (status?.ota_auth && !password)} onClick=${install}>${S.fwInstall}</button>
@@ -128,7 +133,7 @@ export function FirmwareCard({ status }) {
         <p style="margin:14px 0 0"><button class="primary" onClick=${() => location.reload()}>${S.fwReload}</button></p>`}
 
       ${phase === "failed" && html`
-        <div class="err">${S.fwFailed}: ${msg}</div>
+        <div class="err">${S.fwFailed}: ${msgText(msg)}</div>
         <p style="margin:14px 0 0"><button onClick=${reset}>${S.fwCancel}</button></p>`}
     </div>`;
 }

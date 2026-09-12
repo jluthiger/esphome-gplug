@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { de } from "../fmt.js";
+import { num } from "../fmt.js";
 import { DiagCard, diagOf } from "../diag.js";
 
 // End of the wizard: don't hand over to the Live view until the meter has actually been read. A
@@ -43,7 +43,7 @@ export function Done({ onOpenLive }) {
         <p style="margin:10px 0 0"><span class="badge ok">${S.checkOk}</span></p>
         <div class="kv" style="margin-top:12px">
           ${live.smid && html`<b>${S.meterId}</b><span>${live.smid}</span>`}
-          ${live.p != null && html`<b>${S.activePower}</b><span>${de(live.p, 2)} kW</span>`}
+          ${live.p != null && html`<b>${S.activePower}</b><span>${num(live.p, 2)} kW</span>`}
           <b>${S.values}</b><span>${Object.keys(live.values || {}).length}</span>
         </div>`}
     </div>`}

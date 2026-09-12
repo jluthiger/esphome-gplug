@@ -30,10 +30,12 @@ VARIANTS = [
 MODE = {"o": "dsmr", "r": "dlms", "rE1": "dlms"}
 
 # Human names shown in the SPA. Script comments are inconsistent, so name explicitly.
+# Protocol and product names only, no prose: the SPA runs in four languages and appends the
+# encryption state itself, from the preset's `encrypted` flag (see presetLabel() in the SPA).
 NAMES = {
-    "gplugd/p1-dsmr": "P1 DSMR (unverschlüsselt)",
-    "gplugd/p1-hdlc_dlms": "P1 HDLC/DLMS (verschlüsselt)",
-    "gplugde/p1-dsmr": "P1 DSMR (unverschlüsselt)",
+    "gplugd/p1-dsmr": "P1 DSMR",
+    "gplugd/p1-hdlc_dlms": "P1 HDLC/DLMS",
+    "gplugde/p1-dsmr": "P1 DSMR",
     "gplugde/p1-hdlc_dlms": "P1 HDLC/DLMS Romande Energie",
     "gplugk/dlms-push-1": "Kamstrup DLMS Push",
     "gplugm/romande-energie": "CII HDLC/DLMS Romande Energie",

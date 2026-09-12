@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
-import { S } from "../strings.js";
+import { S, presetLabel } from "../strings.js";
 import { api } from "../api.js";
 
 const HEX32 = /^[0-9a-fA-F]{32}$/;
@@ -16,7 +16,7 @@ const LONG_WAIT_S = 30;
 // polls it and follows it: when exactly one of the variant's profiles fits, it is selected and
 // shown alone, so the user only confirms (and types the key when the line is encrypted). Several
 // fitting profiles (gPlugM has two DLMS ones) narrow the list to those. Tapping a card ends the
-// following; the wider lists stay reachable behind "Anderes Profil wählen" / "Alle Profile".
+// following; the wider lists stay reachable behind the "other profile" / "show all" actions.
 export function Meter({ presets, variant, value, storedKey, onChange, onNext, onBack }) {
   const [expand, setExpand] = useState(0);   // 0 = fitting profiles, 1 = this variant's, 2 = all
   const [manual, setManual] = useState(false);
@@ -43,7 +43,7 @@ export function Meter({ presets, variant, value, storedKey, onChange, onNext, on
 
   // Follow the detection until the user picks by hand: whenever the selection is not a fitting
   // profile, select the first one -- including over the device's stored profile, which is exactly
-  // the "Zählerprofil ändern" case after a wrong first setup.
+  // the "change meter profile" case after a wrong first setup.
   const fitIds = fit.map((p) => p.id).join(",");
   useEffect(() => {
     if (manual || fit.length === 0 || fit.some((p) => p.id === sel?.id)) return;
@@ -93,7 +93,7 @@ export function Meter({ presets, variant, value, storedKey, onChange, onNext, on
     ${mine.length === 0 && html`<p class="hint">${S.noPresetForVariant}</p>`}
     ${list.map((p) => html`
       <div class="card click ${sel?.id === p.id ? "sel" : ""}" onClick=${() => pick(p)}>
-        <div class="t">${p.name}</div>
+        <div class="t">${presetLabel(p)}</div>
         <div class="s">
           ${p.protocol.toUpperCase()} · ${p.baud} Bd · ${p.obis.length} ${S.values}
           ${p.encrypted && html` · <span class="badge warn">${S.encrypted}</span>`}

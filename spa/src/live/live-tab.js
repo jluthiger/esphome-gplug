@@ -1,6 +1,6 @@
 import { html } from "../h.js";
 import { S } from "../strings.js";
-import { de } from "../fmt.js";
+import { num } from "../fmt.js";
 import { DiagCard, diagInfo, diagOf } from "../diag.js";
 
 export function LiveTab({ live, ring }) {
@@ -31,15 +31,15 @@ export function LiveTab({ live, ring }) {
   return html`
     <div class="card">
       <div class="between"><span class="lbl">${S.activePower}</span><span class="num" style="font-size:.7rem;color:var(--sub)">−${age} s</span></div>
-      <div class="big"><span class="v">${de(Math.abs(net), 2)}</span><span class="u">kW</span></div>
+      <div class="big"><span class="v">${num(Math.abs(net), 2)}</span><span class="u">kW</span></div>
       <div class="dir">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>
       ${vals.length >= 2 && html`
         <${Chart} vals=${vals} />
-        <div class="axis"><span>${S.ago60}</span><span>${de(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>`}
+        <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>`}
     </div>
     <div class="grid2">
-      <div class="card stat"><div class="lbl">${S.importLbl}</div><div class="v">${de(live.ei)}</div><div class="u">kWh</div></div>
-      <div class="card stat"><div class="lbl orange">${S.exportLbl}</div><div class="v orange">${de(live.eo)}</div><div class="u orange">kWh</div></div>
+      <div class="card stat"><div class="lbl">${S.importLbl}</div><div class="v">${num(live.ei)}</div><div class="u">kWh</div></div>
+      <div class="card stat"><div class="lbl orange">${S.exportLbl}</div><div class="v orange">${num(live.eo)}</div><div class="u orange">kWh</div></div>
     </div>
     ${ph && html`
       <div class="card">
@@ -48,8 +48,8 @@ export function LiveTab({ live, ring }) {
           <div class="phase">
             <span class="n">L${i + 1}</span>
             <div class="bar"><i style="width:${Math.round(Math.abs(w) / phMax * 100)}%"></i></div>
-            <span class="kw">${de(w / 1000, 2)}</span>
-            <span class="ui">${volt(i + 1) != null ? de(volt(i + 1), 1) + " V" : ""}${volt(i + 1) != null && amp(i + 1) != null ? " · " : ""}${amp(i + 1) != null ? de(amp(i + 1), 1) + " A" : ""}</span>
+            <span class="kw">${num(w / 1000, 2)}</span>
+            <span class="ui">${volt(i + 1) != null ? num(volt(i + 1), 1) + " V" : ""}${volt(i + 1) != null && amp(i + 1) != null ? " · " : ""}${amp(i + 1) != null ? num(amp(i + 1), 1) + " A" : ""}</span>
           </div>`)}
       </div>`}`;
 }

@@ -34,7 +34,8 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,017,676 B = 994 kB in a 1408 kB slot: **70.6 % full, 414 kB headroom**.
+Image 1,036,230 B = 1012 kB in a 1408 kB slot: **71.9 % full, 396 kB headroom** (2026-09-12, after
+the load-profile CSV export and the four-language SPA).
 
 By section: 747 kB code run from flash, 176 kB read-only data, 59 kB IRAM code and 11 kB `.data`
 initial values (those two are stored in flash *and* occupy RAM).
@@ -50,7 +51,7 @@ By owner:
 | String literals from all code | 82.5 kB | 8.3 % |
 | ESPHome core and components | 57.6 kB | 5.8 % |
 | `gplug_smi` code | 40.6 kB | 4.1 % |
-| Embedded web files, gzipped: SPA 24.0 kB, presets 2.4 kB (from 26.4 kB JSON), captive page 1.6 kB | 27.9 kB | 2.8 % |
+| Embedded web files, gzipped: SPA 35.3 kB (four languages since 2026-09-12), presets 2.4 kB (from 26.4 kB JSON), captive page 3.1 kB | 40.8 kB | 4.0 % |
 | ESPHome-generated `main.cpp` setup code | 3.0 kB | 0.3 % |
 
 The platform (Wi-Fi, ESP-IDF, crypto, networking) is 79 % of the image; gPlug's own code and web

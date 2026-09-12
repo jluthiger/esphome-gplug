@@ -20,11 +20,35 @@ function i(e) {
 function o(e) {
   return e.join("");
 }
+// gPlug: the onboarding page is the one screen a user meets before the SPA (and before any
+// language preference can exist), so it follows the phone's own language across the four the SPA
+// speaks. Kept to a flat table of six strings rather than the SPA's i18n module: this page is
+// framework-free by design, because phones render it inside a restricted captive-portal webview.
+// The markup ships German; if scripting is blocked there, that is what stays on screen.
+var L = {
+  de: {mac: "MAC-Adresse", nets: "WLAN-Netzwerke", conn: "Verbinde mit dem Netzwerk…", wait: "Bitte warten.", set: "WLAN-Einstellungen", pw: "Passwort", save: "Speichern"},
+  fr: {mac: "Adresse MAC", nets: "Réseaux Wi-Fi", conn: "Connexion au réseau…", wait: "Veuillez patienter.", set: "Paramètres Wi-Fi", pw: "Mot de passe", save: "Enregistrer"},
+  it: {mac: "Indirizzo MAC", nets: "Reti Wi-Fi", conn: "Connessione alla rete…", wait: "Attendere.", set: "Impostazioni Wi-Fi", pw: "Password", save: "Salvare"},
+  en: {mac: "MAC address", nets: "Wi-Fi networks", conn: "Connecting to network…", wait: "Please wait.", set: "Wi-Fi settings", pw: "Password", save: "Save"}
+};
+var lang = "de";
+var tags = navigator.languages || [navigator.language || ""];
+for (var li = 0; li < tags.length; li++) {
+  var c = String(tags[li]).slice(0, 2).toLowerCase();
+  if (L[c]) { lang = c; break; }
+}
+var T = L[lang];
+document.documentElement.lang = lang;
+document.querySelector("aside").innerHTML = T.conn + "<br>" + T.wait;
+document.querySelector("h3").innerText = T.set;
+document.querySelector("button").innerText = T.save;
+document.getElementById("psk").placeholder = T.pw;
+
 fetch("/config.json").then(function (e) {
   e.json().then(function (t) {
     document.title = t.name;
-    document.body.getElementsByTagName("h1")[0].innerText = "MAC Address: " + t.mac;
-    document.body.getElementsByTagName("h1")[1].innerText = "WiFi Networks: " + t.name;
+    document.body.getElementsByTagName("h1")[0].innerText = T.mac + ": " + t.mac;
+    document.body.getElementsByTagName("h1")[1].innerText = T.nets + ": " + t.name;
     let r = t.aps.slice(1).map(function (n) {
       return `<div class="network"
       onclick="document.getElementById('ssid').value = this.innerText;document.getElementById('psk').focus()">
@@ -110,15 +134,15 @@ aside {
 </head>
 <body>
 <main>
-<h1 id="mac">MAC Address</h1>
-<h1 id="h1">WiFi Networks</h1>
-<aside>Connecting to network...<br>Please wait.</aside>
+<h1 id="mac">MAC-Adresse</h1>
+<h1 id="h1">WLAN-Netzwerke</h1>
+<aside>Verbinde mit dem Netzwerk…<br>Bitte warten.</aside>
 <span id="net"></span>
-<h3>WiFi Settings</h3>
+<h3>WLAN-Einstellungen</h3>
 <form action="/wifisave">
 <input id="ssid" name="ssid" length="32" placeholder="SSID"><br>
-<input id="psk" name="psk" length="64" type="password" placeholder="Password"><br><br>
-<button>Save</button>
+<input id="psk" name="psk" length="64" type="password" placeholder="Passwort"><br><br>
+<button>Speichern</button>
 </form>
 </main>
 </body>

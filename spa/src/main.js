@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { html } from "./h.js";
-import { S } from "./strings.js";
+import { S, onLangChange, applyLang } from "./strings.js";
 import { api } from "./api.js";
 import { Welcome } from "./steps/welcome.js";
 import { Hardware } from "./steps/hardware.js";
@@ -11,12 +11,13 @@ import { Live } from "./live/index.js";
 import { applyTheme, initialTheme } from "./theme.js";
 
 applyTheme(initialTheme());   // before the first render, so no flash of the wrong theme
+applyLang();                  // <html lang> follows the picked/detected language, not index.html
 
 // No "wifi" step: this SPA is only ever reachable after the device has already joined WiFi
 // (the stock captive_portal handles that first join, before gplug_smi's own handler -- and
 // thus this SPA -- resumes serving "/"). A "connect to your network" step here would always be
 // a no-op re-confirmation of a connection that already exists. Changing to a *different* network
-// later is still possible, from the Live view's "WLAN ändern" panel.
+// later is still possible, from the Wi-Fi panel in the Live view's Setup tab.
 const STEPS = ["welcome", "hardware", "meter", "done"];
 
 // Two top-level routes, kept in location.hash so each is a real, bookmarkable screen rather than
@@ -43,6 +44,9 @@ function App() {
   const [data, setData] = useState(null); // {variants, presets}
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  const [, langTick] = useState(0);
+  useEffect(() => onLangChange(() => langTick((n) => n + 1)), []);
 
   const [hw, setHw] = useState(null);                 // {variant, pins}
   const [meter, setMeter] = useState({ preset: null, key: "", keepKey: !parseHash().newKey });

@@ -65,7 +65,7 @@
   {
    "id": "gplugd/p1-dsmr",
    "variant": "gplugd",
-   "name": "P1 DSMR (unverschlüsselt)",
+   "name": "P1 DSMR",
    "protocol": "dsmr",
    "mode": "o",
    "baud": 115200,
@@ -269,7 +269,7 @@
   {
    "id": "gplugd/p1-hdlc_dlms",
    "variant": "gplugd",
-   "name": "P1 HDLC/DLMS (verschlüsselt)",
+   "name": "P1 HDLC/DLMS",
    "protocol": "dlms",
    "mode": "r",
    "baud": 115200,
@@ -419,7 +419,7 @@
   {
    "id": "gplugde/p1-dsmr",
    "variant": "gplugde",
-   "name": "P1 DSMR (unverschlüsselt)",
+   "name": "P1 DSMR",
    "protocol": "dsmr",
    "mode": "o",
    "baud": 115200,

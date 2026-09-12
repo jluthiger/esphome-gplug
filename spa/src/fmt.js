@@ -1,13 +1,35 @@
-// German number formatting: decimal comma, thin-space thousands ("12 843", "2,60").
-export function de(v, digits = 0) {
+// Number and date formatting in the language the user picked. Everything here goes through Intl
+// with a Swiss locale (i18n/index.js maps de -> de-CH and so on), which is both smaller than
+// hand-rolled formatting and more correct than what this file used to do: it formatted
+// German-German ("12 843,60") on a device sold in Switzerland, where German and Italian want
+// "12’843.60" and French "12 843,60".
+import { getLocale } from "./i18n/index.js";
+
+// Intl formatters are expensive to construct and a history chart formats hundreds of labels, so
+// they are built once per locale and option set. The cache key carries the locale, which is what
+// makes a language switch pick up new formatters without any explicit invalidation.
+const cache = new Map();
+function fmt(kind, opts) {
+  const key = kind + getLocale() + JSON.stringify(opts);
+  let f = cache.get(key);
+  if (!f) {
+    f = kind === "n" ? new Intl.NumberFormat(getLocale(), opts) : new Intl.DateTimeFormat(getLocale(), opts);
+    cache.set(key, f);
+  }
+  return f;
+}
+
+// "–" (en dash) for a value the device does not have, distinct from a real 0. The minus sign is
+// normalised to U+2212: Intl emits an ASCII hyphen, which is visibly too short next to the digits
+// at the sizes the Live screen uses.
+export function num(v, digits = 0) {
   if (v == null || !isFinite(v)) return "–";
-  const [int, frac] = Math.abs(v).toFixed(digits).split(".");
-  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  return (v < 0 ? "−" : "") + grouped + (frac ? "," + frac : "");
+  const s = fmt("n", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
+  return s.replace(/^-/, "−");
 }
 
 export function clock(d = new Date()) {
-  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  return fmt("d", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 }
 
 // The device stores quarter-hour indices since 2020-01-01 UTC and has no timezone of its own
@@ -15,13 +37,17 @@ export function clock(d = new Date()) {
 export const QH_EPOCH = 1577836800;
 export const qhDate = (qh) => new Date((QH_EPOCH + qh * 900) * 1000);
 
-const WD = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-const MON = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+// A calendar date for prose ("3828 intervals stored, 3 Aug 2026 to 12 Sep 2026"). Date *inputs*
+// keep their ISO value: <input type="date"> takes and returns ISO and renders it in the browser's
+// own locale, which the page cannot influence.
+export function dateShort(d) {
+  return fmt("d", { year: "numeric", month: "short", day: "numeric" }).format(d);
+}
 
 export function bucketLabel(range, qh) {
   const d = qhDate(qh);
   if (range === "day") return clock(d);
-  if (range === "week") return WD[d.getDay()];
-  if (range === "month") return d.getDate() + "." + (d.getMonth() + 1) + ".";
-  return MON[d.getMonth()];
+  if (range === "week") return fmt("d", { weekday: "short" }).format(d);
+  if (range === "month") return fmt("d", { day: "numeric", month: "numeric" }).format(d);
+  return fmt("d", { month: "short" }).format(d);
 }

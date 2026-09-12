@@ -60,6 +60,17 @@ refused, it starts with the bootloader), POSTs it to `/update` (ESPHome's `ota.w
 `gplug_smi` auto-loads), then polls `/api/status` until a fresh uptime appears and compares its
 `build` (compile time) with the one before, so a boot-loop rollback to the old image is reported
 rather than shown as success. Measured on the gPlugK: 13 s upload, confirmed new build at 19 s.
+
+**That success check has a blind spot, found on 2026-09-12.** `build` is `App.get_build_time()`,
+i.e. ESPHome's `ESPHOME_BUILD_TIME`, and ESPHome caches that value in `.esphome/build/gplug/
+build_info.json` keyed by the *config hash*. An update that changes only bundled assets -- the
+SPA, the presets, the captive page -- leaves the YAML config untouched, so the timestamp is
+reused and the new image reports the same `build` as the old one. The card then shows its
+"unchanged build, possibly rolled back" message for an update that in fact succeeded. Seen
+exactly that way when flashing the four-language SPA: the device served the new 35 kB bundle and
+still reported the previous build time. Not fixed yet; the obvious candidates are including the
+embedded assets in what the card compares (the SPA's byte length is already known to the
+firmware) or touching the config so the hash moves.
 There is no OTA on the captive-portal page any more (removed 2026-09-11): that page is onboarding
 only. A bad image is rejected before the slot
 switch (`esp_ota_ops: OTA image has invalid magic byte`); an image that boots but crash-loops is
@@ -263,7 +274,13 @@ branding, based on esphome 2026.6.5:
   `is_active()`, the `/config.json` and `/wifisave` handlers `gplug_smi` and phones both depend
   on — is byte-identical to upstream. `compression: br` is no longer accepted (the runtime source
   is always gzip via `_gz_bytes()`); this is a deliberate narrowing, not an oversight.
-- `captive.html` – the actual branding: same markup/JS/form-field contract as upstream's page
+- `captive.html` – the actual branding **and the only screen that has to speak four languages
+  without any stored preference**, since it is what a phone sees before the SPA exists. A flat
+  six-string table in the page's own module script picks German, French, Italian or English from
+  `navigator.languages` and rewrites the labels; the markup itself ships German, which is what
+  stays on screen if the captive-portal webview blocks scripting. Deliberately not the SPA's i18n
+  module: this page is framework-free on purpose. Cost: 1.5 kB gzipped. Everything else is the
+  same markup/JS/form-field contract as upstream's page
   (dynamic title/MAC/network-list from `/config.json`, `#ssid`/`#psk` fields posting to
   `/wifisave`; the upstream `/update` OTA form was removed, updates live in the SPA), only the `<style>` block and viewport/color-scheme meta
   changed, using the SPA's tokens and font stack (`spa/src/style.css`, both themes: dark default,
@@ -383,6 +400,13 @@ settlement. Two things make it settlement-grade rather than chart-grade:
   out, an unattributable interval kept as a row with an empty value so the two files stay aligned
   line by line. The feed-in column's header text is a guess at CKW's wording; check against a
   real feed-in export.
+
+**The export's own column names stay German while the app speaks four languages.** The CKW-shaped
+output has to: it mirrors the vendor's file byte for byte, and that file is German. The `full`
+format is this project's own, so its column names are a real decision and an open one -- either
+language-neutral English columns for everybody, or a `lang` parameter and four variants to test.
+Nothing was changed here on the way to the four-language UI, because the format is what a
+settlement is computed from and renaming its columns is not a documentation change.
 
 A full year is ~35k rows / ~2.5 MB, so the response is chunked, and the store's mutex is never
 held across a socket write: the handler snapshots the sector range, then per sector locks, copies

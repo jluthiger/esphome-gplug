@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { de, bucketLabel, qhDate, QH_EPOCH } from "../fmt.js";
+import { num, bucketLabel, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
 
 // "60 Min" is the in-RAM ring the Live tab already polls -- free, and the only range with 10 s
 // resolution. Everything longer comes from the flash history (/api/history), fetched once per
@@ -70,7 +70,7 @@ export function HistTab({ live, ring, status, presets }) {
         <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
         ${regs.map((o) => html`
           <div class="reg"><span class="o">${o.obis.replace(/^\d-\d:/, "")}</span><span class="n">${o.name}</span>
-            <span class="v">${de(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
+            <span class="v">${num(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
       </div>`}`;
 }
 
@@ -144,7 +144,9 @@ function ExportCard({ status }) {
     <div class="card">
       <div class="t">${S.csvTitle}</div>
       <p class="hint">${S.csvHint}</p>
-      <p class="hint">${count ? (timed ? S.csvStored(count, oldest, newest) : S.csvStoredNoTime(count)) : S.noHistory}</p>
+      <p class="hint">${count
+        ? (timed ? S.csvStored(count, dateShort(qhDate(h.oldest_qh)), dateShort(qhDate(h.newest_qh))) : S.csvStoredNoTime(count))
+        : S.noHistory}</p>
       <div class="row" style="margin:12px 0">
         <label><div class="lbl" style="margin-bottom:4px">${S.csvFrom}</div>
           <input type="date" value=${f} max=${t} onInput=${(e) => setFrom(e.target.value)} /></label>
@@ -174,9 +176,9 @@ function axisLabels(bars) {
 function PowerStats({ vals }) {
   return html`
     <div class="grid3">
-      <${Stat} k=${S.statMax} v=${de(Math.max(...vals) / 1000, 2)} u="kW" />
-      <${Stat} k=${S.statAvg} v=${de(vals.reduce((a, b) => a + b, 0) / vals.length / 1000, 2)} u="kW" />
-      <${Stat} k=${S.statMin} v=${de(Math.min(...vals) / 1000, 2)} u="kW" />
+      <${Stat} k=${S.statMax} v=${num(Math.max(...vals) / 1000, 2)} u="kW" />
+      <${Stat} k=${S.statAvg} v=${num(vals.reduce((a, b) => a + b, 0) / vals.length / 1000, 2)} u="kW" />
+      <${Stat} k=${S.statMin} v=${num(Math.min(...vals) / 1000, 2)} u="kW" />
     </div>`;
 }
 
@@ -186,9 +188,9 @@ function EnergyStats({ bars }) {
   const exp = known.reduce((a, b) => a + Math.max(0, -b.v), 0) / 1000;
   return html`
     <div class="grid3">
-      <${Stat} k=${S.statImport} v=${de(imp, 1)} u="kWh" />
-      <${Stat} k=${S.statExport} v=${de(exp, 1)} u="kWh" orange=${true} />
-      <${Stat} k=${S.statSum} v=${de(imp - exp, 1)} u="kWh" />
+      <${Stat} k=${S.statImport} v=${num(imp, 1)} u="kWh" />
+      <${Stat} k=${S.statExport} v=${num(exp, 1)} u="kWh" orange=${true} />
+      <${Stat} k=${S.statSum} v=${num(imp - exp, 1)} u="kWh" />
     </div>`;
 }
 

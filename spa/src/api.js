@@ -4,6 +4,17 @@ import { S } from "./strings.js";
 
 const BASE = "";
 
+// The device answers a rejected request with a short English token (gplug_smi.cpp). Most of them
+// are malformed-request diagnostics the UI cannot actually produce, and those still reach the user
+// verbatim after the localized "error from the device" prefix -- better a technical token than a
+// wrong translation. The few a user can genuinely hit get a real sentence in their own language.
+const DEVICE_ERRORS = {
+  "no stored key": "errNoStoredKey",
+  "key must be 32 hex chars": "keyInvalid",
+  "auth_key must be 32 hex chars": "keyInvalid",
+  "history disabled": "errHistoryOff",
+};
+
 async function req(method, path, body, ms = 8000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -26,6 +37,8 @@ async function req(method, path, body, ms = 8000) {
     if (!r.ok) {
       let detail = "";
       if (isJson) { try { detail = (await r.json()).error || ""; } catch { /* not valid JSON, ignore */ } }
+      const known = DEVICE_ERRORS[detail];
+      if (known) throw new Error(S[known]);
       throw new Error(detail ? `${S.errServer}: ${detail}` : `${S.errServer} (HTTP ${r.status})`);
     }
     return isJson ? r.json() : r.text();

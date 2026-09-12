@@ -62,6 +62,42 @@ the cable / customer port. A firmware without `detect` gets the old manual list.
 feeds the `protocol` diagnosis (shown as "wrong profile") when a configured profile contradicts
 the line. Mock: `MOCK_DETECT=dsmr|dlms|none npm run dev`.
 
+## Languages
+
+German, French, Italian and English, all four in the one bundle the device serves. The page is
+sent to the phone gzipped straight from flash and decompressed by the browser, so extra languages
+cost flash bytes and nothing else -- no RAM on the ESP32 and no work for it. Measured: 26.5 kB
+gzipped for German alone, 35.3 kB for all four. The firmware image grew by the same 8.8 kB and its
+static RAM did not move at all, leaving ~396 kB free in the app slot.
+
+- `src/i18n/{de,fr,it,en}.js` hold the tables, `src/i18n/index.js` the selection, and
+  `src/strings.js` re-exports both so a component never imports a language directly.
+- `S` is a proxy that reads through to the active table, with German as the fallback for a key a
+  translation is missing. Switching language is a state change, not a reload: `setLang()` notifies
+  the app root, which re-renders the tree (nothing is memoised, so every `S.x` read is fresh).
+- The choice is stored per browser in `localStorage` under `gplug.lang`; without one, the phone's
+  own `navigator.languages` decides, and German is the last resort. `<html lang>` follows.
+- Numbers and dates go through `Intl` with a Swiss locale (`de-CH`, `fr-CH`, `it-CH`, `en-CH`), so
+  German and Italian get `12’843.60` and French `12 843,60`. Before this, `fmt.js` formatted
+  German-German (`12 843,60`) for every user, which is not a Swiss convention at all.
+- `build.mjs` refuses to build when the tables disagree -- a missing key, a key one language has
+  and another doesn't, a string where another language has a function, or a function taking a
+  different number of arguments. A forgotten translation cannot reach a device.
+
+Two things deliberately stay as they are. The `<input type="date">` fields in the export card
+render in the *browser's* locale, not the page's; that is the control's own behaviour and the page
+cannot influence it. And the preset names the device serves ("P1 DSMR", "Kamstrup DLMS Push") are
+technical identifiers, not prose -- the SPA appends the encryption state in the user's language
+from the preset's own `encrypted` flag (`presetLabel()`), which is why `scripts2presets.py` no
+longer puts that qualifier in the name.
+
+The French and Italian wording follows Swiss grid-operator usage rather than literal translation:
+*soutirage*/*injection* and *prelievo*/*immissione* for the two directions, *courbe de charge* and
+*curva di carico* for the load profile, RCP and CEL for the two self-consumption arrangements
+(ZEV/LEG in German). **Both tables still want a native-speaker review** before this is put in
+front of customers; the terminology was chosen deliberately, but only the German is a first
+language here.
+
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
 Its fonts and dark-green-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`
@@ -92,5 +128,6 @@ way and the next one work, to walk the whole fix loop.
 | GET | `/api/frames/<i>/raw\|plain` | `text/plain` body of one captured frame. DLMS: hex of the ciphertext / of the decrypted APDU. DSMR: hex of the telegram / the telegram verbatim — one capture, two views, nothing stored twice. 404 when the slot or that half is empty |
 
 Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js` (wizard),
-`src/live/*.js` (the four tabs), `src/api.js`, `src/fmt.js` (German numbers + quarter-hour dates),
-`src/strings.js` (German UI text), `src/style.css`.
+`src/live/*.js` (the four tabs), `src/api.js`, `src/fmt.js` (locale-aware numbers and dates via
+`Intl`, quarter-hour helpers), `src/strings.js` + `src/i18n/*` (UI text in four languages),
+`src/style.css`.

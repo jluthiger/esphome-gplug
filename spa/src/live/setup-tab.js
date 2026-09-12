@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import { html } from "../h.js";
-import { S } from "../strings.js";
+import { S, LANGS, getLang, setLang, presetLabel } from "../strings.js";
 import { Wifi } from "../steps/wifi.js";
 import { FirmwareCard } from "./firmware-card.js";
 
@@ -23,7 +23,7 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
     [S.host, status?.hostname ? `${status.hostname}.local` : null],
     [S.ip, wifi?.ip],
     [S.wlan, wifi ? `${wifi.ssid} · ${wifi.rssi} dBm` : S.offline],
-    [S.profile, preset?.name || status?.meter?.preset],
+    [S.profile, presetLabel(preset) || status?.meter?.preset],
   ].filter(([, v]) => v);
 
   const encrypted = status?.meter?.encrypted;
@@ -43,6 +43,15 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       </div>`}
     <${FirmwareCard} status=${status} />
+    <div class="card">
+      <div class="lbl">${S.language}</div>
+      <div class="seg" role="radiogroup">
+        ${LANGS.map(([code, label]) => html`
+          <button role="radio" aria-checked=${getLang() === code} class=${getLang() === code ? "active" : ""}
+            lang=${code} onClick=${() => setLang(code)}>${label}</button>`)}
+      </div>
+      <p class="hint" style="margin:0">${S.languageHint}</p>
+    </div>
     <div class="card">
       <div class="lbl">${S.theme}</div>
       <div class="seg" role="radiogroup">

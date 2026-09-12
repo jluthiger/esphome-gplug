@@ -106,7 +106,7 @@ export function StreamTab() {
         return html`
           <div class="card frame" style="border-color:${open === f.i ? "var(--border2)" : "var(--border)"}">
             <div class="head">
-              <button class="chk ${sel.includes(f.i) ? "on" : ""}" aria-label="Frame auswählen" onClick=${() => toggleSel(f.i)}><i>${sel.includes(f.i) ? "✓" : ""}</i></button>
+              <button class="chk ${sel.includes(f.i) ? "on" : ""}" aria-label=${S.selectFrame} onClick=${() => toggleSel(f.i)}><i>${sel.includes(f.i) ? "✓" : ""}</i></button>
               <button class="open" onClick=${() => toggleOpen(f.i)}>
                 <span class="sq ${f.ok ? "" : "bad"}"></span>
                 <span class="ts">−${f.age} s</span>

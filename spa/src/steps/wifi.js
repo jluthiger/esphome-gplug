@@ -69,7 +69,7 @@ export function Wifi({ value, onChange, onNext, onBack }) {
         <b>IP</b><span class="num">${result.ip}</span>
         <b>RSSI</b><span>${result.rssi} dBm</span>
       </div>
-      <p><button onClick=${() => { onChange({ ...value, result: null }); setState("idle"); scan(); }}>${S.wifi} ändern</button></p>
+      <p><button onClick=${() => { onChange({ ...value, result: null }); setState("idle"); scan(); }}>${S.changeWifi}</button></p>
     </div>`}
     ${err && html`<div class="err">${err}</div>`}
     <div class="nav">

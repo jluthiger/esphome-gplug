@@ -40,8 +40,9 @@ is then at `http://gplug.local/` (pins, meter preset). From then on that address
 app instead — four tabs: **Live** (current power, 1 h chart, counters, per-phase), **History**
 (60 min from RAM, plus Day/Week/Month/Year from the device's own 15-min flash history, ~374 days),
 **Data Stream** (the last captured raw DLMS frames, with hex export, for diagnosing a meter that
-won't decode) and **Setup** (addresses, Wi-Fi change, key status, night mode). The wizard stays one
-tap away. Re-entering setup directly: hold the AP button >= 3 s.
+won't decode) and **Setup** (addresses, Wi-Fi change, key status, language, light/dark). The whole
+app speaks German, French, Italian and English, switched in the Setup tab and remembered per
+browser; a fresh phone gets whichever of the four it asks for. The wizard stays one tap away. Re-entering setup directly: hold the AP button >= 3 s.
 
 Dev loop without hardware: `cd spa && npm run dev` serves the wizard against a mock device API on
 http://localhost:8080. Host-side decoder tests: see [`firmware/README.md`](firmware/README.md).
