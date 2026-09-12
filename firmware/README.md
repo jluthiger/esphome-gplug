@@ -369,6 +369,25 @@ descriptor + SPA wizard. Per the user's decision (2026-09-10), the runtime-descr
 remains a prototype; a future pass should reconcile the two rather than duplicate protocol work, with
 the SPA's role narrowing to WiFi onboarding, live view and history rather than meter-protocol selection.
 
+**A gPlug without Home Assistant used to reboot every 15 minutes** (found 2026-09-12, through the
+event log, which is what it was built for). ESPHome's `api` component reboots the device when no
+API client has connected for `reboot_timeout`, default 15 min -- reasonable for a device whose
+whole purpose is feeding Home Assistant, wrong for this one, which serves its own app and logs to
+its own flash. `APIServer::loop()` logs "No clients; rebooting" and calls `App.reboot()`. Every
+gPlug not adopted by a Home Assistant therefore restarted four times an hour since the first
+flash. `gplug.yaml` now sets `reboot_timeout: 0s`; Home Assistant users lose nothing, since this
+only ever fired when HA was absent.
+
+What it cost, all of it invisible without the event log: the in-flight quarter hour was lost on
+every restart, so each stored record after one carries `HF_BOOT_BEFORE | HF_PARTIAL` and its
+`p_avg`/`p_min`/`p_max` only cover part of the interval (the energy deltas are unaffected -- meter
+counters are absolute, and a reboot no longer breaks the chain, see above). The 10 s ring never
+held more than 15 minutes, which is also why the Live chart looked empty so often.
+
+The `wifi` component has the same default and is inert here: it only reboots when there is no AP
+fallback configured (`!has_ap()`), and `gplug.yaml` configures one, so a device that cannot reach
+its network opens `gPlug-Setup` instead of rebooting.
+
 ### Event log (`event_log.h`, `/api/log`)
 
 Thirty-two records in one NVS blob, answering the question a serial console cannot once the cable

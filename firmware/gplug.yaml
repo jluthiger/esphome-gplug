@@ -69,6 +69,15 @@ api:
   # generates its own and overrides this.
   encryption:
     key: "jxc9G0UKLtu5pAfuNeTDpDU58d/jtLPkX1L7QEeKY0E="
+  # ESPHome reboots the device when no API client has connected for `reboot_timeout` (default
+  # 15 min): sensible for a device that exists to feed Home Assistant and is useless without it,
+  # wrong for this one. A gPlug is standalone by design -- it serves its own app and logs to its
+  # own flash -- so on any installation without Home Assistant the default rebooted it every
+  # 15 minutes, forever (APIServer::loop(), "No clients; rebooting"). That cost the in-flight
+  # quarter hour every time, marked every stored record as a partial interval after a restart,
+  # and kept the live ring from ever holding more than a few minutes.
+  # 0s disables it. Home Assistant users lose nothing: this only ever rebooted when HA was absent.
+  reboot_timeout: 0s
 
 ota:
   - platform: esphome
