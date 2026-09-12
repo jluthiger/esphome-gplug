@@ -735,6 +735,12 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/log") return send_json_(req, 200, json_log_());
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
+    if (url == "/manifest.webmanifest") return send_gz_(req, "application/manifest+json", manifest_, manifest_len_);
+    if (url == "/icon.png") {
+      auto *res = req->beginResponse(200, "image/png", icon_, icon_len_);
+      res->addHeader("Cache-Control", "max-age=86400");
+      return req->send(res);
+    }
     return send_gz_(req, "text/html", spa_, spa_len_);   // SPA fallback (also captive page)
   }
 

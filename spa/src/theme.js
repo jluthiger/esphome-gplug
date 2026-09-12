@@ -13,6 +13,8 @@ export function initialTheme() {
 export function applyTheme(t) {
   document.documentElement.dataset.theme = t;
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", t);
+  // Browser/status bar colour follows the theme's --bg (style.css).
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#f2f4ec" : "#12160e");
 }
 
 export function saveTheme(t) {

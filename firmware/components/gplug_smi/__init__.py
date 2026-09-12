@@ -24,6 +24,8 @@ CONF_SPA = "spa"
 CONF_PRESETS = "presets"
 CONF_SPA_RAW_ID = "spa_raw_id"
 CONF_PRESETS_RAW_ID = "presets_raw_id"
+CONF_MANIFEST_RAW_ID = "manifest_raw_id"
+CONF_ICON_RAW_ID = "icon_raw_id"
 CONF_OTA_PASSWORD = "ota_password"
 OTA_USERNAME = "admin"
 
@@ -37,6 +39,9 @@ GplugSmi = gplug_ns.class_("GplugSmi", cg.Component, uart.UARTDevice)
 # `npm run presets` in ../../../spa.
 BUNDLED_SPA = Path(__file__).parent / "spa.html.gz"
 BUNDLED_PRESETS = Path(__file__).parent / "presets.json"
+# Home-screen shortcut (manifest + icon), also written by `npm run build`; not user-overridable.
+BUNDLED_MANIFEST = Path(__file__).parent / "manifest.webmanifest"
+BUNDLED_ICON = Path(__file__).parent / "icon.png"
 
 
 def _file(value):
@@ -64,6 +69,8 @@ CONFIG_SCHEMA = (
             cv.GenerateID(CONF_WEB_SERVER_BASE_ID): cv.use_id(web_server_base.WebServerBase),
             cv.GenerateID(CONF_SPA_RAW_ID): cv.declare_id(cg.uint8),
             cv.GenerateID(CONF_PRESETS_RAW_ID): cv.declare_id(cg.uint8),
+            cv.GenerateID(CONF_MANIFEST_RAW_ID): cv.declare_id(cg.uint8),
+            cv.GenerateID(CONF_ICON_RAW_ID): cv.declare_id(cg.uint8),
             cv.Optional(CONF_SPA, default=None): _bundled(BUNDLED_SPA),
             cv.Optional(CONF_PRESETS, default=None): _bundled(BUNDLED_PRESETS),
             # Optional: protects the browser upload (`POST /update`, ota.web_server, used by the
@@ -107,6 +114,12 @@ async def to_code(config):
     presets_gz = gzip.compress(minified, compresslevel=9, mtime=0)
     presets_arr = cg.static_const_array(config[CONF_PRESETS_RAW_ID], cg.ArrayInitializer(*presets_gz))
     cg.add(var.set_presets(presets_arr, len(presets_gz)))
+
+    manifest = _gz_bytes(str(BUNDLED_MANIFEST))
+    manifest_arr = cg.static_const_array(config[CONF_MANIFEST_RAW_ID], cg.ArrayInitializer(*manifest))
+    icon = BUNDLED_ICON.read_bytes()   # PNG is already deflated; gzip would not shrink it
+    icon_arr = cg.static_const_array(config[CONF_ICON_RAW_ID], cg.ArrayInitializer(*icon))
+    cg.add(var.set_home_screen(manifest_arr, len(manifest), icon_arr, len(icon)))
 
     # web_server_base wraps every handler registered via add_handler() -- only ota.web_server's
     # /update here; the SPA and captive portal use add_handler_without_auth() -- in Basic auth once

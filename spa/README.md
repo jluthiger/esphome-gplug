@@ -157,6 +157,15 @@ rollback verdict without breaking a real device. The mock's `diag` uses an
 8 s grace; `MOCK_DIAG=silent|garbled|no_match npm run dev` makes the first meter config fail that
 way and the next one work, to walk the whole fix loop.
 
+## Home screen
+
+The build also writes `manifest.webmanifest` and a generated `icon.png` (`tools/icon.mjs`), which the
+firmware serves at `/manifest.webmanifest` and `/icon.png`. They give the home-screen shortcut a name
+and icon. Chrome's real "Install" needs a secure context, and the device serves plain HTTP on the LAN,
+so Android Chrome only offers "Verknüpfung erstellen" (the shortcut opens in a Chrome tab). iOS Safari's
+"Zum Home-Bildschirm" opens standalone without HTTPS. For a true install on your own phone, list the
+device in `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (e.g. `http://192.168.0.162`).
+
 ## Device API used
 
 | Method | Path | Body / result |

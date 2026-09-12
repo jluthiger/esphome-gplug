@@ -1,0 +1,13 @@
+{
+  "name": "gPlug",
+  "short_name": "gPlug",
+  "start_url": "/#live",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#12160e",
+  "theme_color": "#12160e",
+  "icons": [
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

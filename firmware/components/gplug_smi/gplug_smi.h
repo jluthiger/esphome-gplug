@@ -70,6 +70,9 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
 
   void set_spa(const uint8_t *data, size_t len) { spa_ = data; spa_len_ = len; }
   void set_presets(const uint8_t *data, size_t len) { presets_ = data; presets_len_ = len; }
+  void set_home_screen(const uint8_t *manifest_gz, size_t manifest_len, const uint8_t *icon_png, size_t icon_len) {
+    manifest_ = manifest_gz; manifest_len_ = manifest_len; icon_ = icon_png; icon_len_ = icon_len;
+  }
   void set_ota_auth(bool on) { ota_auth_ = on; }
 
   void setup() override;
@@ -130,6 +133,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   web_server_base::WebServerBase *base_;
   const uint8_t *spa_{nullptr}; size_t spa_len_{0};
   const uint8_t *presets_{nullptr}; size_t presets_len_{0};
+  const uint8_t *manifest_{nullptr}; size_t manifest_len_{0};
+  const uint8_t *icon_{nullptr}; size_t icon_len_{0};
 
   Descriptor desc_;
   std::string hw_json_{"{}"};

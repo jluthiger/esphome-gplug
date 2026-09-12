@@ -7,6 +7,7 @@ import { de } from "./src/i18n/de.js";
 import { en } from "./src/i18n/en.js";
 import { fr } from "./src/i18n/fr.js";
 import { it } from "./src/i18n/it.js";
+import { iconPng } from "./tools/icon.mjs";
 
 const watch = process.argv.includes("--watch");
 
@@ -63,6 +64,14 @@ writeFileSync("dist/index.html.gz", gz);
 // The copy the firmware actually embeds (committed; see firmware/components/gplug_smi/__init__.py).
 const BUNDLED = "../firmware/components/gplug_smi/spa.html.gz";
 writeFileSync(BUNDLED, gz);
-console.log(`css                 ${(css.length / 1024).toFixed(1)} kB mobile + ${(cssDesktop.length / 1024).toFixed(1)} kB desktop`);
+// Home-screen shortcut assets, served by the firmware as /manifest.webmanifest and /icon.png.
+const manifest = Buffer.from(JSON.stringify(JSON.parse(readFileSync("src/manifest.webmanifest", "utf8"))));
+const icon = iconPng(512);
+writeFileSync("dist/manifest.webmanifest", manifest);
+writeFileSync("dist/icon.png", icon);
+writeFileSync("../firmware/components/gplug_smi/manifest.webmanifest", manifest);
+writeFileSync("../firmware/components/gplug_smi/icon.png", icon);
+console.log(`icon.png            ${(icon.length / 1024).toFixed(1)} kB, manifest ${manifest.length} B`);
+console.log(`css                ${(css.length / 1024).toFixed(1)} kB mobile + ${(cssDesktop.length / 1024).toFixed(1)} kB desktop`);
 console.log(`dist/index.html     ${(html.length / 1024).toFixed(1)} kB`);
 console.log(`dist/index.html.gz  ${(gz.length / 1024).toFixed(1)} kB  -> ${BUNDLED}`);

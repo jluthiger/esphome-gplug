@@ -410,6 +410,11 @@ createServer(async (req, res) => {
     res.writeHead(code, { "content-type": "application/json" });
     return res.end(JSON.stringify(out));
   }
+  const asset = { "/manifest.webmanifest": "application/manifest+json", "/icon.png": "image/png" }[path];
+  if (req.method === "GET" && asset && existsSync(join(here, "..", "dist", path))) {
+    res.writeHead(200, { "content-type": asset });
+    return res.end(readFileSync(join(here, "..", "dist", path)));
+  }
   if (req.method === "GET") {
     const f = join(here, "..", "dist", "index.html");
     if (existsSync(f)) {
