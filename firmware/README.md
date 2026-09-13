@@ -7,7 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
-cd test && for t in dsmr aes dlms replay raw structure capturelist framelog history csv eventlog sniff; do clang++ -std=c++17 -I../components/gplug_smi test_$t.cpp -o test_$t && ./test_$t; done
+test/run.sh                          # host tests (all, or e.g. `test/run.sh dsmr sniff`); capture-based ones skip without test/captures/
 ```
 
 **Flashing**: `esphome run dev.yaml` (or `esphome upload dev.yaml --device /dev/cu.usbmodemXXXX`).
