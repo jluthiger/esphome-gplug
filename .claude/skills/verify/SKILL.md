@@ -19,8 +19,10 @@ affect only when the user asked for a quick check; say which were skipped.
    real-meter DLMS paths and only run where `firmware/test/captures/` exists.
 4. **ESPHome config**: `cd firmware && esphome config dev.yaml`.
 5. **Compile + size** (if `firmware/components/`, `*.yaml` or the bundle changed):
-   `cd firmware && esphome compile dev.yaml`, then read flash/RAM from the output. Compare with the
-   latest numbers in `firmware/MEMORY.md`; report the delta in kB and slot %.
+   `cd firmware && esphome compile dev.yaml`, then `python3 tools/size_report.py --check`. On drift,
+   report the delta in kB and slot %, and update `firmware/MEMORY.md`: paste the generated tables
+   and baseline line from `python3 tools/size_report.py`, set the snapshot date and commit, and fix
+   any prose in the file that quotes the old numbers.
 6. **Mock smoke test** (if SPA behaviour changed): `cd spa && npm run dev` in background, fetch the
    touched `/api/*` routes and `/`, or use the `run` skill to drive the page. Stop the server after.
 

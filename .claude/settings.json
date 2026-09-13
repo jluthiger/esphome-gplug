@@ -11,6 +11,8 @@
       "Bash(esphome compile:*)",
       "Bash(./sizes.sh)",
       "Bash(firmware/sizes.sh)",
+      "Bash(python3 tools/size_report.py:*)",
+      "Bash(python3 firmware/tools/size_report.py:*)",
       "Bash(./run.sh:*)",
       "Bash(firmware/test/run.sh:*)",
       "Bash(clang++ -std=c++17:*)",
@@ -45,6 +47,16 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/host-tests-on-edit.sh\"",
             "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/memory-md-drift.sh\"",
+            "timeout": 60
           }
         ]
       }

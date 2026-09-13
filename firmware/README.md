@@ -7,6 +7,7 @@ runtime data written by the SPA setup wizard and stored in NVS.
 esphome config dev.yaml              # validate
 esphome compile dev.yaml             # build (embeds components/gplug_smi/spa.html.gz → run `npm run build` in ../spa after SPA changes)
 ./sizes.sh                           # build base + dev, print flash/RAM
+python3 tools/size_report.py         # MEMORY.md tables from the last build (--check: is MEMORY.md current?)
 test/run.sh                          # host tests (all, or e.g. `test/run.sh dsmr sniff`); capture-based ones skip without test/captures/
 ```
 

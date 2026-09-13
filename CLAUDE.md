@@ -22,7 +22,8 @@ cd spa && npm run dev            # mock device on http://localhost:8080 (build f
 cd spa && npm run presets        # regenerate presets.json from gplug/**/script.txt
 firmware/test/run.sh [name...]   # host C++ tests (clang++, no IDF); capture-based tests skip without test/captures/
 cd firmware && esphome config dev.yaml    # validate YAML
-cd firmware && esphome compile dev.yaml   # full image (~minutes); ./sizes.sh for flash/RAM
+cd firmware && esphome compile dev.yaml   # full image (~2 min)
+cd firmware && python3 tools/size_report.py [--check]   # flash/RAM tables for MEMORY.md; --check: is it current?
 ```
 
 `/verify` runs the whole chain. Flashing a device (`esphome run/upload`) and tagging a release
@@ -42,6 +43,10 @@ are user-confirmed — never do either unprompted.
 - **Budget**: SPA ≤ 64 kB gzipped; app image in a 1408 kB slot (see `firmware/MEMORY.md`). No
   unbounded heap on device: fixed-size buffers, max 48 OBIS entries. Report size deltas for
   firmware-visible changes.
+- **`firmware/MEMORY.md` tracks the build.** Its tables come from `tools/size_report.py` and its
+  `size-baseline` comment is what `--check` compares against. After a compile that moves the image
+  > 1 kB or static RAM > 0.5 kB, update it in the same change (a hook flags this after every
+  `esphome compile dev.yaml`).
 - **Flash wear**: history appends every 15 min must last > 5 years; no new periodic flash/NVS writes
   without arithmetic.
 - **Host-testable logic lives in header-only files** (`*_parser.h`, `*_decoder.h`, `*_store.h`,
