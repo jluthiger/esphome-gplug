@@ -1,7 +1,7 @@
 # Flash and RAM usage
 
 Snapshot of the `dev.yaml` build from 2026-09-13 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
-4 MB flash), at commit `ec7a493`. Sizes in kB = 1024 bytes. Numbers come from the linker map, not
+4 MB flash), with the wide-screen SPA layout (issue #1). Sizes in kB = 1024 bytes. Numbers come from the linker map, not
 from a running device, except where noted.
 
 The two tables marked *generated* are the output of `tools/size_report.py`, which reads the linker
@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1048136 dram=123728 gplug_smi_obj=20880 -->
+<!-- size-baseline image=1050616 dram=123728 gplug_smi_obj=20880 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -42,10 +42,11 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,048,136 B = 1024 kB in a 1408 kB slot: **72.7 % full, 384 kB headroom** (2026-09-13; was
-1,041,930 B = 72.3 % on 2026-09-12, before the home-screen manifest and icon).
+Image 1,050,616 B = 1026 kB in a 1408 kB slot: **72.9 % full, 382 kB headroom** (2026-09-13, with
+the wide-screen SPA layout; 1,048,136 B before it, 1,041,930 B = 72.3 % on 2026-09-12, before the
+home-screen manifest and icon).
 
-By section: 755 kB code run from flash, 198 kB read-only data, 59 kB IRAM code and 11 kB `.data`
+By section: 755 kB code run from flash, 200 kB read-only data, 59 kB IRAM code and 11 kB `.data`
 initial values (those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
@@ -57,14 +58,14 @@ By owner (*generated*):
 | Crypto (mbedTLS for AES-GCM, Noise/Ed25519 for the encrypted API) | 136.5 kB | 13.3 % |
 | Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 137.2 kB | 13.4 % |
 | String literals from all code | 79.1 kB | 7.7 % |
-| ESPHome core and components (incl. the captive_portal fork) | 63.0 kB | 6.2 % |
+| ESPHome core and components (incl. the captive_portal fork) | 63.0 kB | 6.1 % |
 | `gplug_smi` code | 48.4 kB | 4.7 % |
-| Embedded web files, gzipped except the PNG: SPA 39.9 kB, icon 3.6 kB, captive page 3.1 kB, presets 1.6 kB, manifest 0.2 kB | 48.6 kB | 4.8 % |
+| Embedded web files, gzipped except the PNG: SPA 42.3 kB, icon 3.6 kB, captive page 3.1 kB, presets 1.6 kB, manifest 0.2 kB | 51.0 kB | 5.0 % |
 | ESPHome-generated `main.cpp` setup code | 2.8 kB | 0.3 % |
 | Linker alignment padding (no owning object) | 1.6 kB | 0.2 % |
 
 The platform (Wi-Fi, ESP-IDF, crypto, networking) is 76 % of the image; gPlug's own code and web
-files are about 9.5 %.
+files are about 9.7 %.
 
 **Misleading attribution:** `esp_idf_size` reports ~80 kB of `.rodata` in `api_connection.cpp.o`,
 which the script books as "String literals". That is the linker's merged string-literal pool (`.rodata.*.str1.4`): string literals from every

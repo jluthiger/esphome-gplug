@@ -1,0 +1,76 @@
+/* Wide-screen layer (>= 1024 px). Loaded by index.html inside a <style media> block whose query
+   build.mjs takes from src/layout.js, the same constant useWide() matches -- so these rules and the
+   components' wide render paths always switch together, and none of it can reach a phone.
+   It sits on top of style.desktop.css (the 800-1023 px layer), which still applies here; rules in
+   this file only override it where the wide layout differs.
+   Unlike the desktop layer this is a layout of its own: a side rail instead of the tab bar, and
+   per-tab grids that put related things side by side (see spa/README.md, "Wide screens"). */
+
+#app.live.wide { max-width: none; padding: 0; display: block; }
+
+/* Rail + content. The rail stays in view while the content scrolls. */
+.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+.rail { position: sticky; top: 0; height: 100vh; box-sizing: border-box; display: flex; flex-direction: column;
+  padding: 22px 14px 18px; background: var(--nav); border-right: 1px solid var(--border); }
+.rail-brand { padding: 0 12px 22px; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
+.rail-brand span { display: block; margin-top: 4px; font-size: .66rem; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted); }
+.rail-tabs { display: flex; flex-direction: column; gap: 4px; }
+.rail-tab { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; border: 0; border-radius: 12px;
+  background: transparent; color: var(--tab); font-size: .88rem; text-align: left; cursor: pointer; }
+.rail-tab i { width: 15px; height: 15px; border: 2px solid currentColor; display: block; flex: none; }
+.rail-tab:hover { background: var(--panel); color: var(--fg2); }
+.rail-tab.active { background: var(--panel2); color: var(--accent2); }
+.rail-tab.active i { background: currentColor; }
+.rail-foot { margin-top: auto; padding: 0 12px; display: flex; flex-direction: column; gap: 6px;
+  font-size: .76rem; font-weight: 600; color: var(--sub); font-variant-numeric: tabular-nums; }
+.rail-foot .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  margin-right: 8px; animation: pulse 2s infinite; }
+
+.main { display: block; box-sizing: border-box; width: 100%; max-width: 1280px; padding: 26px 40px 56px; }
+.main .screenhead { padding: 0 2px 18px; }
+.main .screenhead .title { font-size: 2rem; }
+.narrow { max-width: 520px; }
+
+/* Live: the reading beside its hour, the counters beside the phases. */
+.dash { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.dash .card { margin: 0; }
+.d-power { grid-column: span 5; display: flex; flex-direction: column; justify-content: center; }
+.d-power .between .num { white-space: nowrap; }
+.d-power .big .v { font-size: 4.2rem; }
+.d-chart { grid-column: span 7; }
+.d-chart .chart { height: 200px; margin-top: 0; }
+.d-counters { grid-column: span 6; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.d-counters .card { padding: 18px 22px; border-radius: 20px; display: flex; flex-direction: column; justify-content: center; }
+.d-counters .stat .v { font-size: 1.9rem; }
+.d-counters:last-child { grid-column: span 12; }   /* no per-phase registers: counters take the row */
+.d-phases { grid-column: span 6; }
+.d-phases .card { height: 100%; box-sizing: border-box; }
+
+/* History: chart and figures take the width, export and registers sit beside them. */
+.histgrid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(280px, 30%, 360px); gap: 20px; align-items: start; }
+.h-main > .seg:first-child { margin-top: 0; }
+.h-side { position: sticky; top: 26px; }
+.h-side > .card:first-child { margin-top: 0; }
+.histgrid .hist { height: 260px; }
+
+/* Data Stream: master/detail. */
+.streamgrid { display: grid; grid-template-columns: clamp(300px, 36%, 420px) minmax(0, 1fr); gap: 20px; align-items: start; }
+.s-list > .card:first-child { margin-top: 0; }
+.s-list .frame { padding: 0; margin: 6px 0; }   /* rows, not cards: the desktop layer's card padding is not for them */
+.s-list .frame.on { border-color: var(--border2); background: var(--panel2); }
+.s-detail { position: sticky; top: 26px; margin: 0; }
+.s-detail > .seg { margin-top: 0; max-width: none; }
+.s-detail .frame .open { padding: 0 0 12px; }
+.s-detail .frame .body { padding: 0; }
+.s-detail .hex { min-height: 240px; max-height: calc(100vh - 290px); font-size: .8rem; }
+
+/* Setup: device on the left, preferences on the right, the event log as a table below. */
+.setupgrid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0 20px; align-items: start; }
+.setupgrid > div > .card:first-child { margin-top: 0; }
+.u-log { grid-column: 1 / -1; }
+.logtable { overflow-x: auto; margin-top: 10px; }
+.logtable table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.logtable td { padding: 8px 16px 8px 0; border-top: 1px solid var(--border); vertical-align: baseline; }
+.logtable tr:first-child td { border-top: 0; }
+.logtable td:last-child { padding-right: 0; text-align: right; }

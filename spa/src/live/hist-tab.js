@@ -13,7 +13,7 @@ const HF_CONFIG_CHANGE = 8, HF_NO_DATA = 16;
 const MAX_BARS = 400;
 const cache = new Map();
 
-export function HistTab({ live, day, status, presets }) {
+export function HistTab({ live, day, status, presets, wide }) {
   const [range, setRange] = useState("day");
   const [hist, setHist] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ export function HistTab({ live, day, status, presets }) {
   const values = live?.values || {};
   const regs = preset ? preset.obis.filter((o) => values[o.name] != null) : [];
 
-  return html`
+  const chartPart = html`
     <div class="seg">
       ${RANGES.map(([id, key]) => html`
         <button class=${range === id ? "active" : ""} onClick=${() => setRange(id)}>${S[key]}</button>`)}
@@ -64,15 +64,24 @@ export function HistTab({ live, day, status, presets }) {
         </div>`}
     </div>
     ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
-    ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}
-    <${ExportCard} status=${status} />
-    ${regs.length > 0 && html`
-      <div class="card">
-        <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
-        ${regs.map((o) => html`
-          <div class="reg"><span class="o">${o.obis.replace(/^\d-\d:/, "")}</span><span class="n">${o.name}</span>
-            <span class="v">${num(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
-      </div>`}`;
+    ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}`;
+  const registers = regs.length > 0 && html`
+    <div class="card">
+      <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
+      ${regs.map((o) => html`
+        <div class="reg"><span class="o">${o.obis.replace(/^\d-\d:/, "")}</span><span class="n">${o.name}</span>
+          <span class="v">${num(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
+    </div>`;
+
+  // Wide screens: the chart and its figures take the width, the export and the register list sit
+  // in a column beside them instead of below the fold.
+  if (wide) return html`
+    <div class="histgrid">
+      <div class="h-main">${chartPart}</div>
+      <aside class="h-side"><${ExportCard} status=${status} />${registers}</aside>
+    </div>`;
+
+  return html`${chartPart}<${ExportCard} status=${status} />${registers}`;
 }
 
 // History -> bars. Day keeps power (W, signed); longer ranges switch to energy per bucket (Wh,

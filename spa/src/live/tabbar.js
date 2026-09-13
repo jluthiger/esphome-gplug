@@ -2,7 +2,8 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 
 // Icon shapes are pure CSS squares with different corner radii, as in the design canvas.
-const TABS = [
+// Shared with the wide screens' side rail (rail.js), so both navigations list the same tabs.
+export const TABS = [
   ["live", "tabLive", "50%"],
   ["hist", "tabHist", "3px"],
   ["stream", "tabStream", "999px"],

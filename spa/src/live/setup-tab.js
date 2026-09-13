@@ -5,7 +5,7 @@ import { Wifi } from "../steps/wifi.js";
 import { FirmwareCard } from "./firmware-card.js";
 import { LogCard } from "./log-card.js";
 
-export function SetupTab({ status, live, presets, theme, onTheme }) {
+export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
   const [showWifi, setShowWifi] = useState(false);
   const [wifiVal, setWifiVal] = useState({
     ssid: status?.wifi?.ssid || "",
@@ -14,8 +14,10 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
   });
 
   if (showWifi) {
-    return html`<${Wifi} value=${wifiVal} onChange=${setWifiVal}
+    const form = html`<${Wifi} value=${wifiVal} onChange=${setWifiVal}
       onBack=${() => setShowWifi(false)} onNext=${() => setShowWifi(false)} />`;
+    // The Wi-Fi form is a short phone-shaped flow; on a wide screen it stays that narrow.
+    return wide ? html`<div class="narrow">${form}</div>` : form;
   }
 
   const wifi = wifiVal.result || (status?.wifi?.connected ? status.wifi : null);
@@ -31,7 +33,7 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
   // The key itself never leaves the device (no accessor exists); only its validity verdict does.
   const keyBadge = live?.key_invalid ? ["err", S.keyInvalidBadge] : live?.age != null ? ["ok", S.keySet] : ["warn", S.keySet];
 
-  return html`
+  const device = html`
     <div class="card">
       <div class="lbl" style="margin-bottom:12px">${S.setupConn}</div>
       <div class="kv">${conn.map(([k, v]) => html`<b>${k}</b><span>${v}</span>`)}</div>
@@ -43,8 +45,8 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
         <div class="keymask"><span class="m">•••• •••• •••• •••• •••• •••• •••• ••••</span><span class="badge ${keyBadge[0]}">${keyBadge[1]}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       </div>`}
-    <${FirmwareCard} status=${status} />
-    <${LogCard} />
+    <${FirmwareCard} status=${status} />`;
+  const prefs = html`
     <div class="card">
       <div class="lbl">${S.language}</div>
       <div class="seg" role="radiogroup">
@@ -63,4 +65,15 @@ export function SetupTab({ status, live, presets, theme, onTheme }) {
       </div>
       <p class="hint" style="margin:0">${S.themeHint}</p>
     </div>`;
+
+  // Wide screens: device matters on the left, per-browser preferences on the right, and the event
+  // log across the full width below, where it can be a table.
+  if (wide) return html`
+    <div class="setupgrid">
+      <div class="u-dev">${device}</div>
+      <div class="u-prefs">${prefs}</div>
+      <div class="u-log"><${LogCard} wide /></div>
+    </div>`;
+
+  return html`${device}<${LogCard} />${prefs}`;
 }

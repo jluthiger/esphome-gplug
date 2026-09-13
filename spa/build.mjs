@@ -8,6 +8,7 @@ import { en } from "./src/i18n/en.js";
 import { fr } from "./src/i18n/fr.js";
 import { it } from "./src/i18n/it.js";
 import { iconPng } from "./tools/icon.mjs";
+import { WIDE } from "./src/layout.js";
 
 const watch = process.argv.includes("--watch");
 
@@ -52,9 +53,14 @@ const css = squish("src/style.css");
 // stays the base cascade and the desktop rules stay reviewable (and removable) as one layer.
 // index.html scopes them with <style media>, so they still travel in the same single document.
 const cssDesktop = squish("src/style.desktop.css");
+// The wide layer's query is the same constant useWide() matches, so the CSS and the components
+// that branch on it switch at the same pixel.
+const cssWide = squish("src/style.wide.css");
 const html = readFileSync("src/index.html", "utf8")
   .replace("/*CSS*/", () => css)
   .replace("/*CSS-DESKTOP*/", () => cssDesktop)
+  .replace("/*WIDE-Q*/", () => WIDE)
+  .replace("/*CSS-WIDE*/", () => cssWide)
   .replace("/*JS*/", () => js.replace(/<\/script/gi, "<\\/script"));
 
 mkdirSync("dist", { recursive: true });
@@ -72,6 +78,6 @@ writeFileSync("dist/icon.png", icon);
 writeFileSync("../firmware/components/gplug_smi/manifest.webmanifest", manifest);
 writeFileSync("../firmware/components/gplug_smi/icon.png", icon);
 console.log(`icon.png            ${(icon.length / 1024).toFixed(1)} kB, manifest ${manifest.length} B`);
-console.log(`css                ${(css.length / 1024).toFixed(1)} kB mobile + ${(cssDesktop.length / 1024).toFixed(1)} kB desktop`);
+console.log(`css                ${(css.length / 1024).toFixed(1)} kB mobile + ${(cssDesktop.length / 1024).toFixed(1)} kB desktop + ${(cssWide.length / 1024).toFixed(1)} kB wide`);
 console.log(`dist/index.html     ${(html.length / 1024).toFixed(1)} kB`);
 console.log(`dist/index.html.gz  ${(gz.length / 1024).toFixed(1)} kB  -> ${BUNDLED}`);

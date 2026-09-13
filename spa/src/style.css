@@ -33,6 +33,9 @@ html, body { margin: 0; background: var(--bg); color: var(--fg);
 button, input, select, textarea { font-family: inherit; }
 #app { max-width: 480px; margin: 0 auto; padding: 12px 16px 40px; }
 #app.live { padding: 0 16px calc(84px + env(safe-area-inset-bottom)); }
+/* The live screen's rail + content wrappers (live/index.js) only lay anything out on wide screens
+   (style.wide.css); here they step aside and their children behave as children of #app. */
+.shell, .main { display: contents; }
 h1 { font-size: 1.1rem; font-weight: 600; text-align: center; margin: 4px 0 0; }
 h2 { font-size: 1.25rem; margin: 8px 0 16px; text-align: center; }
 h3 { font-size: 1rem; margin: 16px 0 8px; color: var(--muted); font-weight: 500; }

@@ -18,6 +18,8 @@
 <!-- Desktop layer, scoped by the media attribute rather than by an @media inside the file, so the
      rules cannot apply on a phone even if the query is edited away by mistake. -->
 <style media="(min-width:800px)">/*CSS-DESKTOP*/</style>
+<!-- Wide-screen layer on top of the desktop one; its query comes from src/layout.js. -->
+<style media="/*WIDE-Q*/">/*CSS-WIDE*/</style>
 </head>
 <body>
 <div id="app"></div>

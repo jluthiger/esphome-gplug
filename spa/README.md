@@ -134,6 +134,49 @@ piece. On a wide screen the column grows to 880 px, the tab bar moves from the b
 top -- it is last in the DOM because a thumb wants it there, and `order: -1` pulls it up for a
 pointer -- the card grids fill the width, buttons stop being full-width thumb targets, and the
 charts and hex dumps get taller. It stays one layout, not two: no component renders differently.
+Since 2026-09-13 that holds for 800-1023 px only (a tablet held upright); wider screens get the
+layout below.
+
+## Wide screens
+
+| Width | Layout | Styles |
+|---|---|---|
+| < 800 px | phone | `src/style.css` |
+| 800-1023 px | phone layout, stretched (above) | + `src/style.desktop.css` |
+| ≥ 1024 px | own layout: side rail and per-tab grids | + `src/style.wide.css` |
+
+From 1024 px the live screen stops being an enlarged phone (issue #1). The breakpoint is one
+constant, `WIDE` in `src/layout.js`: `build.mjs` writes it into the media attribute of a third
+`<style>` block, and `useWide()` (`src/wide.js`) matches it for the components that render a
+different structure there, so the CSS and the markup switch at the same pixel. `Live` calls the
+hook once and hands `wide` to the tabs. Every tab builds its pieces once and composes them in two
+ways; the phone composition is the markup it always had, checked by comparing tag, class and
+computed-layout signatures of all four tabs at 390 and 900 px between the old and new build.
+
+`Live` renders one tree for both layouts: a `.shell` holding the rail (wide only) and a `.main`
+holding status bar and tab bar (narrow only) around the header and the tab. The tab therefore
+keeps its place when the breakpoint is crossed -- an iPad turned to landscape is exactly 1024 px --
+and keeps its state (History range, open frame) instead of being remounted. Below 1024 px both
+wrappers are `display: contents` (`style.css`), so their children lay out as children of `#app`
+exactly as before; those two wrappers are the only elements the phone DOM gained.
+
+- **Navigation**: a side rail (`live/rail.js`) with the same tabs and icons as the bottom bar
+  (`TABS` in `live/tabbar.js`), clock and Wi-Fi at its foot; no status bar or tab bar.
+- **Live**: the power reading beside the hour chart, the two counters beside the phases.
+- **History**: chart, stats and range picker take the width; export and registers sit in a
+  column beside them.
+- **Data Stream**: master/detail. Frame rows, selection and export on the left; the open frame
+  with the raw/plain switch in a tall pane on the right, opened on the newest frame. Frames are
+  addressed by ring position (`i` = 0 is always the newest), so when new frames arrive every
+  capture moves down a place: the tab notices (the newest frame is younger than the last poll's
+  newest plus the time since), drops the fetched texts and reads the open position again, at every
+  width. The pane thus always shows the frame its header describes -- which, for a picked position
+  other than 0, is a different capture after each arrival.
+- **Setup**: device (connection, key, firmware) left, per-browser preferences (language,
+  appearance) right, the event log as a table across the full width (`LogCard wide`). The Wi-Fi
+  form keeps its narrow width.
+
+The wizard (`#setup`) is a short linear flow and stays a centred narrow column at every width.
 
 **Charts draw in the size they are given** (`src/box.js`). Both SVGs used a fixed `320 x h`
 viewBox with `preserveAspectRatio="none"`, which stretches whatever width the element has onto
@@ -188,4 +231,5 @@ device in `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (e.g. `http
 Source layout: `src/main.js` (routing + wizard shell + commit per step), `src/steps/*.js` (wizard),
 `src/live/*.js` (the four tabs), `src/api.js`, `src/fmt.js` (locale-aware numbers and dates via
 `Intl`, quarter-hour helpers), `src/strings.js` + `src/i18n/*` (UI text in four languages),
-`src/style.css` (+ `src/style.desktop.css`, the wide-screen layer), `src/box.js`.
+`src/style.css` (+ `src/style.desktop.css`, the 800-1023 px layer, and `src/style.wide.css`, the
+≥ 1024 px layout), `src/layout.js` + `src/wide.js` (the wide breakpoint), `src/box.js`.

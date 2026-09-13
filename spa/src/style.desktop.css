@@ -3,7 +3,9 @@
    rule in here gets wrong. The mobile sheet (style.css) stays the base cascade: this layer only
    adds, never restructures, matching the phone-first design.
    Same app, more room -- not a second layout: the tab bar moves from the bottom edge to the top,
-   the column and the charts grow, and the card grids use the width they are given. */
+   the column and the charts grow, and the card grids use the width they are given.
+   On its own this layer shapes 800-1023 px only; from 1024 px style.wide.css and the components'
+   wide render paths build a layout of their own on top of it. */
 
 #app { max-width: 880px; padding: 16px 24px 48px; }
 /* No bar pinned over the bottom edge any more, so the live screen needs no space kept clear for

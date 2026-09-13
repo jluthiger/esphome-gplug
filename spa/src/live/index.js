@@ -1,9 +1,11 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 import { clock } from "../fmt.js";
 import { TabBar } from "./tabbar.js";
+import { Rail } from "./rail.js";
+import { useWide } from "../wide.js";
 import { LiveTab } from "./live-tab.js";
 import { HistTab } from "./hist-tab.js";
 import { StreamTab } from "./stream-tab.js";
@@ -33,6 +35,7 @@ export function Live({ status, presets }) {
   const [err, setErr] = useState(null);
   const [now, setNow] = useState(clock());
   const [theme, setTheme] = useState(initialTheme);
+  const wide = useWide();
 
   useEffect(() => {
     let stop = false;
@@ -63,6 +66,9 @@ export function Live({ status, presets }) {
   }, []);
 
   useEffect(() => { document.getElementById("app").classList.add("live"); return () => document.getElementById("app").classList.remove("live"); }, []);
+  // The wide layout drops #app's centred column for the rail + content shell. Before paint, or the
+  // first wide frame would squeeze the rail into the phone column.
+  useLayoutEffect(() => { document.getElementById("app").classList.toggle("wide", wide); return () => document.getElementById("app").classList.remove("wide"); }, [wide]);
 
   function pickTheme(t) { saveTheme(t); setTheme(t); }
 
@@ -76,16 +82,31 @@ export function Live({ status, presets }) {
   const wifi = status?.wifi?.connected ? `${S.wlan} · ${status.wifi.rssi} dBm` : `${S.wlan} · ${S.offline}`;
   const sub = [live?.smid, status?.hardware?.variant].filter(Boolean).join(" · ");
 
-  return html`
-    <div class="statusbar"><span>${now}</span><span><i class="dot"></i>${wifi}</span></div>
+  const head = html`
     <div class="screenhead">
       <div><div class="title">${S[TITLES[tab]]}</div><div class="sub">${sub || " "}</div></div>
       <span class="badge ${pill[0]}">${pill[1]}</span>
     </div>
-    ${err && html`<div class="err">${err}</div>`}
-    ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} day=${day} />`}
-    ${tab === "hist" && html`<${HistTab} live=${live} day=${day} status=${status} presets=${presets} />`}
-    ${tab === "stream" && html`<${StreamTab} />`}
-    ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} />`}
-    <${TabBar} tab=${tab} onChange=${setTab} />`;
+    ${err && html`<div class="err">${err}</div>`}`;
+  const body = html`
+    ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} day=${day} wide=${wide} />`}
+    ${tab === "hist" && html`<${HistTab} live=${live} day=${day} status=${status} presets=${presets} wide=${wide} />`}
+    ${tab === "stream" && html`<${StreamTab} wide=${wide} />`}
+    ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} wide=${wide} />`}`;
+
+  // One tree for both layouts: the tab sits at the same place whether or not the rail is there, so
+  // crossing the breakpoint (an iPad turned to landscape is exactly 1024 px) re-renders the tab
+  // instead of remounting it, and its state -- History range, open frame, fetched texts -- survives.
+  // On phones and tablets .shell and .main are display: contents (style.css), which leaves the
+  // status bar, header, tab and tab bar laid out as direct children of #app, as they always were;
+  // on wide screens the clock and Wi-Fi move from the status bar into the rail.
+  return html`
+    <div class="shell">
+      ${wide && html`<${Rail} tab=${tab} onChange=${setTab} now=${now} wifi=${wifi} />`}
+      <main class="main">
+        ${!wide && html`<div class="statusbar"><span>${now}</span><span><i class="dot"></i>${wifi}</span></div>`}
+        ${head}${body}
+        ${!wide && html`<${TabBar} tab=${tab} onChange=${setTab} />`}
+      </main>
+    </div>`;
 }

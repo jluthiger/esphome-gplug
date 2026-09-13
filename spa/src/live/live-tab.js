@@ -6,7 +6,7 @@ import { DiagCard, diagInfo, diagOf } from "../diag.js";
 import { lastHour } from "../hour.js";
 import { useBox } from "../box.js";
 
-export function LiveTab({ live, ring, day }) {
+export function LiveTab({ live, ring, day, wide }) {
   const age = live?.age;
   const d = diagOf(live);
   // A setup problem (silent line, wrong profile or key) gets a card with the way back into the
@@ -35,31 +35,43 @@ export function LiveTab({ live, ring, day }) {
   const volt = (i) => v[`V${i}`] ?? v[`U${i}`];
   const amp = (i) => v[`I${i}`];
 
-  return html`
+  // The pieces are shared: a phone gets them stacked in the card order it always had, a wide
+  // screen puts the reading beside its chart and the counters beside the phases.
+  const powerHead = html`
+    <div class="between"><span class="lbl">${S.activePower}</span><span class="num" style="font-size:.7rem;color:var(--sub)">−${age} s</span></div>
+    <div class="big"><span class="v ${net >= 0 ? "imp" : "exp"}">${num(Math.abs(net), 2)}</span><span class="u">kW</span></div>
+    <div class="dir ${net >= 0 ? "imp" : "exp"}">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>`;
+  const hourChart = known.length >= 2 && html`
+    <${Chart} vals=${vals} />
+    <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>
+    ${hour.fromStore > 0 && html`<p class="hint" style="margin:8px 0 0">${S.histFromStore}</p>`}`;
+  const counters = html`
+    <div class="card stat"><div class="lbl imp">${S.importLbl}</div><div class="v imp">${num(live.ei)}</div><div class="u imp">kWh</div></div>
+    <div class="card stat"><div class="lbl exp">${S.exportLbl}</div><div class="v exp">${num(live.eo)}</div><div class="u exp">kWh</div></div>`;
+  const phaseCard = ph && html`
     <div class="card">
-      <div class="between"><span class="lbl">${S.activePower}</span><span class="num" style="font-size:.7rem;color:var(--sub)">−${age} s</span></div>
-      <div class="big"><span class="v ${net >= 0 ? "imp" : "exp"}">${num(Math.abs(net), 2)}</span><span class="u">kW</span></div>
-      <div class="dir ${net >= 0 ? "imp" : "exp"}">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>
-      ${known.length >= 2 && html`
-        <${Chart} vals=${vals} />
-        <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>
-        ${hour.fromStore > 0 && html`<p class="hint" style="margin:8px 0 0">${S.histFromStore}</p>`}`}
-    </div>
-    <div class="grid2">
-      <div class="card stat"><div class="lbl imp">${S.importLbl}</div><div class="v imp">${num(live.ei)}</div><div class="u imp">kWh</div></div>
-      <div class="card stat"><div class="lbl exp">${S.exportLbl}</div><div class="v exp">${num(live.eo)}</div><div class="u exp">kWh</div></div>
-    </div>
-    ${ph && html`
-      <div class="card">
-        <div class="lbl">${S.phases}</div>
-        ${ph.map((w, i) => html`
-          <div class="phase">
-            <span class="n">L${i + 1}</span>
-            <div class="bar"><i class=${w >= 0 ? "imp" : "exp"} style="width:${Math.round(Math.abs(w) / phMax * 100)}%"></i></div>
-            <span class="kw ${w >= 0 ? "imp" : "exp"}">${num(w / 1000, 2)}</span>
-            <span class="ui">${volt(i + 1) != null ? num(volt(i + 1), 1) + " V" : ""}${volt(i + 1) != null && amp(i + 1) != null ? " · " : ""}${amp(i + 1) != null ? num(amp(i + 1), 1) + " A" : ""}</span>
-          </div>`)}
-      </div>`}`;
+      <div class="lbl">${S.phases}</div>
+      ${ph.map((w, i) => html`
+        <div class="phase">
+          <span class="n">L${i + 1}</span>
+          <div class="bar"><i class=${w >= 0 ? "imp" : "exp"} style="width:${Math.round(Math.abs(w) / phMax * 100)}%"></i></div>
+          <span class="kw ${w >= 0 ? "imp" : "exp"}">${num(w / 1000, 2)}</span>
+          <span class="ui">${volt(i + 1) != null ? num(volt(i + 1), 1) + " V" : ""}${volt(i + 1) != null && amp(i + 1) != null ? " · " : ""}${amp(i + 1) != null ? num(amp(i + 1), 1) + " A" : ""}</span>
+        </div>`)}
+    </div>`;
+
+  if (wide) return html`
+    <div class="dash">
+      <div class="card d-power">${powerHead}</div>
+      <div class="card d-chart">${hourChart || html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}</div>
+      <div class="d-counters">${counters}</div>
+      ${ph && html`<div class="d-phases">${phaseCard}</div>`}
+    </div>`;
+
+  return html`
+    <div class="card">${powerHead}${hourChart}</div>
+    <div class="grid2">${counters}</div>
+    ${phaseCard}`;
 }
 
 // `vals` may contain nulls: an interval the device has no record of (it was off, or the meter

@@ -48,7 +48,7 @@ function asText(events) {
   }).join("\n");
 }
 
-export function LogCard() {
+export function LogCard({ wide }) {
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState(null);
   const [copied, setCopied] = useState(null);   // null | "ok" | "fail"
@@ -79,7 +79,22 @@ export function LogCard() {
       ${err && html`<div class="err">${err}</div>`}
       ${!events && !err && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
       ${events && !events.length && html`<p class="hint">${S.logEmpty}</p>`}
-      ${newestFirst.map((e) => {
+      ${wide && newestFirst.length > 0 && html`
+        <div class="logtable"><table>
+          <tbody>
+            ${newestFirst.map((e) => {
+              const d = detailOf(e);
+              return html`
+                <tr>
+                  <td class="ev-t">${when(e)}</td>
+                  <td class="ev-n ${e.code === 1 && e.detail === 4 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</td>
+                  <td class="ev-d">${d || ""}</td>
+                  <td class="ev-r">${e.repeat > 0 ? S.logRepeat(e.repeat + 1) : ""}</td>
+                </tr>`;
+            })}
+          </tbody>
+        </table></div>`}
+      ${!wide && newestFirst.map((e) => {
         const d = detailOf(e);
         return html`
           <div class="ev">
