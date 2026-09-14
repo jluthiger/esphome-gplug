@@ -53,7 +53,12 @@ external_components:
       url: https://github.com/jluthiger/esphome-gplug
       ref: main
       path: firmware/components
-    refresh: 1d
+    # Fetched on every build. With a cache (it was 1d) the component and this file -- which an
+    # adopting config pulls as a package with its own cache -- could come from different commits: a
+    # refreshed gplug.yaml naming the `gplug_smi` sensor platform against a cached component that
+    # predates it failed with "Platform not found: 'sensor.gplug_smi'" (2026-09-14). Costs a git
+    # fetch per build and needs GitHub reachable while compiling.
+    refresh: 0s
 
 logger:
   level: INFO
