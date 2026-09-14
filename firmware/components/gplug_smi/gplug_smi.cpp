@@ -731,8 +731,7 @@ bool GplugSmi::canHandle(AsyncWebServerRequest *request) const {
     return false;
   if (request->method() == HTTP_GET) return true;   // SPA for everything that is not /api
   if (request->method() == HTTP_POST) {
-    char buf[AsyncWebServerRequest::URL_BUF_SIZE];
-    return starts_with(request->url_to(buf), "/api/");
+    return starts_with(request->url_to(url_buf_), "/api/");
   }
   return false;
 }
@@ -764,8 +763,7 @@ bool GplugSmi::read_body_(AsyncWebServerRequest *req, std::string &out) {
 }
 
 void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
-  char buf[AsyncWebServerRequest::URL_BUF_SIZE];
-  StringRef url = req->url_to(buf);
+  StringRef url = req->url_to(url_buf_);
 
   if (req->method() == HTTP_GET) {
     if (url == "/api/status") return send_json_(req, 200, json_status_());
@@ -805,7 +803,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
   if (url == "/api/config/hardware") {
     std::string err;
     if (!apply_hw_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
-    this->log_event_(::gplug_log::EV_CONFIG, 1);
+    this->defer([this]() { this->log_event_(::gplug_log::EV_CONFIG, 1); });   // NVS write: loop task
     this->defer([this, body]() { if (!this->nvs_save_("hw", body)) ESP_LOGE(TAG, "nvs_save_(hw) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
@@ -813,7 +811,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     std::string err;
     if (!merge_stored_keys_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
     if (!apply_meter_json_(body, err)) return send_json_(req, 400, "{\"error\":\"" + err + "\"}");
-    this->log_event_(::gplug_log::EV_CONFIG, 2);
+    this->defer([this]() { this->log_event_(::gplug_log::EV_CONFIG, 2); });
     this->defer([this, body]() { if (!this->nvs_save_("meter", body)) ESP_LOGE(TAG, "nvs_save_(meter) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
@@ -821,7 +819,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     JsonDocument doc;
     if (deserializeJson(doc, body) || doc["ssid"].isNull()) return send_json_(req, 400, "{\"error\":\"ssid\"}");
     std::string ssid = doc["ssid"].as<const char *>(), psk = doc["psk"] | "";
-    this->log_event_(::gplug_log::EV_CONFIG, 3);
+    this->defer([this]() { this->log_event_(::gplug_log::EV_CONFIG, 3); });
     this->defer([ssid, psk]() { wifi::global_wifi_component->save_wifi_sta(ssid.c_str(), psk.c_str()); });
     return send_json_(req, 200, "{\"ok\":true}");
   }

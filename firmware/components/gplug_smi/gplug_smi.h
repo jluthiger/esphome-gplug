@@ -166,6 +166,12 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_wifi_scan_();
 
   web_server_base::WebServerBase *base_;
+  // The httpd task's stack is ESPHome's 4096 + 256 B and measured 784 B unused on the gPlugK
+  // (2026-09-14, /api/status mem.stack_httpd), so the 513 B URL copy is a member, not a local.
+  // Safe because one httpd task serves every request in turn: canHandle and handleRequest never
+  // run concurrently. For the same reason nothing on that task may write NVS -- config saves and
+  // their event-log records are deferred to the loop.
+  mutable char url_buf_[AsyncWebServerRequest::URL_BUF_SIZE];
   const uint8_t *spa_{nullptr}; size_t spa_len_{0};
   const uint8_t *presets_{nullptr}; size_t presets_len_{0};
   const uint8_t *manifest_{nullptr}; size_t manifest_len_{0};

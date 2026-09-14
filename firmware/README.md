@@ -491,7 +491,7 @@ across two boots (a power cut in between, logged as power-on): `/api/status` `me
 162-166 kB and the largest block at 112 kB for the whole run, so no leak over those hours. The
 minimum since boot fell by ~10 kB per half hour for the first ~2 h of each boot (154 -> 108 kB,
 159 -> 121 kB) and then stayed: some transient allocation peaks deeper for a while, not traced yet.
-`stack_httpd` read 784-804 B unused. The low-heap event, its latch and the
+`stack_httpd` read 784-804 B unused, 1328 B once the URL buffer moved off that stack (see `intent/intent.md`). The low-heap event, its latch and the
 chart's rendering are covered by `test/test_heapmon.cpp` and the mock (`MOCK_HEAP=leak`) only.
 
 **Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
