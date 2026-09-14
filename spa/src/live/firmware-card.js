@@ -1,5 +1,6 @@
 import { useRef, useState } from "preact/hooks";
 import { html } from "../h.js";
+import { Collapsible } from "./collapsible.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 
@@ -105,9 +106,10 @@ export function FirmwareCard({ status }) {
   const busy = phase === "upload" || phase === "reboot";
   const otherName = info?.name && status?.hostname && info.name !== status.hostname;
 
+  // The upload state lives here, above the Collapsible, so closing the card mid-way loses nothing;
+  // the card is still held open while busy so the "keep powered" warning stays in view.
   return html`
-    <div class="card">
-      <div class="lbl" style="margin-bottom:12px">${S.fwTitle}</div>
+    <${Collapsible} id="fw" title=${S.fwTitle} summary=${fmtBuild(build)} locked=${busy}>
       <div class="kv">
         ${status?.version && html`<b>${S.fwEsphome}</b><span>${status.version}</span>`}
         ${build ? html`<b>${S.fwBuild}</b><span>${fmtBuild(build)}</span>` : null}
@@ -151,5 +153,5 @@ export function FirmwareCard({ status }) {
       ${phase === "failed" && html`
         <div class="err">${S.fwFailed}: ${msgText(msg)}</div>
         <p style="margin:14px 0 0"><button onClick=${reset}>${S.fwCancel}</button></p>`}
-    </div>`;
+    <//>`;
 }

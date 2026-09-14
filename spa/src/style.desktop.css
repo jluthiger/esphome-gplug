@@ -29,6 +29,7 @@
    preset lists stop being one tall stack. */
 .grid2, .grid3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
 .card { padding: 18px 22px; }
+.coll { width: calc(100% + 44px); margin: -18px -22px; padding: 18px 22px; }
 
 .big .v { font-size: 3.8rem; }
 .big .u { font-size: 1.25rem; }

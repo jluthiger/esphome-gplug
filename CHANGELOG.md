@@ -16,6 +16,11 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   restarts. Home Assistant gets "Free heap" and "Largest heap block" as diagnostic entities, the event
   log records low memory, and a restart entry shows the free heap at start.
 
+### Changed
+- Setup tab: the key, firmware update, memory, event log and appearance cards fold to one line with a
+  short summary; connection and language stay open. The choice is remembered in the browser, and a
+  closed memory or event log card no longer queries the device.
+
 ## [0.3.0] – 2026-09-14
 
 ### Added

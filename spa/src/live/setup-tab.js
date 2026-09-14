@@ -5,6 +5,7 @@ import { Wifi } from "../steps/wifi.js";
 import { FirmwareCard } from "./firmware-card.js";
 import { LogCard } from "./log-card.js";
 import { MemCard } from "./mem-card.js";
+import { Collapsible } from "./collapsible.js";
 
 export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
   const [showWifi, setShowWifi] = useState(false);
@@ -41,11 +42,11 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
       <p style="margin:14px 0 0"><button onClick=${() => setShowWifi(true)}>${S.changeWifi}</button></p>
     </div>
     ${encrypted && html`
-      <div class="card">
-        <div class="lbl">${S.setupKey}</div>
+      <${Collapsible} id="key" title=${S.setupKey} open locked=${live?.key_invalid}
+        summary=${html`<span class="badge ${keyBadge[0]}">${keyBadge[1]}</span>`}>
         <div class="keymask"><span class="m">•••• •••• •••• •••• •••• •••• •••• ••••</span><span class="badge ${keyBadge[0]}">${keyBadge[1]}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
-      </div>`}
+      <//>`}
     <${FirmwareCard} status=${status} />
     <${MemCard} status=${status} />`;
   const prefs = html`
@@ -58,16 +59,18 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
       </div>
       <p class="hint" style="margin:0">${S.languageHint}</p>
     </div>
-    <div class="card">
-      <div class="lbl">${S.theme}</div>
+    <${Collapsible} id="theme" title=${S.theme} summary=${theme === "light" ? S.themeLight : S.themeDark}>
       <div class="seg" role="radiogroup">
         ${[["light", S.themeLight], ["dark", S.themeDark]].map(([t, label]) => html`
           <button role="radio" aria-checked=${theme === t} class=${theme === t ? "active" : ""}
             onClick=${() => onTheme(t)}>${label}</button>`)}
       </div>
       <p class="hint" style="margin:0">${S.themeHint}</p>
-    </div>`;
+    <//>`;
 
+  // Connection and language stay plain cards: they are what a user comes to Setup for. The rest
+  // collapse (collapsible.js); only the key starts open, being the one a wrong setup breaks.
+  //
   // Wide screens: device matters on the left, per-browser preferences on the right, and the event
   // log across the full width below, where it can be a table.
   if (wide) return html`

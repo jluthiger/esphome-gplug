@@ -239,6 +239,7 @@ export const en = {
   memTrend: (d) => `Trend, last ${d}`,
   memWaiting: "The first sample follows shortly after start.",
   memHint: "A line that keeps falling over days means the firmware is leaking memory. A restart clears the trend.",
+  memSummary: (kb) => `${kb} free`,
 
   // Event log
   logTitle: "Event log",

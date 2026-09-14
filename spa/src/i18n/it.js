@@ -240,6 +240,7 @@ export const it = {
   memTrend: (d) => `Andamento, ultime ${d}`,
   memWaiting: "La prima misura segue poco dopo l'avvio.",
   memHint: "Una linea che scende di continuo per giorni indica una perdita di memoria. Un riavvio azzera l'andamento.",
+  memSummary: (kb) => `${kb} liberi`,
 
   // Registro eventi
   logTitle: "Registro eventi",

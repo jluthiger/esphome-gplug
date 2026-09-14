@@ -239,6 +239,7 @@ export const de = {
   memTrend: (d) => `Verlauf, letzte ${d}`,
   memWaiting: "Erster Messwert folgt kurz nach dem Start.",
   memHint: "Fällt die Linie über Tage stetig, verliert die Firmware Speicher. Ein Neustart setzt den Verlauf zurück.",
+  memSummary: (kb) => `${kb} frei`,
 
   // Ereignisprotokoll
   logTitle: "Ereignisprotokoll",

@@ -241,6 +241,7 @@ export const fr = {
   memTrend: (d) => `Évolution, dernières ${d}`,
   memWaiting: "La première mesure suit peu après le démarrage.",
   memHint: "Une courbe qui baisse sans cesse sur plusieurs jours signale une fuite de mémoire. Un redémarrage efface l'évolution.",
+  memSummary: (kb) => `${kb} libres`,
 
   // Journal des événements
   logTitle: "Journal des événements",

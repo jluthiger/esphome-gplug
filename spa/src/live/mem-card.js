@@ -4,6 +4,7 @@ import { S } from "../strings.js";
 import { api } from "../api.js";
 import { dur, num } from "../fmt.js";
 import { useBox } from "../box.js";
+import { Collapsible } from "./collapsible.js";
 
 // Heap figures and the device's 24 h heap trend (/api/heap, heap_monitor.h). The point is a slow
 // leak: one free-heap number says nothing, a line that keeps falling over hours does. The device
@@ -12,7 +13,17 @@ const MEM_POLL_MS = 300000;
 
 const kb = (b) => (b == null ? null : `${num(b / 1024)} kB`);
 
+// Closed, the card shows the free heap from the page's /api/status and fetches nothing; MemBody
+// only exists (and polls) while the card is open.
 export function MemCard({ status }) {
+  const free = status?.mem?.free ?? status?.heap;
+  return html`
+    <${Collapsible} id="mem" title=${S.memTitle} summary=${free != null && S.memSummary(kb(free))}>
+      <${MemBody} status=${status} />
+    <//>`;
+}
+
+function MemBody({ status }) {
   const [st, setSt] = useState(status);
   const [trend, setTrend] = useState(null);
 
@@ -42,15 +53,12 @@ export function MemCard({ status }) {
   const span = Math.max(0, samples.length - 1) * (trend?.period || 300);
 
   return html`
-    <div class="card">
-      <div class="lbl" style="margin-bottom:12px">${S.memTitle}</div>
       <div class="kv">${rows.map(([k, v]) => html`<b>${k}</b><span>${v}</span>`)}</div>
       ${samples.length >= 2 ? html`
         <${Spark} samples=${samples} />
         <div class="axis wrap"><span>${S.memTrend(dur(span))}</span><span>— ${S.memFree} · - - ${S.memLargest}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.memHint}</p>`
-      : trend && html`<p class="hint" style="margin:12px 0 0">${S.memWaiting}</p>`}
-    </div>`;
+      : trend && html`<p class="hint" style="margin:12px 0 0">${S.memWaiting}</p>`}`;
 }
 
 // Free heap (solid) and largest free block (dashed) on one kB scale from zero, so a fragmenting heap

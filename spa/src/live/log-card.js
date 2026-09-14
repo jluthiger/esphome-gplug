@@ -4,13 +4,15 @@ import { S } from "../strings.js";
 import { api } from "../api.js";
 import { dur } from "../fmt.js";
 import { copyText, download } from "../dl.js";
+import { Collapsible } from "./collapsible.js";
 
 // The device's persistent event log (/api/log, event_log.h). The device stores codes, not
 // sentences: 12 bytes per record, and the words are put together here so they come out in the
 // user's language and can be reworded without touching firmware.
 //
-// Fetched once when the card is opened, never polled: these are rare events, and the Setup tab is
-// somewhere a user goes deliberately.
+// Fetched each time the card is opened, never polled: these are rare events, and the Setup tab is
+// somewhere a user goes deliberately. A closed card has no summary, since a count would need the
+// very request a closed card is meant to save.
 
 const EV = { 1: "evBoot", 2: "evOta", 3: "evWifiUp", 4: "evWifiLost", 5: "evMeterLost",
              6: "evMeterOk", 7: "evConfig", 8: "evStorage", 9: "evButton", 10: "evLowHeap" };
@@ -53,6 +55,10 @@ function asText(events) {
 }
 
 export function LogCard({ wide }) {
+  return html`<${Collapsible} id="log" title=${S.logTitle}><${LogBody} wide=${wide} /><//>`;
+}
+
+function LogBody({ wide }) {
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState(null);
   const [copied, setCopied] = useState(null);   // null | "ok" | "fail"
@@ -78,8 +84,6 @@ export function LogCard({ wide }) {
   const newestFirst = events ? [...events].reverse() : [];
 
   return html`
-    <div class="card">
-      <div class="lbl">${S.logTitle}</div>
       ${err && html`<div class="err">${err}</div>`}
       ${!events && !err && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
       ${events && !events.length && html`<p class="hint">${S.logEmpty}</p>`}
@@ -116,6 +120,5 @@ export function LogCard({ wide }) {
           <button onClick=${copy}>${copied === "ok" ? S.copied : copied === "fail" ? S.copyFailedShort : S.logCopy}</button>
           <button class="primary" onClick=${() => download("gplug-log.txt", asText(newestFirst))}>${S.logDownload}</button>
         </div>
-        ${copied === "fail" && html`<p class="hint" style="margin:8px 0 0">${S.copyFailed}</p>`}`}
-    </div>`;
+        ${copied === "fail" && html`<p class="hint" style="margin:8px 0 0">${S.copyFailed}</p>`}`}`;
 }

@@ -58,6 +58,18 @@ a { color: var(--accent2); }
 .card.click { cursor: pointer; }
 .card .t { font-weight: 600; }
 .card .s { color: var(--muted); font-size: .85rem; }
+/* Collapsible card title (live/collapsible.js): the whole title row is the button, stretched over the
+   card's padding so the target is the full width and at least 48 px tall. */
+.coll { display: flex; align-items: center; gap: 10px; width: calc(100% + 36px); min-height: 48px; margin: -16px -18px;
+  padding: 16px 18px; border: 0; border-radius: 20px; background: transparent; color: inherit; text-align: left; }
+.coll[aria-expanded=true] { margin-bottom: 0; padding-bottom: 12px; border-radius: 20px 20px 0 0; }
+.coll .lbl { flex: 1; }
+.coll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.coll:disabled { opacity: 1; }
+.coll:disabled .chev { visibility: hidden; }
+.csum { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; font-weight: 500; color: var(--sub); }
+.chev { flex: none; width: 7px; height: 7px; margin: -4px 2px 0; border: solid var(--muted); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.coll[aria-expanded=true] .chev { margin-top: 4px; transform: rotate(-135deg); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 12px 0; }
 .grid2 .card, .grid3 .card { margin: 0; padding: 13px 14px; border-radius: 16px; }
