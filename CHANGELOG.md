@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.3.0] – 2026-09-14
+
 ### Added
 - Home Assistant entities: power (net, import, export), energy import/export with tariffs T1/T2,
   voltage, current and power per phase, and as diagnostics meter status, meter ID, seconds since the
