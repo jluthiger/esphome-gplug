@@ -14,6 +14,7 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 | [`gplug/`](gplug) | Existing Tasmota scripts per variant/provider, source of the SPA's presets (`gPlugD`, `gPlugD-E`, `gPlugK`, `gPlugM`) |
 | [`intent/`](intent) | Intent doc: goal, scope, constraints |
 | [`install/`](install) | Web installer page (ESP Web Tools) + manifest, deployed to GitHub Pages by the release workflow |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed per release, with upgrade notes |
 | [`migration.md`](migration.md) | Replacing Tasmota on an existing gPlug: what to save first, software setup for macOS, Linux and Windows, erasing, flashing, and the way back |
 
 ## Ready-made firmware
@@ -27,11 +28,48 @@ so nothing below is needed just to run the firmware:
 | [Latest release](https://github.com/jluthiger/esphome-gplug/releases/latest) | `gplug-<version>.ota.bin` | Updating a gPlug that already runs this firmware: *Setup → Firmware* in the device's own app |
 | | `gplug-<version>.factory.bin` | Full flash from `0x0` with esptool |
 
-Cutting a release: push a tag — `git tag v1.2.3 && git push origin v1.2.3`. The workflow rebuilds
-the SPA (and refuses to release if the committed `spa.html.gz` is stale), compiles `dev.yaml` with
-`version` substituted from the tag, attaches both images to the release and redeploys the installer
-page with the new image. `workflow_dispatch` does the same as a dry run: build artefacts only, no
-release, no deploy.
+### Versions and branches
+
+[Semantic Versioning](https://semver.org/), 0.x while this is a proof of concept. What changed per
+release, with upgrade notes: [`CHANGELOG.md`](CHANGELOG.md).
+
+| Version | Means |
+|---|---|
+| `0.2.x` patch | fixes only: OTA-safe, stored settings, HTTP API and Home Assistant entity keys unchanged |
+| `0.x.0` minor | features; in 0.x also breaking changes (settings or profile format, HTTP API, renamed entity keys), stated under *Upgrade notes*. A partition-table change is always minor and marked "USB reflash required" |
+| `0.x.0-rc.N` | release candidate: GitHub pre-release, for the hardware test; the installer page and `stable` stay on the last release |
+| `0.x.0-dev` | what `main` says between releases: the next version, never a release |
+
+- **`main`** is development. Its `gplug.yaml` says `version: "<next>-dev"` and pulls the component from `main`.
+- **`stable`** always points at the newest release commit, moved by the release workflow. A gPlug
+  adopted in an ESPHome Device Builder follows it (`dashboard_import` in `gplug.yaml`), and the
+  `gplug.yaml` there pins the component to its own tag -- so a Device Builder builds released code,
+  from one commit. To try unreleased code on a Device Builder, point the adopted package at `@main`.
+- The version lives in `gplug.yaml`, not in the tag: a tag has to name what its commit already says,
+  or the workflow refuses it (`.github/release-check.sh`).
+
+### Cutting a release
+
+With Claude Code: `/release`. By hand:
+
+1. `main` is green: `cd spa && npm run build` committed, `firmware/test/run.sh`, `esphome compile dev.yaml`, `firmware/MEMORY.md` current (`python3 firmware/tools/size_report.py --check`).
+2. **Release commit** for `0.3.0-rc.1`: in `firmware/gplug.yaml` set `version: "0.3.0-rc.1"` and the
+   component `ref: v0.3.0-rc.1`; in `CHANGELOG.md` rename *Unreleased* to `## [0.3.0] – <date>`
+   and add an empty *Unreleased* above it. `.github/release-check.sh 0.3.0-rc.1` must pass. Commit, then
+   `git tag v0.3.0-rc.1 && git push origin main v0.3.0-rc.1` -- a pre-release with both images.
+3. **Hardware test** of the rc, results noted in the release: OTA from the previous *release* (not a
+   development build) keeps Wi-Fi, meter settings, history count and event log; `diag` is `ok`; Home
+   Assistant entities are present; the app loads on a phone and a desktop; the web installer on a
+   spare unit when there is one. Variants not tested on hardware are listed as such.
+4. **Release**: one commit on top of the tested rc that changes nothing but `version: "0.3.0"`,
+   `ref: v0.3.0` and the date in the changelog;
+   `.github/release-check.sh 0.3.0`; `git tag v0.3.0 && git push origin main v0.3.0`. The workflow
+   publishes the release with the changelog section as notes, deploys the installer page and moves `stable`.
+5. **Back to development**: `version: "0.4.0-dev"`, `ref: main`, commit and push.
+
+The workflow rebuilds the SPA and refuses to release if the committed `spa.html.gz` is stale, checks
+the release commit, compiles `dev.yaml` and attaches `gplug-<version>.ota.bin` and
+`.factory.bin`. `workflow_dispatch` is a dry run: build artefacts only, no release, no deploy.
 
 A released image is built from the config in this repository, so two secrets in it are public: the
 OTA password is empty, meaning anyone on the LAN can reflash the device, and the API encryption key
@@ -65,7 +103,7 @@ the way back to Tasmota if you want it.
 
 Already have an ESPHome Device Builder (e.g. the Home Assistant add-on)? A flashed gPlug shows up
 there under *Discovered* and can be adopted; the adopted config pulls `firmware/gplug.yaml` from
-this repo as a package, no clone needed.
+this repo's `stable` branch (the latest release) as a package, no clone needed.
 
 First boot: the device has no WiFi yet, so it opens the `gPlug-Setup` access point. Join it from a
 phone, the captive portal asks for your home WiFi, the device reboots into it, and the setup wizard

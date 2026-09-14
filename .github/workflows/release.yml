@@ -4,8 +4,13 @@
 #   * GitHub Pages -- install/ plus the factory image and an ESP Web Tools manifest, so a fresh
 #     gPlug can be flashed from Chrome over USB without installing anything.
 #
-# Trigger: push a tag (v1.2.3), or run manually with a version for a test build (no release, no
-# publish -- the images are left as a workflow artifact).
+# Trigger: push a tag, or run manually with a version for a test build (no release, no publish --
+# the images are left as a workflow artifact).
+#   v1.2.3        release: GitHub Release (latest), installer page deployed, `stable` moved to it
+#   v1.2.3-rc.1   pre-release: GitHub pre-release only; installer page and `stable` stay on the last release
+# A tag must point at a release commit (.github/release-check.sh): gplug.yaml's version and
+# component ref say the same as the tag, and CHANGELOG.md has the notes. See README.md, "Cutting a
+# release".
 name: Release firmware
 
 on:
@@ -37,6 +42,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       release: ${{ steps.version.outputs.release }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
 
@@ -44,12 +50,22 @@ jobs:
         name: Determine version
         run: |
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            v="${GITHUB_REF_NAME#v}"
+            echo "version=$v" >> "$GITHUB_OUTPUT"
             echo "release=true" >> "$GITHUB_OUTPUT"
+            case "$v" in *-*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac >> "$GITHUB_OUTPUT"
           else
             echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
             echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # The tag must name what the commit already says. Before this the workflow substituted the
+      # tag's version into the build, so v0.2.0 was built from a gplug.yaml that still said 0.1.0 and
+      # a Device Builder building the same commit showed a different version than the release.
+      - name: Check the release commit
+        if: steps.version.outputs.release == 'true'
+        run: .github/release-check.sh "${{ steps.version.outputs.version }}"
 
       - uses: actions/setup-node@v7
         with:
@@ -122,7 +138,7 @@ jobs:
           if-no-files-found: error
 
       - uses: actions/upload-pages-artifact@v5
-        if: steps.version.outputs.release == 'true'
+        if: steps.version.outputs.release == 'true' && steps.version.outputs.prerelease == 'false'
         with:
           path: out/install
 
@@ -132,7 +148,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          base="${VERSION%%-*}"
+          # This version's section of CHANGELOG.md (a pre-release takes the one it leads up to).
+          awk -v h="## [${base}]" 'index($0, h) == 1 {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md > changes.md
           cat > notes.md <<EOF
+          $(cat changes.md)
+
           ## Install
 
           **New gPlug, or one still running Tasmota** — open the
@@ -149,7 +170,9 @@ jobs:
           | \`gplug-${VERSION}.ota.bin\` | Update over the air from the device's own app (Setup tab) |
           | \`gplug-${VERSION}.factory.bin\` | Full flash from \`0x0\` with esptool or the web installer |
           EOF
-          gh release create "${GITHUB_REF_NAME}" \
+          flags=""
+          [ "${{ steps.version.outputs.prerelease }}" = "true" ] && flags="--prerelease"
+          gh release create "${GITHUB_REF_NAME}" $flags \
             --title "gPlug ${VERSION}" \
             --notes-file notes.md \
             "out/gplug-${VERSION}.ota.bin" \
@@ -159,7 +182,7 @@ jobs:
   # page always installs the newest released image.
   pages:
     needs: build
-    if: needs.build.outputs.release == 'true'
+    if: needs.build.outputs.release == 'true' && needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -167,3 +190,17 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@v5
+
+  # `stable` is what an adopted gPlug follows (dashboard_import in gplug.yaml): it always points at
+  # the newest release commit, whose gplug.yaml pins the component to that same tag. Moved only after
+  # the release itself was published, and never for a pre-release.
+  stable:
+    needs: build
+    if: needs.build.outputs.release == 'true' && needs.build.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Move stable to this release
+        run: git push --force origin "${GITHUB_SHA}:refs/heads/stable"

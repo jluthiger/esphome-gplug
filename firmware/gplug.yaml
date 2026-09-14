@@ -13,10 +13,11 @@ substitutions:
   # LAN can flash the device. Override in the adopting config's substitutions or with
   # `esphome -s ota_password <pw> ...`.
   ota_password: ""
-  # Image version, reported in the app (Setup tab) and shown in an ESPHome dashboard. The release
-  # workflow overrides it with the tag (`esphome -s version 1.2.3 compile dev.yaml`); a local
-  # build keeps the value below.
-  version: "0.2.0"
+  # Image version, reported in the app (Setup tab) and shown in an ESPHome Device Builder.
+  # On main it is the next release with -dev, so a development build never passes for a release;
+  # a release commit sets it to the tag's version, together with the component `ref` below
+  # (.github/release-check.sh, README.md "Cutting a release").
+  version: "0.3.0-dev"
 
 esphome:
   name: ${name}
@@ -28,8 +29,10 @@ esphome:
     name: jluthiger.gplug
     version: ${version}
 
+# Adopting a discovered gPlug pulls this file from `stable`, which the release workflow moves to
+# each release -- so a Device Builder builds released code, not whatever is on main today.
 dashboard_import:
-  package_import_url: github://jluthiger/esphome-gplug/firmware/gplug.yaml@main
+  package_import_url: github://jluthiger/esphome-gplug/firmware/gplug.yaml@stable
   import_full_config: false
 
 esp32:
@@ -51,6 +54,8 @@ external_components:
   - source:
       type: git
       url: https://github.com/jluthiger/esphome-gplug
+      # main on main; v<version> in a release commit, so the gplug.yaml on `stable` and the component
+      # it builds are always from the same tag.
       ref: main
       path: firmware/components
     # Fetched on every build. With a cache (it was 1d) the component and this file -- which an

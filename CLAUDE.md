@@ -27,7 +27,8 @@ cd firmware && python3 tools/size_report.py [--check]   # flash/RAM tables for M
 ```
 
 `/verify` runs the whole chain. Flashing a device (`esphome run/upload`) and tagging a release
-are user-confirmed — never do either unprompted.
+are user-confirmed — never do either unprompted. Releases: `/release` (process in `README.md`,
+"Versions and branches" / "Cutting a release").
 
 ## Rules that bite
 
@@ -66,3 +67,6 @@ are user-confirmed — never do either unprompted.
 - Commits: imperative sentence subject (no Conventional Commits prefix), body in prose explaining
   the reason and what was deliberately left out.
 - Record design decisions with rationale in `intent/intent.md` decision log.
+- User-visible changes get a line under *Unreleased* in `CHANGELOG.md` in the same commit.
+- `firmware/gplug.yaml` on `main` keeps `version: "<next>-dev"` and component `ref: main`; only a release
+  commit changes them (`.github/release-check.sh`).
