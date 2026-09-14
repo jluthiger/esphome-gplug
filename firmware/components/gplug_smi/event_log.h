@@ -31,6 +31,7 @@ enum : uint8_t {
   EV_STORAGE = 8,     // detail: 1 history append failed, 2 history unavailable at boot
   EV_BUTTON = 9,      // AP button held: Wi-Fi credentials erased
   EV_LOW_HEAP = 10,   // detail: 1 free heap, 2 largest block (gplug_mem::Low); value = that figure in kB
+  EV_RESTART = 11,    // a restart was asked for, logged just before it; detail: 1 from the SPA (/api/reboot)
 };
 
 // Mirrors esp_reset_reason_t, but decoupled from it: the numbers here go to flash and must not
@@ -39,7 +40,8 @@ enum : uint8_t {
   RR_UNKNOWN = 0,
   RR_POWERON = 1,
   RR_EXT = 2,        // reset pin
-  RR_SW = 3,         // esp_restart(), which is also what an OTA and a config save do
+  RR_SW = 3,         // esp_restart(), which is also what an OTA and a config save do; EV_OTA or
+                     // EV_RESTART next to it tells those apart
   RR_PANIC = 4,      // exception or panic -- the one that matters
   RR_INT_WDT = 5,
   RR_TASK_WDT = 6,

@@ -795,7 +795,15 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
   std::string body;
   if (url == "/api/reboot") {
     send_json_(req, 200, "{\"ok\":true}");
-    this->defer([]() { App.safe_reboot(); });
+    // RR_SW alone cannot say who restarted the device (OTA, AP button and this route all end in
+    // esp_restart()), so the request is logged first. On the loop task, like every NVS write, and
+    // flushed explicitly: a second restart within the fold window only bumps the repeat count, and
+    // log_event_() leaves folded repeats to log_service_()'s rate limit, which a reboot never reaches.
+    this->defer([this]() {
+      this->log_event_(::gplug_log::EV_RESTART, 1);
+      this->log_flush_();
+      App.safe_reboot();
+    });
     return;
   }
   if (!read_body_(req, body)) return send_json_(req, 400, "{\"error\":\"body\"}");

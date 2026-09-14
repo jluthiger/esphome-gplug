@@ -15,7 +15,8 @@ import { Collapsible } from "./collapsible.js";
 // very request a closed card is meant to save.
 
 const EV = { 1: "evBoot", 2: "evOta", 3: "evWifiUp", 4: "evWifiLost", 5: "evMeterLost",
-             6: "evMeterOk", 7: "evConfig", 8: "evStorage", 9: "evButton", 10: "evLowHeap" };
+             6: "evMeterOk", 7: "evConfig", 8: "evStorage", 9: "evButton", 10: "evLowHeap",
+             11: "evRestart" };
 // esp_reset_reason_t as event_log.h renumbers it; the three watchdog flavours read the same to a
 // user, so they share a string.
 const RR = { 1: "rrPoweron", 2: "rrExt", 3: "rrSw", 4: "rrPanic", 5: "rrWdt", 6: "rrWdt", 7: "rrWdt",
@@ -33,6 +34,7 @@ function detailOf(e) {
   if (e.code === 5) return S[WHY[e.detail]] || null;
   if (e.code === 7) return S[CFG[e.detail]] || null;
   if (e.code === 8) return S[ST[e.detail]] || null;
+  if (e.code === 11) return e.detail === 1 ? S.rsFromSpa : null;
   if (e.code === 3 && e.value) return `${-e.value} dBm`;
   // EV_LOW_HEAP detail: 1 free heap, 2 largest block (heap_monitor.h); value in kB, capped at 255.
   if (e.code === 10) return e.detail === 2 ? S.logLowLargest(e.value) : S.logLowFree(e.value);

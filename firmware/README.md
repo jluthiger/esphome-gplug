@@ -320,7 +320,7 @@ by design: one setter, one call-site swap).
 | GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}, baud?, parity?: "N"\|"E", serial_flags?}`. The line parameters are the variant's (from `variants` in `presets.json`, same for all its presets) and are applied to the UART at once, so the sniffer listens before a profile exists |
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
-| POST | `/api/reboot` | |
+| POST | `/api/reboot` | no body; answers `{ok:true}`, then on the loop task logs `EV_RESTART` (detail 1 = SPA), flushes the event log and calls `App.safe_reboot()`. The SPA's firmware card uses it for "restart device" |
 | GET | `/api/log` | the persistent event log: `{now, uptime, cap, events:[{t, up, code, detail, value, repeat},…]}`, oldest first. `t` is 0 for a record written before the clock had ever synced, which is what `up` (uptime in seconds) is for. Codes and details are numbers, deliberately: the SPA renders them in the user's language (see below) |
 | GET | `/api/history.csv?from=<qh>&to=<qh>` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. Field names are the implementation's own (German). Columns and the rules for empty cells: `history_csv.h`; streamed sector by sector (below) |
 
@@ -437,7 +437,10 @@ whatever the profile reads. A quantity the profile lacks stays *unknown* in Home
 Thirty-two records in one NVS blob, answering the question a serial console cannot once the cable
 is unplugged: **why did it restart**. `esp_reset_reason()` is read at boot and stored, so a panic,
 a task or interrupt watchdog, and a brownout are told apart from a normal power-up or the
-software restart that an OTA and a config save perform. Alongside that: Wi-Fi up and down with
+software restart that an OTA and a config save perform. That restart is one reset reason for
+several causes, so the ones worth telling apart get a record of their own next to it: `EV_OTA`
+after a boot into a new image, and `EV_RESTART` (code 11, detail 1 = from the SPA via `/api/reboot`),
+written and flushed just before the restart. Alongside that: Wi-Fi up and down with
 the RSSI, the meter going quiet and coming back (with the `diag` verdict that says why), config
 changes, history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
 (code 10, detail 1 = free heap / 2 = largest block, value in kB; see "Heap monitoring").

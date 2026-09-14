@@ -7,12 +7,17 @@ import { api } from "../api.js";
 // Firmware update from the phone: pick an ESPHome OTA image, check its header here, upload it to
 // the device's /update handler, then wait for the reboot and confirm a different build came up.
 // The only update path once onboarding is done that needs no ESPHome tooling.
+//
+// A plain restart lives here too: it is the same wait for the device to come back, and sharing the
+// phase state means a restart can never be started in the middle of an upload.
 
 const APP_SLOT = 0x160000;         // app0/app1 size in gplug.yaml's partition table (1408 kB)
 const CHIP_ESP32C3 = 5;            // esp_image_header_t.chip_id
 const APP_DESC_MAGIC = 0xabcd5432; // esp_app_desc_t.magic_word, at 0x20 in an app image only
 const ELF_SHA_OFF = 0xb0;          // esp_app_desc_t.app_elf_sha256: 0x20 + 144, 32 bytes
-const REBOOT_TIMEOUT_MS = 120000;
+const REBOOT_TIMEOUT_MS = 120000;  // an OTA reboot also verifies and switches the image
+const RESTART_TIMEOUT_MS = 60000;
+const CONFIRM_MS = 10000;          // how long "Really restart?" waits before it takes itself back
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -35,6 +40,21 @@ async function inspect(file) {
   return { version: str(0x30), name: str(0x50), app: sha };
 }
 
+// Waits for a reboot that began at t0 to finish: resolves with the first /api/status whose uptime
+// is younger than the wait, or null on timeout. The 4 s head start is there because the device can
+// still answer with its old uptime between accepting the request and actually going down.
+async function waitForReboot(t0, timeoutMs) {
+  await sleep(4000);
+  while (Date.now() - t0 < timeoutMs) {
+    try {
+      const s = await api.status();
+      if (s.uptime * 1000 < Date.now() - t0 + 5000) return s;
+    } catch { /* still rebooting */ }
+    await sleep(2000);
+  }
+  return null;
+}
+
 const fmtBuild = (t) => t ? new Date(t * 1000).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" }) : null;
 
 export function FirmwareCard({ status }) {
@@ -42,13 +62,16 @@ export function FirmwareCard({ status }) {
   const [file, setFile] = useState(null);
   const [info, setInfo] = useState(null);
   const [password, setPassword] = useState("");
-  const [phase, setPhase] = useState("idle");   // idle | picked | upload | reboot | done | same | failed
+  // idle | picked | upload | reboot | done | same | failed, and for a plain restart:
+  // confirm | restart | back | lost
+  const [phase, setPhase] = useState("idle");
   const [progress, setProgress] = useState(0);
   // A string key, not the text: text resolved at set-time would freeze the language it was set
   // in. api.js hands up already-translated sentences, which msgText() passes through unchanged.
   const [msg, setMsg] = useState("");
   const msgText = (m) => (m && S[m] !== undefined ? S[m] : m);
   const [build, setBuild] = useState(status?.build);
+  const confirmTimer = useRef(null);
 
   async function pick(e) {
     const f = e.target.files?.[0];
@@ -80,30 +103,44 @@ export function FirmwareCard({ status }) {
 
     // Accepted: the device reboots within a second. Wait until it answers again with a fresh uptime.
     setPhase("reboot");
-    const t0 = Date.now();
-    await sleep(4000);
-    while (Date.now() - t0 < REBOOT_TIMEOUT_MS) {
-      try {
-        const s = await api.status();
-        if (s.uptime * 1000 < Date.now() - t0 + 5000) {
-          setBuild(s.build);
-          // Identify the image that came back up. The ELF hash is exact, so it is asked first and
-          // both ways round: matching the uploaded file proves success, matching what ran before
-          // proves the device fell back. Only a firmware too old to report `app` at all (or one
-          // rolled back to such a version) falls through to comparing build timestamps, which
-          // cannot see an update that changed only embedded assets.
-          if (s.app && info?.app) setPhase(s.app === info.app ? "done" : "same");
-          else if (s.app && beforeApp) setPhase(s.app === beforeApp ? "same" : "done");
-          else setPhase(s.build && s.build === before ? "same" : "done");
-          return;
-        }
-      } catch { /* still rebooting */ }
-      await sleep(2000);
-    }
-    setPhase("failed"); setMsg("fwNoReturn");
+    const s = await waitForReboot(Date.now(), REBOOT_TIMEOUT_MS);
+    if (!s) { setPhase("failed"); setMsg("fwNoReturn"); return; }
+    setBuild(s.build);
+    // Identify the image that came back up. The ELF hash is exact, so it is asked first and both
+    // ways round: matching the uploaded file proves success, matching what ran before proves the
+    // device fell back. Only a firmware too old to report `app` at all (or one rolled back to such
+    // a version) falls through to comparing build timestamps, which cannot see an update that
+    // changed only embedded assets.
+    if (s.app && info?.app) setPhase(s.app === info.app ? "done" : "same");
+    else if (s.app && beforeApp) setPhase(s.app === beforeApp ? "same" : "done");
+    else setPhase(s.build && s.build === before ? "same" : "done");
   }
 
-  const busy = phase === "upload" || phase === "reboot";
+  // Two steps instead of confirm(): a browser dialog is out of place on a phone, and the second
+  // step takes itself back so a stray tap later cannot restart the device.
+  function askRestart() {
+    setPhase("confirm"); setMsg("");
+    clearTimeout(confirmTimer.current);
+    confirmTimer.current = setTimeout(() => setPhase((p) => (p === "confirm" ? "idle" : p)), CONFIRM_MS);
+  }
+
+  async function restart() {
+    clearTimeout(confirmTimer.current);
+    setPhase("restart"); setMsg("");
+    const t0 = Date.now();
+    try {
+      await api.reboot();
+    } catch (e) {
+      // The device may drop the connection while answering; only a device that is still up with
+      // its old uptime afterwards really refused. waitForReboot() tells the two apart.
+      setMsg(e.message);
+    }
+    const s = await waitForReboot(t0, RESTART_TIMEOUT_MS);
+    if (s) { setBuild(s.build); setPhase("back"); setMsg(""); }
+    else setPhase("lost");
+  }
+
+  const busy = phase === "upload" || phase === "reboot" || phase === "restart";
   const otherName = info?.name && status?.hostname && info.name !== status.hostname;
 
   // The upload state lives here, above the Collapsible, so closing the card mid-way loses nothing;
@@ -118,7 +155,15 @@ export function FirmwareCard({ status }) {
 
       ${phase === "idle" && html`
         <p style="margin:14px 0 0"><button onClick=${() => input.current.click()}>${S.fwPick}</button></p>
-        <p class="hint" style="margin:8px 0 0">${S.fwHint}</p>`}
+        <p class="hint" style="margin:8px 0 0">${S.fwHint}</p>
+        <p style="margin:18px 0 0"><button onClick=${askRestart}>${S.rsButton}</button></p>`}
+
+      ${phase === "confirm" && html`
+        <p class="hint" style="margin:14px 0 0">${S.rsHint}</p>
+        <div class="nav">
+          <button onClick=${() => { clearTimeout(confirmTimer.current); setPhase("idle"); }}>${S.fwCancel}</button>
+          <button class="primary" onClick=${restart}>${S.rsConfirm}</button>
+        </div>`}
 
       ${phase === "picked" && html`
         <div class="fwfile">
@@ -138,17 +183,26 @@ export function FirmwareCard({ status }) {
         </div>`}
 
       ${busy && html`
-        <div class="progress"><i style=${`width:${phase === "reboot" ? 100 : Math.round(progress * 100)}%`}></i></div>
+        <div class="progress"><i style=${`width:${phase === "upload" ? Math.round(progress * 100) : 100}%`}></i></div>
         <div class="between">
           <span class="muted"><span class="spin"></span> ${phase === "upload" ? S.fwUploading : S.fwRebooting}</span>
           ${phase === "upload" && html`<span class="num">${Math.round(progress * 100)} %</span>`}
         </div>
-        <p class="hint" style="margin:8px 0 0">${S.fwKeepPower}</p>`}
+        ${phase !== "restart" && html`<p class="hint" style="margin:8px 0 0">${S.fwKeepPower}</p>`}`}
 
       ${(phase === "done" || phase === "same") && html`
         <p style="margin:14px 0 0"><span class="badge ${phase === "done" ? "ok" : "warn"}">${phase === "done" ? S.fwDone : S.fwRestarted}</span></p>
         ${phase === "same" && html`<p class="hint">${S.fwSameBuild}</p>`}
         <p style="margin:14px 0 0"><button class="primary" onClick=${() => location.reload()}>${S.fwReload}</button></p>`}
+
+      ${phase === "back" && html`
+        <p style="margin:14px 0 0"><span class="badge ok">${S.rsBack}</span></p>
+        <p class="hint">${S.rsLogged}</p>
+        <p style="margin:14px 0 0"><button class="primary" onClick=${() => location.reload()}>${S.fwReload}</button></p>`}
+
+      ${phase === "lost" && html`
+        <div class="err">${msg ? `${S.rsFailed}: ${msgText(msg)}` : S.fwNoReturn}</div>
+        <p style="margin:14px 0 0"><button onClick=${reset}>${S.fwCancel}</button></p>`}
 
       ${phase === "failed" && html`
         <div class="err">${S.fwFailed}: ${msgText(msg)}</div>

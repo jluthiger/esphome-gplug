@@ -15,8 +15,12 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   stack reserves, with a 24 h trend, so a memory leak shows as a falling line before the device
   restarts. Home Assistant gets "Free heap" and "Largest heap block" as diagnostic entities, the event
   log records low memory, and a restart entry shows the free heap at start.
+- Setup tab: restart the device from the firmware card, after a confirmation. The card waits until the
+  device is back (or says that it is not), and the event log records that the restart was requested
+  from the web app.
 
 ### Changed
+- The firmware update card is now "Firmware and restart".
 - Setup tab: the key, firmware update, memory, event log and appearance cards fold to one line with a
   short summary; connection and language stay open. The choice is remembered in the browser, and a
   closed memory or event log card no longer queries the device.

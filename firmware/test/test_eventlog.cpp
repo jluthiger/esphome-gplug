@@ -129,6 +129,24 @@ int main() {
     for (uint8_t i = 0; i < LOG_CAP; i++) CHECK(b.at(i).value == a.at(i).value);
   }
 
+  // --- 9. a restart from the SPA, twice in a row, as /api/reboot writes it ---
+  // The handler logs EV_RESTART and then flushes unconditionally, because the second request lands
+  // inside the fold window and append() reports it as not fresh. What must hold: the fold still
+  // marks the ring dirty (so that flush writes it), and the boot that follows stays its own record.
+  {
+    EventLog l;
+    CHECK(l.append(EV_RESTART, 1, 0, 1000, 60));
+    l.append(EV_BOOT, RR_SW, 180, 1001, 1);
+    l.mark_clean();
+    CHECK(l.append(EV_RESTART, 1, 0, 1100, 100));            // after a boot: not the last record
+    l.mark_clean();
+    CHECK(!l.append(EV_RESTART, 1, 0, 1120, 120));           // right after itself: folded
+    CHECK(l.dirty());
+    CHECK(l.count() == 3 && l.at(2).repeat == 1);
+    CHECK(l.append(EV_BOOT, RR_SW, 180, 1121, 1));
+    CHECK(l.count() == 4);
+  }
+
   printf(fails ? "%d FAILED\n" : "all ok\n", fails);
   return fails ? 1 : 0;
 }

@@ -226,6 +226,10 @@ function eventLog() {
     [0,        41,   1, 1, 180, 0],   // a boot before the clock synced: uptime only
   ];
   if (MOCK_HEAP === "leak") raw.push([ago(0.5), 0, 10, 1, 46, 0]);   // low heap: free 46 kB
+  if (state.restarts) {   // restarted from the SPA in this mock session, folded like the device does
+    const at = Math.floor(state.t0 / 1000);
+    raw.push([at - 6, 0, 11, 1, 0, state.restarts - 1], [at, 0, 1, 3, 179, 0]);
+  }
   return { now, uptime: 4100, cap: 32,
     events: raw.map(([t, up, code, detail, value, repeat]) => ({ t, up, code, detail, value, repeat })) };
 }
@@ -368,7 +372,14 @@ const routes = {
   },
   "GET /api/live": () => live(),
   "GET /api/ring": () => ring(),
-  "POST /api/reboot": () => ({ ok: true }),
+  // Like the OTA path below: API down for 6 s, then a fresh uptime, so the firmware card's wait for
+  // the device can be exercised. The log gets what the device writes: the request, then the boot.
+  "POST /api/reboot": () => {
+    state.rebootUntil = Date.now() + 6000;
+    state.t0 = Date.now() + 6000;
+    state.restarts = (state.restarts || 0) + 1;
+    return { ok: true };
+  },
 };
 
 createServer(async (req, res) => {
