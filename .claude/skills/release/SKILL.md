@@ -25,6 +25,9 @@ Ask for the version if not given. Minor vs patch: see the table in the README (`
 1. `firmware/gplug.yaml`: `version: "X.Y.Z-rc.N"`, external_components `ref: vX.Y.Z-rc.N`.
 2. `CHANGELOG.md`: *Unreleased* → `## [X.Y.Z] – <today>`, new empty `## [Unreleased]` above.
 3. `.github/release-check.sh X.Y.Z-rc.N` passes.
+   `esphome config/compile dev.yaml` fails locally from here until the tag is on GitHub ("Konnte
+   Remote-Referenz ... nicht finden"): `dev.yaml` includes the git source pinned to the new tag. Build
+   and test before this step, not after it.
 4. Commit "Release X.Y.Z-rc.N". Confirm, then `git tag vX.Y.Z-rc.N && git push origin main vX.Y.Z-rc.N`.
 5. Watch the workflow (`gh run watch`), check the pre-release has both images and the notes.
 

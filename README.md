@@ -56,7 +56,9 @@ With Claude Code: `/release`. By hand:
 2. **Release commit** for `0.3.0-rc.1`: in `firmware/gplug.yaml` set `version: "0.3.0-rc.1"` and the
    component `ref: v0.3.0-rc.1`; in `CHANGELOG.md` rename *Unreleased* to `## [0.3.0] – <date>`
    and add an empty *Unreleased* above it. `.github/release-check.sh 0.3.0-rc.1` must pass. Commit, then
-   `git tag v0.3.0-rc.1 && git push origin main v0.3.0-rc.1` -- a pre-release with both images.
+   `git tag v0.3.0-rc.1 && git push origin main v0.3.0-rc.1` -- a pre-release with both images. Until the tag is on
+   GitHub, `esphome config`/`compile dev.yaml` fail locally, because the component ref now names it --
+   build and test before the release commit.
 3. **Hardware test** of the rc, results noted in the release: OTA from the previous *release* (not a
    development build) keeps Wi-Fi, meter settings, history count and event log; `diag` is `ok`; Home
    Assistant entities are present; the app loads on a phone and a desktop; the web installer on a
