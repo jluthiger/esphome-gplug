@@ -32,6 +32,12 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   short summary; connection and language stay open. The choice is remembered in the browser, and a
   closed memory or event log card no longer queries the device.
 
+### Upgrade notes
+- No USB reflash: the partition table is unchanged. Wi-Fi, meter settings, history and event log
+  are stored as before; OTA from the 0.3.0 release is checked on the release candidate.
+- Home Assistant: two new diagnostic entities, "Free heap" and "Largest heap block"; nothing is
+  renamed or removed.
+
 ## [0.3.0] – 2026-09-14
 
 ### Added
