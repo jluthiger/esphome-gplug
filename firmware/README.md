@@ -389,6 +389,46 @@ The `wifi` component has the same default and is inert here: it only reboots whe
 fallback configured (`!has_ap()`), and `gplug.yaml` configures one, so a device that cannot reach
 its network opens `gPlug-Setup` instead of rebooting.
 
+### Home Assistant entities (`ha_values.h`, `sensor.py`, `text_sensor.py`)
+
+ESPHome entities exist from compile time; the meter profile -- which registers, under which names,
+in which units -- is runtime data from the setup wizard, and one image serves every variant. So
+`gplug.yaml` declares a fixed set of well-known quantities and the component fills them from
+whatever the profile reads. A quantity the profile lacks stays *unknown* in Home Assistant.
+
+| YAML key | Name in `gplug.yaml` | Unit | HA class | From profile values |
+|---|---|---|---|---|
+| `power` | Power | W | power, measurement | `Pi` − `Po` (import positive) |
+| `power_import`, `power_export` | Power import / export | W | power, measurement | `Pi`, `Po` |
+| `energy_import`, `energy_export` | Energy import / export | kWh | energy, total_increasing | `Ei`, `Eo` |
+| `energy_import_t1` … `energy_export_t2` | Energy import/export T1/T2 | kWh | energy, total_increasing | `Ei1`, `Ei2`, `Eo1`, `Eo2` |
+| `voltage_l1..l3` | Voltage L1..L3 | V | voltage, measurement | `V1..3` or `U1..3` |
+| `current_l1..l3` | Current L1..L3 | A | current, measurement | `I1..3` |
+| `power_l1..l3` | Power L1..L3 | W | power, measurement | `P1i`/`Pi1` minus `P1o`/`Po1` |
+| `frame_age` | Last meter frame | s | duration, diagnostic | time since the last decoded frame |
+| `meter_status` (text) | Meter status | – | diagnostic | the `diag` verdict (table above) |
+| `meter_id` (text) | Meter ID | – | diagnostic | `SMid` |
+| (`wifi_signal` platform) | Wi-Fi signal | dBm | diagnostic, every 60 s | – |
+
+- **Aliases and units** come from the presets, which inherited them from the Tasmota scripts and
+  disagree: voltage is `V1..3` on gPlugD/K and `U1..3` on gPlugM, per-phase power `P1i`/`P1o` on
+  gPlugD/K and `Pi1`/`Po1` on gPlugM, totals are kW and per-phase power W. `ha_values.h` absorbs
+  that (kW → W, Wh → kWh) with the same rules the live ring uses; `test/test_ha.cpp` checks every
+  preset family with its real names. Reactive values (`rPi`, `Q5`…) and `pf1` are not exposed.
+- **Rate**: published on the 10 s ring tick, not per frame -- a DSMR meter sends every second, and
+  ten times the recorder writes would buy nothing the app's own resolution doesn't show.
+- **Unknown**: a quantity is published as NAN when the profile has no such value, and every numeric
+  entity is, once the meter has been silent for 30 s. Only the change is published, not a repeated
+  NAN every tick. Text sensors are published on change.
+- **Energy precision**: HA sensor states are float32. The Energy entities are taken from the
+  full-precision Wh counters (`ei_wh_exact_`) where available, but a 56 000 kWh reading still only
+  has ~4 Wh steps as float32 -- invisible in HA's hourly statistics.
+- A change of profile in the wizard needs no API reconnect: the entity list is fixed, values just
+  appear or go unknown.
+- Adopting configs inherit the list through the `gplug.yaml` package. To drop an entity, override
+  the `sensor:` list in the adopting YAML, or disable the entity in Home Assistant.
+- Cost (2026-09-14): +8.7 kB flash (sensor and text_sensor cores, 21 entities), +1.0 kB static RAM.
+
 ### Event log (`event_log.h`, `/api/log`)
 
 Thirty-two records in one NVS blob, answering the question a serial console cannot once the cable

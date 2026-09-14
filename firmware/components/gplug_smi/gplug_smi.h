@@ -10,6 +10,14 @@
 #include "history_store.h"
 #include "partition_flash.h"
 #include "protocol_sniff.h"
+#include "ha_values.h"
+#include "esphome/core/defines.h"
+#ifdef USE_SENSOR
+#include "esphome/components/sensor/sensor.h"
+#endif
+#ifdef USE_TEXT_SENSOR
+#include "esphome/components/text_sensor/text_sensor.h"
+#endif
 
 #include <array>
 #include <mutex>
@@ -74,6 +82,15 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
     manifest_ = manifest_gz; manifest_len_ = manifest_len; icon_ = icon_png; icon_len_ = icon_len;
   }
   void set_ota_auth(bool on) { ota_auth_ = on; }
+  // Home Assistant entities (sensor.py / text_sensor.py). Any of them may be left out of the YAML.
+#ifdef USE_SENSOR
+  void set_ha_sensor(uint8_t key, sensor::Sensor *s) { if (key < ::gplug_ha::HA_COUNT) ha_sensors_[key] = s; }
+  void set_frame_age_sensor(sensor::Sensor *s) { frame_age_sensor_ = s; }
+#endif
+#ifdef USE_TEXT_SENSOR
+  void set_meter_status_text(text_sensor::TextSensor *s) { meter_status_text_ = s; }
+  void set_meter_id_text(text_sensor::TextSensor *s) { meter_id_text_ = s; }
+#endif
 
   void setup() override;
   void loop() override;
@@ -106,6 +123,16 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void note_energy_exact_(const ObisEntry &e, double raw);
   float value_w_(const char *name) const;   // value of a named sensor converted to W, 0 if absent
   float value_(const char *name, float def) const;
+  // Home Assistant publishing, from the 10 s sample tick (see ha_values.h).
+  struct HaTick {
+    ::gplug_ha::HaSnapshot snap;
+    bool meter_ok;
+    int32_t frame_age_s;          // -1 = no frame since boot
+    const char *diag;             // static string from diag_()
+    char smid[40];
+  };
+  void ha_collect_(uint32_t now, bool meter_ok, HaTick &t) const;   // caller holds mutex_
+  void ha_publish_(const HaTick &t);                                   // outside mutex_
 
   // http
   void send_gz_(AsyncWebServerRequest *req, const char *ctype, const uint8_t *data, size_t len);
@@ -223,6 +250,19 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool log_backdated_{false};
   bool wifi_was_up_{false};
   std::string last_diag_{"unconfigured"};
+
+  // Home Assistant entities and what was last sent, so unavailable states and text are published on
+  // change only; the numbers themselves go out on every tick.
+#ifdef USE_SENSOR
+  sensor::Sensor *ha_sensors_[::gplug_ha::HA_COUNT]{};
+  sensor::Sensor *frame_age_sensor_{nullptr};
+  bool ha_sent_have_[::gplug_ha::HA_COUNT]{};
+  bool ha_sent_once_{false};
+#endif
+#ifdef USE_TEXT_SENSOR
+  text_sensor::TextSensor *meter_status_text_{nullptr};
+  text_sensor::TextSensor *meter_id_text_{nullptr};
+#endif
 };
 
 }  // namespace gplug_smi

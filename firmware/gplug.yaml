@@ -105,3 +105,58 @@ uart:
 gplug_smi:
   uart_id: han_uart
   ota_password: ${ota_password}
+
+# Home Assistant entities. A fixed set of well-known quantities, filled every 10 s from whatever the
+# meter profile chosen in the setup wizard reads; one the profile lacks stays "unknown" (e.g. tariff
+# counters on a gPlugK, per-phase power on the DLMS P1 profiles). Mapping and aliases:
+# components/gplug_smi/ha_values.h. Every entry is optional -- drop or rename them in an adopting config.
+sensor:
+  - platform: gplug_smi
+    power:
+      name: "Power"
+    power_import:
+      name: "Power import"
+    power_export:
+      name: "Power export"
+    energy_import:
+      name: "Energy import"
+    energy_export:
+      name: "Energy export"
+    energy_import_t1:
+      name: "Energy import T1"
+    energy_import_t2:
+      name: "Energy import T2"
+    energy_export_t1:
+      name: "Energy export T1"
+    energy_export_t2:
+      name: "Energy export T2"
+    voltage_l1:
+      name: "Voltage L1"
+    voltage_l2:
+      name: "Voltage L2"
+    voltage_l3:
+      name: "Voltage L3"
+    current_l1:
+      name: "Current L1"
+    current_l2:
+      name: "Current L2"
+    current_l3:
+      name: "Current L3"
+    power_l1:
+      name: "Power L1"
+    power_l2:
+      name: "Power L2"
+    power_l3:
+      name: "Power L3"
+    frame_age:
+      name: "Last meter frame"
+  - platform: wifi_signal
+    name: "Wi-Fi signal"
+    update_interval: 60s
+
+text_sensor:
+  - platform: gplug_smi
+    meter_status:
+      name: "Meter status"
+    meter_id:
+      name: "Meter ID"

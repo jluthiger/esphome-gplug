@@ -21,3 +21,4 @@ test/test_history
 test/test_csv
 test/test_sniff
 test/test_eventlog
+test/test_ha

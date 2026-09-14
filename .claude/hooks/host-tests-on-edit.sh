@@ -17,6 +17,7 @@ case "$(basename "$f")" in
   history_csv.h|test_csv.cpp)             tests="csv" ;;
   event_log.h|test_eventlog.cpp)          tests="eventlog" ;;
   protocol_sniff.h|test_sniff.cpp)        tests="sniff" ;;
+  ha_values.h|test_ha.cpp)                tests="ha" ;;
   *) exit 0 ;;
 esac
 

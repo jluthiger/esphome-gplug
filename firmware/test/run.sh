@@ -10,7 +10,7 @@
 cd "$(dirname "$0")" || exit 2
 CXX=${CXX:-clang++}
 NEEDS_CAPTURES="replay raw structure capturelist"
-ALL="dsmr aes dlms replay raw structure capturelist framelog history csv eventlog sniff"
+ALL="dsmr aes dlms replay raw structure capturelist framelog history csv eventlog sniff ha"
 [ $# -gt 0 ] && set -- "$@" || set -- $ALL
 
 fail=0

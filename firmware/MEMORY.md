@@ -1,8 +1,8 @@
 # Flash and RAM usage
 
-Snapshot of the `dev.yaml` build from 2026-09-13 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
-4 MB flash), with the wide-screen SPA layout (issue #1). Sizes in kB = 1024 bytes. Numbers come from the linker map, not
-from a running device, except where noted.
+Snapshot of the `dev.yaml` build from 2026-09-14 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+4 MB flash), with the Home Assistant entities. Sizes in kB = 1024 bytes. Numbers come from the
+linker map, not from a running device, except where noted.
 
 The two tables marked *generated* are the output of `tools/size_report.py`, which reads the linker
 map and the ELF symbols of the last build. Paste them, with the baseline line below, after a build
@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1050616 dram=123728 gplug_smi_obj=20880 -->
+<!-- size-baseline image=1059332 dram=124688 gplug_smi_obj=20984 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -42,30 +42,30 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,050,616 B = 1026 kB in a 1408 kB slot: **72.9 % full, 382 kB headroom** (2026-09-13, with
-the wide-screen SPA layout; 1,048,136 B before it, 1,041,930 B = 72.3 % on 2026-09-12, before the
-home-screen manifest and icon).
+Image 1,059,332 B = 1035 kB in a 1408 kB slot: **73.5 % full, 373 kB headroom** (2026-09-14, with
+the Home Assistant entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
+before, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 755 kB code run from flash, 200 kB read-only data, 59 kB IRAM code and 11 kB `.data`
-initial values (those two are stored in flash *and* occupy RAM).
+By section: 763 kB code run from flash, 201 kB read-only data, 59 kB IRAM code and 11 kB `.data` initial values
+(those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 29.1 % |
-| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA) | 208.2 kB | 20.3 % |
-| Crypto (mbedTLS for AES-GCM, Noise/Ed25519 for the encrypted API) | 136.5 kB | 13.3 % |
-| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 137.2 kB | 13.4 % |
-| String literals from all code | 79.1 kB | 7.7 % |
-| ESPHome core and components (incl. the captive_portal fork) | 63.0 kB | 6.1 % |
-| `gplug_smi` code | 48.4 kB | 4.7 % |
-| Embedded web files, gzipped except the PNG: SPA 42.3 kB, icon 3.6 kB, captive page 3.1 kB, presets 1.6 kB, manifest 0.2 kB | 51.0 kB | 5.0 % |
-| ESPHome-generated `main.cpp` setup code | 2.8 kB | 0.3 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 28.8 % |
+| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA) | 208.2 kB | 20.1 % |
+| Crypto (mbedTLS for AES-GCM, Noise/Ed25519 for the encrypted API) | 136.5 kB | 13.2 % |
+| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 137.2 kB | 13.3 % |
+| String literals from all code | 79.5 kB | 7.7 % |
+| ESPHome core and components (incl. the captive_portal fork) | 67.3 kB | 6.5 % |
+| `gplug_smi` code | 50.1 kB | 4.8 % |
+| Embedded web files, gzipped except the PNG: SPA 42.3 kB, icon 3.6 kB, captive page 3.1 kB, presets 1.6 kB, manifest 0.2 kB | 51.2 kB | 5.0 % |
+| ESPHome-generated `main.cpp` setup code | 4.7 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.6 kB | 0.2 % |
 
-The platform (Wi-Fi, ESP-IDF, crypto, networking) is 76 % of the image; gPlug's own code and web
-files are about 9.7 %.
+The platform (Wi-Fi, ESP-IDF, crypto, networking) is 75 % of the image; gPlug's own code and web
+files are about 9.8 %.
 
 **Misleading attribution:** `esp_idf_size` reports ~80 kB of `.rodata` in `api_connection.cpp.o`,
 which the script books as "String literals". That is the linker's merged string-literal pool (`.rodata.*.str1.4`): string literals from every
@@ -79,23 +79,23 @@ The C3 has 314 kB (321,296 B) of SRAM usable by the app; IRAM and DRAM share it.
 | Part | Size | Share of SRAM |
 |---|---|---|
 | IRAM code (interrupts, flash driver, scheduler, Wi-Fi) | 59.3 kB | 18.9 % |
-| `GplugSmi` object (`gplug_smi__gplug_smi_gplugsmi_id__pstorage`) | 20.4 kB | 6.5 % |
+| `GplugSmi` object (`gplug_smi__gplug_smi_gplugsmi_id__pstorage`) | 20.5 kB | 6.5 % |
 | Wi-Fi globals (connection manager, power management, WPA state) | 14.8 kB | 4.7 % |
 | ESP-IDF globals (scheduler lists, ISR stack, stdio, driver state) | 11.1 kB | 3.5 % |
 | ESPHome loop task stack (`esphome::loop_task_stack`) | 8.0 kB | 2.5 % |
 | lwIP and mDNS (DNS table, mDNS task stack) | 4.6 kB | 1.5 % |
-| Other component objects (logger, remaining ESPHome components) | 2.7 kB | 0.9 % |
-| **Static total** | **120.8 kB** | **38.5 %** |
-| **Left for the heap at boot** | **192.9 kB** | **61.5 %** |
+| Other component objects (logger, remaining ESPHome components) | 3.5 kB | 1.1 % |
+| **Static total** | **121.8 kB** | **38.8 %** |
+| **Left for the heap at boot** | **192.0 kB** | **61.2 %** |
 
 The 2026-09-12 table had a separate 0.4 kB row for the event log blob and its mutex. No static symbol
 of that name is in the 2026-09-13 ELF, so it is counted wherever the linker put it (possibly inside
 the `GplugSmi` object); not traced further.
 
-### Inside the 20.4 kB `GplugSmi` object
+### Inside the 20.5 kB `GplugSmi` object
 
-Hand-itemised from the source on 2026-09-11, when the object was 19.9 kB; the 0.5 kB since then
-is not broken down.
+Hand-itemised from the source on 2026-09-11, when the object was 19.9 kB; the 0.6 kB since then
+is not broken down (0.1 kB of it, 2026-09-14, the Home Assistant entity pointers and sent-state flags).
 
 | Member | Size |
 |---|---|
@@ -128,6 +128,6 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 | Meter descriptor copy, only during a config save (heap on purpose, too big for the httpd stack) | ~3 kB |
 
 Last device reading: **197 kB free heap** with Wi-Fi joined and the SPA loaded (2026-09-10, older
-962 kB build, via `/api/status`). That is more than the 193 kB the linker leaves (192.9 kB on 2026-09-13) because the runtime
+962 kB build, via `/api/status`). That is more than the 193 kB the linker leaves (192.0 kB on 2026-09-14) because the runtime
 heap also gets RAM the bootloader releases after startup, so the two figures don't subtract. Target
 in `intent/intent.md`: >= 80 kB free after 24 h. A current reading still has to be taken on a device.

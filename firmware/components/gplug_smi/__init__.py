@@ -27,6 +27,8 @@ CONF_PRESETS_RAW_ID = "presets_raw_id"
 CONF_MANIFEST_RAW_ID = "manifest_raw_id"
 CONF_ICON_RAW_ID = "icon_raw_id"
 CONF_OTA_PASSWORD = "ota_password"
+# Referenced by the sensor/text_sensor platforms to find the component.
+CONF_GPLUG_SMI_ID = "gplug_smi_id"
 OTA_USERNAME = "admin"
 
 gplug_ns = cg.esphome_ns.namespace("gplug_smi")

@@ -144,6 +144,7 @@ void GplugSmi::loop() {
   bool sampled = false;
   int16_t p_net = 0;
   bool meter_ok = false;
+  HaTick ha;
   if (now - last_sample_ms_ >= RING_PERIOD_MS) {
     last_sample_ms_ = now;
     std::lock_guard<std::mutex> lock(mutex_);
@@ -159,11 +160,13 @@ void GplugSmi::loop() {
     if (ring_count_ < RING_LEN) ring_count_++;
     p_net = (int16_t) (smp.pi - smp.po);
     meter_ok = last_frame_ms_ != 0 && (now - last_frame_ms_) < 30000;
+    this->ha_collect_(now, meter_ok, ha);
     sampled = true;
   }
   // Feed the quarter-hour accumulator outside the lock: it never touches the decoder state, and
   // flash I/O must never happen while mutex_ is held (it would stall /api/live for an erase).
   if (sampled) {
+    this->ha_publish_(ha);
     acc_.add(p_net, meter_ok);
     if (meter_ok) {
       // Fallback energy integration, for meters that send no Ei/Eo at all. Cheap enough to always
@@ -275,6 +278,49 @@ float GplugSmi::value_w_(const char *name) const {
     return v;
   }
   return 0.0f;
+}
+
+// ---------------------------------------------------------------- Home Assistant
+
+// Copies what the entities need out of the decoder state. Caller holds mutex_; publishing happens
+// after it is released, since a publish runs the API's send path and must not stall /api/live.
+void GplugSmi::ha_collect_(uint32_t now, bool meter_ok, HaTick &t) const {
+  const char *names[MAX_OBIS], *units[MAX_OBIS];
+  bool have[MAX_OBIS];
+  for (uint8_t i = 0; i < desc_.n; i++) {
+    names[i] = desc_.obis[i].name;
+    units[i] = desc_.obis[i].unit;
+    have[i] = have_[i] && !desc_.obis[i].is_string;
+  }
+  ::gplug_ha::HaInput in{names, units, values_, have, desc_.n, ei_wh_exact_, eo_wh_exact_};
+  ::gplug_ha::ha_snapshot(in, t.snap);
+  t.meter_ok = meter_ok;
+  t.frame_age_s = last_frame_ms_ ? (int32_t) ((now - last_frame_ms_) / 1000) : -1;
+  t.diag = diag_(now);
+  strncpy(t.smid, smid_, sizeof(t.smid) - 1);
+  t.smid[sizeof(t.smid) - 1] = 0;
+}
+
+// Every 10 s. Fresh meter data goes out as numbers; a quantity the profile doesn't provide, and
+// every quantity once the meter has been silent for 30 s, goes out as NAN (HA: unknown) -- once,
+// when that changes, rather than repeating the same "unknown" into the recorder every tick.
+void GplugSmi::ha_publish_(const HaTick &t) {
+#ifdef USE_SENSOR
+  for (int k = 0; k < ::gplug_ha::HA_COUNT; k++) {
+    sensor::Sensor *s = ha_sensors_[k];
+    if (s == nullptr) continue;
+    bool have = t.meter_ok && t.snap.have[k];
+    if (have) s->publish_state(t.snap.v[k]);
+    else if (ha_sent_have_[k] || !ha_sent_once_) s->publish_state(NAN);
+    ha_sent_have_[k] = have;
+  }
+  ha_sent_once_ = true;
+  if (frame_age_sensor_ != nullptr) frame_age_sensor_->publish_state(t.frame_age_s < 0 ? NAN : (float) t.frame_age_s);
+#endif
+#ifdef USE_TEXT_SENSOR
+  if (meter_status_text_ != nullptr && meter_status_text_->get_state() != t.diag) meter_status_text_->publish_state(t.diag);
+  if (meter_id_text_ != nullptr && t.smid[0] && meter_id_text_->get_state() != t.smid) meter_id_text_->publish_state(t.smid);
+#endif
 }
 
 // ---------------------------------------------------------------- config

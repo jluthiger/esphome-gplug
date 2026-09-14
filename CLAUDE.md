@@ -50,7 +50,7 @@ are user-confirmed — never do either unprompted.
 - **Flash wear**: history appends every 15 min must last > 5 years; no new periodic flash/NVS writes
   without arithmetic.
 - **Host-testable logic lives in header-only files** (`*_parser.h`, `*_decoder.h`, `*_store.h`,
-  `*_log.h`, `protocol_sniff.h`) with no ESPHome includes, tested in `firmware/test/test_*.cpp`.
+  `*_log.h`, `protocol_sniff.h`, `ha_values.h`) with no ESPHome includes, tested in `firmware/test/test_*.cpp`.
   Keep new decode/storage logic there, add a test, and add it to `ALL` in `firmware/test/run.sh`.
   Editing one of those headers runs its tests automatically (PostToolUse hook).
 - **Secrets**: `firmware/test/captures/` holds real frames and a device GUEK — gitignored, never
