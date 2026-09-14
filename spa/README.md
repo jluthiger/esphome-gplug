@@ -23,7 +23,9 @@ state change, not a page reload:
   earlier steps.
 - **`#live`** – the day-to-day app (`src/live/`), four tabs behind a fixed bottom nav, with its own
   chrome (clock + WiFi strength, screen title, data-freshness pill). The tab is component state,
-  deliberately *not* in the hash: only the two top-level screens are worth bookmarking.
+  deliberately *not* in the hash: only the two top-level screens are worth bookmarking. The browser
+  tab title carries it instead, as `<hostname> · <screen title>` (the wizard uses its own title;
+  `index.html` says `gPlug` until `/api/status` answers). Verified on mock 2026-09-14.
 
 | Tab | File | What |
 |---|---|---|

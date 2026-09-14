@@ -80,3 +80,8 @@ export function bucketLabel(range, qh) {
   if (range === "month") return fmt("d", { day: "numeric", month: "numeric" }).format(d);
   return fmt("d", { month: "short" }).format(d);
 }
+
+// Browser tab title: host first, because a narrow tab truncates the end and the host is what tells
+// several open gPlugs apart; the screen follows. index.html's static "gPlug" stands in until
+// /api/status has answered.
+export const pageTitle = (screen, host) => `${host || "gPlug"} · ${screen}`;

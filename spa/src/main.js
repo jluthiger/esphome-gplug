@@ -9,6 +9,7 @@ import { Meter } from "./steps/meter.js";
 import { Done } from "./steps/done.js";
 import { Live } from "./live/index.js";
 import { applyTheme, initialTheme } from "./theme.js";
+import { pageTitle } from "./fmt.js";
 
 applyTheme(initialTheme());   // before the first render, so no flash of the wrong theme
 applyLang();                  // <html lang> follows the picked/detected language, not index.html
@@ -92,6 +93,11 @@ function App() {
     setRoute(r);
   }
   const openLive = () => openRoute("live");
+
+  // Live sets its own per-tab title; the wizard (and the loading screen before a route is picked)
+  // needs one too, or a deep link from Live into #setup would keep Live's.
+  const docTitle = route === "live" ? null : pageTitle(S.title, status?.hostname);
+  useEffect(() => { if (docTitle) document.title = docTitle; }, [docTitle]);
 
   // Persist each step to the device as the user leaves it.
   async function commit(from) {

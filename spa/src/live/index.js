@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { clock } from "../fmt.js";
+import { clock, pageTitle } from "../fmt.js";
 import { TabBar } from "./tabbar.js";
 import { Rail } from "./rail.js";
 import { useWide } from "../wide.js";
@@ -69,6 +69,11 @@ export function Live({ status, presets }) {
   // The wide layout drops #app's centred column for the rail + content shell. Before paint, or the
   // first wide frame would squeeze the rail into the phone column.
   useLayoutEffect(() => { document.getElementById("app").classList.toggle("wide", wide); return () => document.getElementById("app").classList.remove("wide"); }, [wide]);
+
+  // The tab is not in the URL, so the title is the only place history and bookmarks can tell the
+  // screens apart. Keyed on the resulting string, which also picks up a language switch.
+  const docTitle = pageTitle(S[TITLES[tab]], status?.hostname);
+  useEffect(() => { document.title = docTitle; }, [docTitle]);
 
   function pickTheme(t) { saveTheme(t); setTheme(t); }
 
