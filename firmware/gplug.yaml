@@ -16,7 +16,7 @@ substitutions:
   # Image version, reported in the app (Setup tab) and shown in an ESPHome dashboard. The release
   # workflow overrides it with the tag (`esphome -s version 1.2.3 compile dev.yaml`); a local
   # build keeps the value below.
-  version: "0.1.0"
+  version: "0.2.0"
 
 esphome:
   name: ${name}
