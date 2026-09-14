@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.4.0] – 2026-09-14
+
 ### Added
 - The browser tab title names the device and the current screen (for example "gplugesp · Verlauf")
   in the chosen language, instead of "gPlug Setup" everywhere, so several open gPlugs and bookmarks
