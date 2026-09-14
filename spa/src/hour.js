@@ -46,5 +46,7 @@ export function lastHour(ring, hist, nowSec = Date.now() / 1000) {
   // chart starts where the data does.
   let first = vals.findIndex((v) => v !== null);
   if (first < 0) first = vals.length;
-  return { vals: vals.slice(first), fromStore, live: covered };
+  // `end` and `period` place every kept slot in time for the chart's readout: slot j of n is
+  // end - (n - 1 - j) * period, and the last `live` slots are ring samples, the rest 15-min averages.
+  return { vals: vals.slice(first), fromStore, live: covered, period, end: nowSec };
 }

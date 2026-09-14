@@ -1,10 +1,11 @@
 import { useRef } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
-import { num } from "../fmt.js";
+import { num, clockAt } from "../fmt.js";
 import { DiagCard, diagInfo, diagOf } from "../diag.js";
 import { lastHour } from "../hour.js";
 import { useBox } from "../box.js";
+import { useScrub, Readout } from "../scrub.js";
 
 export function LiveTab({ live, ring, day, wide }) {
   const age = live?.age;
@@ -42,7 +43,7 @@ export function LiveTab({ live, ring, day, wide }) {
     <div class="big"><span class="v ${net >= 0 ? "imp" : "exp"}">${num(Math.abs(net), 2)}</span><span class="u">kW</span></div>
     <div class="dir ${net >= 0 ? "imp" : "exp"}">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>`;
   const hourChart = known.length >= 2 && html`
-    <${Chart} vals=${vals} />
+    <${Chart} hour=${hour} />
     <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>
     ${hour.fromStore > 0 && html`<p class="hint" style="margin:8px 0 0">${S.histFromStore}</p>`}`;
   const counters = html`
@@ -76,8 +77,9 @@ export function LiveTab({ live, ring, day, wide }) {
 
 // `vals` may contain nulls: an interval the device has no record of (it was off, or the meter
 // delivered nothing). Those are drawn as a break in the line rather than a line through zero,
-// which would read as "0 kW" -- a measurement the device never made.
-function Chart({ vals }) {
+// which would read as "0 kW" -- a measurement the device never made. The readout says so too.
+function Chart({ hour }) {
+  const { vals, period, end, live } = hour;
   // Falls back to the CSS size until the first measurement lands, one frame later.
   const svg = useRef(null);
   const [w, h] = useBox(svg, 320, 104);
@@ -110,8 +112,22 @@ function Chart({ vals }) {
 
   const lastIdx = vals.length - 1;
   const cls = (r) => (r.sign >= 0 ? "imp" : "exp");
+
+  // Ring samples get seconds; the slots filled from flash are quarter-hour averages and say so, as
+  // the hint under the chart does for the whole stretch.
+  const { i, props } = useScrub(vals.length);
+  const sel = i === null ? null : vals[i];
+  let text = null;
+  if (i !== null) {
+    const fromRing = i >= vals.length - live;
+    const t = clockAt(end - (lastIdx - i) * period, fromRing);
+    text = sel === null ? `${t} · ${S.noData}`
+      : `${t} · ${num(Math.abs(sel) / 1000, 2)} kW ${sel >= 0 ? S.statImport : S.statExport}${fromRing ? "" : " · " + S.avg15}`;
+  }
   return html`
-    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart">
+    <${Readout} text=${text} />
+    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart" role="img"
+      aria-label=${S.activePower} ...${props}>
       ${runs.map((r) => {
         const line = "M" + r.pts.join(" L ");
         const x0 = r.pts[0].split(" ")[0], x1 = r.pts[r.pts.length - 1].split(" ")[0];
@@ -120,5 +136,7 @@ function Chart({ vals }) {
       <line x1="0" y1=${zeroY} x2=${w} y2=${zeroY} class="zero" />
       ${runs.map((r) => html`<path d=${"M" + r.pts.join(" L ")} class="line ${cls(r)}" />`)}
       ${vals[lastIdx] !== null && html`<circle cx=${w} cy=${Y(vals[lastIdx]).toFixed(1)} r="3.5" class="head" />`}
+      ${i !== null && html`<line x1=${X(i).toFixed(1)} y1="0" x2=${X(i).toFixed(1)} y2=${h} class="guide" />`}
+      ${sel !== null && html`<circle cx=${X(i).toFixed(1)} cy=${Y(sel).toFixed(1)} r="3.5" class="dot" />`}
     </svg>`;
 }

@@ -143,6 +143,7 @@ export const de = {
   registers: "Register (aktuell)",
   noHistory: "Noch keine gespeicherte Historie.",
   histFromStore: "Der Teil vor dem letzten Neustart stammt aus dem Gerätespeicher: ein Mittelwert je 15 Minuten, keine 10-Sekunden-Werte.",
+  avg15: "Ø 15 min",
   timeEstimated: "Zeitstempel geschätzt (vor der Uhrzeit-Synchronisierung aufgezeichnet).",
   csvTitle: "Lastgang exportieren",
   csvHint: "Alle gespeicherten 15-Minuten-Werte als CSV: Zählerstände, Energie je Intervall, Leistung. Zum Nachrechnen der VNB-Abrechnung und für die ZEV/LEG-Abrechnung.",

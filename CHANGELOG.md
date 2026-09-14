@@ -11,6 +11,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 ## [Unreleased]
 
 ### Added
+- Charts show the value under the pointer: hover with the mouse, drag a finger across the chart, or
+  focus it and use the arrow keys. A line above the chart gives the time and the value -- power with
+  direction on Live (marked when it is a stored 15-minute average), energy or power per interval on
+  History, free heap and largest block on the memory trend -- and "no data" for a gap.
 - Heap monitoring: the Setup tab shows free heap, its minimum since start, the largest free block and
   stack reserves, with a 24 h trend, so a memory leak shows as a falling line before the device
   restarts. Home Assistant gets "Free heap" and "Largest heap block" as diagnostic entities, the event

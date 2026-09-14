@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { dur, num } from "../fmt.js";
+import { clockAt, dur, num } from "../fmt.js";
 import { useBox } from "../box.js";
+import { useScrub, Readout } from "../scrub.js";
 import { Collapsible } from "./collapsible.js";
 
 // Heap figures and the device's 24 h heap trend (/api/heap, heap_monitor.h). The point is a slow
@@ -32,7 +33,7 @@ function MemBody({ status }) {
     // /api/status is otherwise loaded once per page, so the card refreshes its own copy alongside
     // the trend -- otherwise "free" would stay at its page-load value next to a moving line.
     const load = () => {
-      api.heap().then((r) => { if (!stop) setTrend(r); }).catch(() => {});
+      api.heap().then((r) => { if (!stop) setTrend({ ...r, at: Date.now() / 1000 }); }).catch(() => {});
       api.status().then((r) => { if (!stop) setSt(r); }).catch(() => {});
     };
     load();
@@ -55,7 +56,7 @@ function MemBody({ status }) {
   return html`
       <div class="kv">${rows.map(([k, v]) => html`<b>${k}</b><span>${v}</span>`)}</div>
       ${samples.length >= 2 ? html`
-        <${Spark} samples=${samples} />
+        <${Spark} trend=${trend} />
         <div class="axis wrap"><span>${S.memTrend(dur(span))}</span><span>— ${S.memFree} · - - ${S.memLargest}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.memHint}</p>`
       : trend && html`<p class="hint" style="margin:12px 0 0">${S.memWaiting}</p>`}`;
@@ -63,7 +64,8 @@ function MemBody({ status }) {
 
 // Free heap (solid) and largest free block (dashed) on one kB scale from zero, so a fragmenting heap
 // shows as the dashed line falling away while the solid one holds.
-function Spark({ samples }) {
+function Spark({ trend }) {
+  const { samples, period = 300, uptime, at } = trend;
   const svg = useRef(null);
   const [w, h] = useBox(svg, 320, 104);
   const max = Math.max(1, ...samples.map((s) => s[1]));
@@ -71,10 +73,25 @@ function Spark({ samples }) {
   const Y = (v) => (h - 2 - (v / max) * (h - 4)).toFixed(1);
   const path = (col) => "M" + samples.map((s, i) => `${X(i)} ${Y(s[col])}`).join(" L ");
   const last = samples[samples.length - 1];
+
+  // A sample's time is its distance in uptime from the device's uptime at the fetch. Uptime wraps
+  // after 49.7 days; a sample from before the wrap falls back to counting samples back from the
+  // newest, which is off by at most one period.
+  const { i, props } = useScrub(samples.length);
+  const sel = i === null ? null : samples[i];
+  let text = null;
+  if (sel) {
+    const ago = uptime != null && sel[0] <= uptime ? uptime - sel[0] : (samples.length - 1 - i) * period;
+    text = `${clockAt(at - ago)} · ${S.memFree} ${num(sel[1])} kB · ${S.memLargest} ${num(sel[3])} kB`;
+  }
   return html`
-    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart">
+    <${Readout} text=${text} />
+    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="chart" role="img"
+      aria-label=${S.memTitle} ...${props}>
       <path d=${path(3)} class="line mem2" />
       <path d=${path(1)} class="line mem" />
       <circle cx=${w} cy=${Y(last[1])} r="3.5" class="head" />
+      ${sel && html`<line x1=${X(i)} y1="0" x2=${X(i)} y2=${h} class="guide" />
+        <circle cx=${X(i)} cy=${Y(sel[1])} r="3.5" class="dot" />`}
     </svg>`;
 }

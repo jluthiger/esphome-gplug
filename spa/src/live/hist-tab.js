@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { num, bucketLabel, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
+import { num, bucketLabel, bucketWhen, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
 import { useBox } from "../box.js";
+import { useScrub, Readout } from "../scrub.js";
 // Every range here comes from the flash history (/api/history), fetched once per range and kept,
 // so re-visiting one costs the device nothing; the scan reads flash, which is why it is not on the
 // 10 s poll. There is deliberately no "last hour" range: that is live data, not stored history,
@@ -49,7 +50,7 @@ export function HistTab({ live, day, status, presets, wide }) {
     </div>
     ${err && html`<div class="err">${err}</div>`}
     <div class="card">
-      <div class="between" style="margin-bottom:12px">
+      <div class="between" style="margin-bottom:2px">
         <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
         <span class="num" style="font-size:.66rem;color:var(--muted2)">
           ${S.points(vals.length)}
@@ -57,7 +58,7 @@ export function HistTab({ live, day, status, presets, wide }) {
       </div>
       ${loading && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
       ${!loading && bars.length < 2 && html`<p class="hint">${S.noHistory}</p>`}
-      ${bars.length >= 2 && html`<${Bars} bars=${bars} />`}
+      ${bars.length >= 2 && html`<${Bars} bars=${bars} range=${range} energy=${energy} />`}
       ${bars.length >= 2 && html`
         <div class="axis">
           ${axisLabels(bars).map((l) => html`<span>${l}</span>`)}
@@ -96,14 +97,14 @@ function histBars(hist, range) {
   for (const [qh, dEi, dEo, pMin, pMax, pAvg, flags] of hist.pts) {
     if (qh !== null && prevQh !== null && out.length < MAX_BARS) {
       for (let g = prevQh + step; g < qh && out.length < MAX_BARS; g += step)
-        out.push({ v: 0, missing: true, label: bucketLabel(range, g) });
+        out.push({ v: 0, missing: true, label: bucketLabel(range, g), qh: g });
     }
     const label = qh === null ? null : bucketLabel(range, qh);
     if (energy) {
       const known = dEi !== null || dEo !== null;
-      out.push({ v: (dEi || 0) - (dEo || 0), label, missing: !known || (flags & HF_NO_DATA) !== 0 });
+      out.push({ v: (dEi || 0) - (dEo || 0), label, qh, missing: !known || (flags & HF_NO_DATA) !== 0 });
     } else {
-      out.push({ v: pAvg, label, missing: (flags & HF_NO_DATA) !== 0 });
+      out.push({ v: pAvg, label, qh, missing: (flags & HF_NO_DATA) !== 0 });
     }
     if (qh !== null) prevQh = qh;
   }
@@ -188,7 +189,7 @@ function Stat({ k, v, u, dir }) {
     <div class="v ${dir || ""}" style="font-size:1.1rem">${v}</div><div class="u ${dir || ""}">${u}</div></div>`;
 }
 
-function Bars({ bars }) {
+function Bars({ bars, range, energy }) {
   // Bar width and gap are in pixels, so a wider column means more bars' worth of room rather than
   // wider bars (see box.js).
   const svg = useRef(null);
@@ -197,16 +198,32 @@ function Bars({ bars }) {
   const hasNeg = bars.some((b) => !b.missing && b.v < 0);
   const zero = hasNeg ? h * 0.62 : h - 2;
   const bw = w / bars.length;
+
+  // A record written before the clock synced has no time (qh null), so its reading is the value
+  // alone rather than a made-up date.
+  const { i, props } = useScrub(bars.length, true);
+  const sel = i === null ? null : bars[i];
+  let text = null;
+  if (sel) {
+    const v = sel.missing ? S.noData
+      : `${num(Math.abs(sel.v) / 1000, energy ? 1 : 2)} ${energy ? "kWh" : "kW"} ${sel.v >= 0 ? S.statImport : S.statExport}`;
+    text = sel.qh == null ? v : `${bucketWhen(range, sel.qh)} · ${v}`;
+  }
+  const gx = i === null ? 0 : ((i + 0.5) * bw).toFixed(1);
   return html`
-    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="hist">
+    <${Readout} text=${text} />
+    <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="hist${i === null ? "" : " on"}" role="img"
+      aria-label=${energy ? S.energyPerBucket : S.netPower} ...${props}>
       <line x1="0" y1=${zero} x2=${w} y2=${zero} class="zero" />
-      ${bars.map((b, i) => {
-        const x = (i * bw + (bw > 3 ? 1 : 0.2)).toFixed(1);
+      ${bars.map((b, idx) => {
+        const x = (idx * bw + (bw > 3 ? 1 : 0.2)).toFixed(1);
         const bwd = Math.max(0.8, bw - (bw > 3 ? 2 : 0.4)).toFixed(1);
         if (b.missing) return html`<rect x=${x} y=${(zero - 3).toFixed(1)} width=${bwd} height="3" rx="1" class="gap" />`;
+        const on = i === idx ? " sel" : "";
         const bh = Math.max(2, (Math.abs(b.v) / maxAbs) * (b.v >= 0 ? zero - 4 : h - zero - 4));
         return html`<rect x=${x} y=${(b.v >= 0 ? zero - bh : zero).toFixed(1)} width=${bwd}
-          height=${bh.toFixed(1)} rx="1.5" class=${b.v >= 0 ? "up" : "down"} />`;
+          height=${bh.toFixed(1)} rx="1.5" class=${(b.v >= 0 ? "up" : "down") + on} />`;
       })}
+      ${i !== null && html`<line x1=${gx} y1="0" x2=${gx} y2=${h} class="guide" />`}
     </svg>`;
 }

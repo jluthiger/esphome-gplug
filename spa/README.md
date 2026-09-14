@@ -184,6 +184,16 @@ viewBox with `preserveAspectRatio="none"`, which stretches whatever width the el
 desktop column. `useBox()` measures the element with a `ResizeObserver` and the viewBox follows,
 so the mapping is 1:1 at any width and the desktop layer is free to change a chart's height.
 
+**Reading a value off a chart** (`src/scrub.js`). All three charts (Live hour, History bars, memory
+trend) take `useScrub(n)`: mouse hover, a finger dragged across (`touch-action: pan-y`, so vertical
+swipes still scroll; lifting the finger ends the reading) or focus plus arrows, Shift+arrows /
+PageUp/PageDown for a twelfth of the chart, Home/End. The reading goes into `Readout`, a fixed line
+above the chart that keeps its height when empty, so the chart does not jump under the finger; no
+floating tooltip, at any width. The selection is counted from the newest sample, so the guide stays
+put while a polled chart grows. Times: Live from `lastHour()`'s `end`/`period` (seconds for ring
+samples, "Ø 15 min" for stored ones), History from the bucket's `qh` (`bucketWhen()`, value only for
+undated records), memory from `/api/heap`'s `uptime` at fetch time.
+
 Design source: the four tabs follow variant 1a of the "gPlug OBIS Monitor" Claude Design canvas.
 Its fonts and dark-green-only look are superseded (2026-09-11): one system-ui sans stack for the
 whole app, monospace only in raw hex/telegram dumps, and a light + dark token set in `style.css`

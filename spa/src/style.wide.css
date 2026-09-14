@@ -40,6 +40,7 @@
 .d-power .big .v { font-size: 4.2rem; }
 .d-chart { grid-column: span 7; }
 .d-chart .chart { height: 200px; margin-top: 0; }
+.d-chart .readout { margin-top: 0; }
 .d-counters { grid-column: span 6; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .d-counters .card { padding: 18px 22px; border-radius: 20px; display: flex; flex-direction: column; justify-content: center; }
 .d-counters .stat .v { font-size: 1.9rem; }

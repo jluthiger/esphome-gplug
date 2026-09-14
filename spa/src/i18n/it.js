@@ -144,6 +144,7 @@ export const it = {
   registers: "Registri (attuali)",
   noHistory: "Nessuno storico salvato finora.",
   histFromStore: "La parte precedente all'ultimo riavvio proviene dalla memoria del dispositivo: una media ogni 15 minuti, non valori a 10 secondi.",
+  avg15: "media 15 min",
   timeEstimated: "Marca temporale stimata (registrata prima della sincronizzazione dell'orologio).",
   csvTitle: "Esportare la curva di carico",
   csvHint: "Tutti i valori a 15 minuti salvati in formato CSV: letture del contatore, energia per intervallo, potenza. Per verificare la fattura del gestore di rete e per il conteggio di un RCP o di una CEL.",

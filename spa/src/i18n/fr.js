@@ -145,6 +145,7 @@ export const fr = {
   registers: "Registres (actuels)",
   noHistory: "Aucun historique enregistré pour l'instant.",
   histFromStore: "La partie antérieure au dernier redémarrage provient de la mémoire de l'appareil : une moyenne par 15 minutes, et non des valeurs à 10 secondes.",
+  avg15: "moy. 15 min",
   timeEstimated: "Horodatage estimé (enregistré avant la synchronisation de l'heure).",
   csvTitle: "Exporter la courbe de charge",
   csvHint: "Toutes les valeurs de 15 minutes enregistrées, au format CSV : index du compteur, énergie par intervalle, puissance. Pour vérifier la facture du GRD et pour le décompte d'un RCP ou d'une CEL.",

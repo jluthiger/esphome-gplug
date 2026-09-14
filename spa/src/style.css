@@ -130,6 +130,18 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .chart .head { fill: var(--accent2); }
 .chart .line.mem { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
 .chart .line.mem2 { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+/* Chart readouts (scrub.js). The line keeps its height when empty so a starting scrub does not move
+   the chart under the finger; pan-y leaves vertical swipes to the page and horizontal ones to the chart. */
+.readout { min-height: 1.05rem; line-height: 1.05rem; margin-top: 10px; font-size: .72rem; font-weight: 600;
+  color: var(--sub); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.readout + .chart { margin-top: 4px; }
+.chart, .hist { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.chart:focus, .hist:focus { outline: none; }
+.chart:focus-visible, .hist:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.chart .guide, .hist .guide { stroke: var(--fg); stroke-width: 1; opacity: .45; }
+.chart { overflow: visible; }
+.chart .dot { fill: var(--panel); stroke: var(--fg); stroke-width: 2; }
+.hist.on .up:not(.sel), .hist.on .down:not(.sel) { opacity: .5; }
 .axis.wrap { flex-wrap: wrap; gap: 2px 12px; }
 .axis { display: flex; justify-content: space-between; font-size: .68rem; font-variant-numeric: tabular-nums; color: var(--muted2); margin-top: 4px; }
 .stat .v { font-size: 1.35rem; font-weight: 700; color: var(--fg); margin-top: 5px; font-variant-numeric: tabular-nums; }

@@ -53,6 +53,26 @@ export function dur(sec) {
   return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
 }
 
+// The start of the bucket under a chart's pointer, precise enough to tell it from its neighbours:
+// the axis labels can drop the time or the date, a single reading cannot (week buckets are
+// 1 h, month 6 h, year 1 day).
+const WHEN = {
+  day: { hour: "2-digit", minute: "2-digit" },
+  week: { weekday: "short", hour: "2-digit", minute: "2-digit" },
+  month: { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" },
+  year: { weekday: "short", day: "numeric", month: "numeric", year: "numeric" },
+};
+export function bucketWhen(range, qh) {
+  return fmt("d", { ...(WHEN[range] || WHEN.day), hour12: false }).format(qhDate(qh));
+}
+
+// Wall-clock time of a chart sample; seconds for the Live chart's 10 s samples, which would
+// otherwise read the same six times in a row.
+export function clockAt(sec, seconds) {
+  return fmt("d", { hour: "2-digit", minute: "2-digit", second: seconds ? "2-digit" : undefined, hour12: false })
+    .format(new Date(sec * 1000));
+}
+
 export function bucketLabel(range, qh) {
   const d = qhDate(qh);
   if (range === "day") return clock(d);

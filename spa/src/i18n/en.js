@@ -143,6 +143,7 @@ export const en = {
   registers: "Registers (current)",
   noHistory: "No stored history yet.",
   histFromStore: "The part before the last restart comes from the device's storage: one average per 15 minutes, not 10-second values.",
+  avg15: "15-min avg",
   timeEstimated: "Timestamps estimated (recorded before the clock was synchronised).",
   csvTitle: "Export load profile",
   csvHint: "All stored 15-minute values as CSV: meter readings, energy per interval, power. For checking the grid operator's bill and for settlement in a self-consumption group.",
