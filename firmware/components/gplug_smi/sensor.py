@@ -28,6 +28,14 @@ from . import CONF_GPLUG_SMI_ID, GplugSmi
 DEPENDENCIES = ["gplug_smi"]
 
 CONF_FRAME_AGE = "frame_age"
+CONF_FREE_HEAP = "free_heap"
+CONF_LARGEST_BLOCK = "largest_block"
+
+
+def _heap_kb():
+    # Sampled every 5 min with the heap trend (heap_monitor.h); kB, like /api/heap.
+    return sensor.sensor_schema(unit_of_measurement="kB", accuracy_decimals=0, icon="mdi:memory",
+                                state_class=STATE_CLASS_MEASUREMENT, entity_category=ENTITY_CATEGORY_DIAGNOSTIC)
 
 
 def _power():
@@ -81,6 +89,8 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(CONF_FRAME_AGE): sensor.sensor_schema(
             unit_of_measurement=UNIT_SECOND, accuracy_decimals=0, device_class=DEVICE_CLASS_DURATION,
             state_class=STATE_CLASS_MEASUREMENT, entity_category=ENTITY_CATEGORY_DIAGNOSTIC),
+        cv.Optional(CONF_FREE_HEAP): _heap_kb(),
+        cv.Optional(CONF_LARGEST_BLOCK): _heap_kb(),
     }
 )
 
@@ -94,3 +104,9 @@ async def to_code(config):
     if CONF_FRAME_AGE in config:
         sens = await sensor.new_sensor(config[CONF_FRAME_AGE])
         cg.add(parent.set_frame_age_sensor(sens))
+    if CONF_FREE_HEAP in config:
+        sens = await sensor.new_sensor(config[CONF_FREE_HEAP])
+        cg.add(parent.set_free_heap_sensor(sens))
+    if CONF_LARGEST_BLOCK in config:
+        sens = await sensor.new_sensor(config[CONF_LARGEST_BLOCK])
+        cg.add(parent.set_largest_block_sensor(sens))

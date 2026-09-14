@@ -10,6 +10,12 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Added
+- Heap monitoring: the Setup tab shows free heap, its minimum since start, the largest free block and
+  stack reserves, with a 24 h trend, so a memory leak shows as a falling line before the device
+  restarts. Home Assistant gets "Free heap" and "Largest heap block" as diagnostic entities, the event
+  log records low memory, and a restart entry shows the free heap at start.
+
 ## [0.3.0] – 2026-09-14
 
 ### Added

@@ -14,6 +14,8 @@
 #include <esp_http_server.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 #include <nvs.h>
 #include <nvs_flash.h>
 #include <cmath>
@@ -177,6 +179,7 @@ void GplugSmi::loop() {
   }
   this->hist_service_();
   this->log_service_();
+  this->mem_service_();
 }
 
 // ---------------------------------------------------------------- decoding
@@ -779,6 +782,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     }
     if (url == "/api/history.csv") return handle_history_csv_(req);
     if (url == "/api/log") return send_json_(req, 200, json_log_());
+    if (url == "/api/heap") return handle_heap_(req);
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
     if (url == "/manifest.webmanifest") return send_gz_(req, "application/manifest+json", manifest_, manifest_len_);
@@ -888,7 +892,20 @@ std::string GplugSmi::json_status_() {
   }
   s += "\"";
   s += ",\"ota_auth\":" + std::string(ota_auth_ ? "true" : "false");
-  s += ",\"heap\":" + std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+  // `heap` stays for older SPAs; `mem` is the full picture. Free alone hides fragmentation, and the
+  // minimum since boot catches a spike that recovered before anyone looked.
+  const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  size_t heap_free = heap_caps_get_free_size(caps);
+  s += ",\"heap\":" + std::to_string(heap_free);
+  s += ",\"mem\":{\"free\":" + std::to_string(heap_free);
+  s += ",\"min_free\":" + std::to_string(heap_caps_get_minimum_free_size(caps));
+  s += ",\"largest\":" + std::to_string(heap_caps_get_largest_free_block(caps));
+  {
+    std::lock_guard<std::mutex> lock(mem_mutex_);
+    s += ",\"stack_loop\":" + std::to_string(stack_loop_free_);
+  }
+  // This handler runs on the httpd task, so "this task" is the one whose stack is worth watching.
+  s += ",\"stack_httpd\":" + std::to_string((unsigned) uxTaskGetStackHighWaterMark(nullptr)) + "}";
   s += ",\"wifi\":{\"connected\":" + std::string(conn ? "true" : "false");
   if (conn) {
     s += ",\"ssid\":\""; json_escape(s, w->wifi_ssid_to(ssid_buf)); s += "\"";
@@ -1177,6 +1194,72 @@ void GplugSmi::log_service_() {
     this->log_flush_();
   }
   if (millis() - log_flush_ms_ > 60000) this->log_flush_();
+}
+
+// One heap sample every 5 min into a RAM-only ring (heap_monitor.h), plus the two HA diagnostic
+// entities and a one-shot low-heap event. Sampling itself is a few heap_caps calls, so the cost is
+// the mutex and, once per excursion at most, an NVS write.
+void GplugSmi::mem_service_() {
+  uint32_t now = millis();
+  if (mem_sampled_ && now - mem_sample_ms_ < MEM_PERIOD_MS) return;
+  mem_sampled_ = true;
+  mem_sample_ms_ = now;
+
+  const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  auto kb = [](size_t b) { return (uint16_t) (b / 1024 > 65535 ? 65535 : b / 1024); };
+  ::gplug_mem::Sample m{now / 1000, kb(heap_caps_get_free_size(caps)), kb(heap_caps_get_minimum_free_size(caps)),
+                        kb(heap_caps_get_largest_free_block(caps)), 0};
+  {
+    std::lock_guard<std::mutex> lock(mem_mutex_);
+    mem_ring_.push(m);
+    stack_loop_free_ = uxTaskGetStackHighWaterMark(nullptr);
+  }
+#ifdef USE_SENSOR
+  if (free_heap_sensor_ != nullptr) free_heap_sensor_->publish_state(m.free_kb);
+  if (largest_block_sensor_ != nullptr) largest_block_sensor_->publish_state(m.largest_kb);
+#endif
+  ::gplug_mem::Low low = mem_latch_.update(m.free_kb, m.largest_kb, m.up_s);
+  if (low != ::gplug_mem::LOW_NONE) {
+    uint16_t v = low == ::gplug_mem::LOW_FREE ? m.free_kb : m.largest_kb;
+    ESP_LOGW(TAG, "low heap: free %u kB, largest block %u kB", m.free_kb, m.largest_kb);
+    this->log_event_(::gplug_log::EV_LOW_HEAP, low, (uint8_t) (v > 255 ? 255 : v));
+  }
+}
+
+// Streamed in ~1 kB chunks rather than built as one string: the whole answer is 5-8 kB, and the
+// moment someone opens the Memory card to look at a low heap is exactly when a contiguous block
+// that size may not exist. The lock is held per batch, not for the send, so the loop never waits
+// on a slow client.
+void GplugSmi::handle_heap_(AsyncWebServerRequest *req) {
+  httpd_req_t *r = *req;
+  httpd_resp_set_type(r, "application/json");
+  std::string out = "{\"period\":" + std::to_string(MEM_PERIOD_MS / 1000) + ",\"uptime\":" +
+                    std::to_string(millis() / 1000) + ",\"samples\":[";
+  out.reserve(1100);
+  static constexpr size_t BATCH = 32;   // 32 x <= 30 B per sample stays inside the reserve
+  // Resume by push sequence, not by position: a sample pushed between two batches moves a full
+  // ring by one place, and uptime cannot serve as the key because it wraps after 49.7 days.
+  uint32_t next = 0;
+  bool first = true;
+  for (;;) {
+    {
+      std::lock_guard<std::mutex> lock(mem_mutex_);
+      uint32_t end = mem_ring_.pushed(), oldest = end - (uint32_t) mem_ring_.count();
+      if (next < oldest) next = oldest;
+      if (next >= end) break;
+      for (uint32_t stop = std::min<uint32_t>(end, next + BATCH); next < stop; next++) {
+        const auto &m = mem_ring_.at(next - oldest);
+        if (!first) out += ",";
+        first = false;
+        out += "[" + std::to_string(m.up_s) + "," + std::to_string(m.free_kb) + "," + std::to_string(m.min_kb) +
+               "," + std::to_string(m.largest_kb) + "]";
+      }
+    }
+    if (httpd_resp_send_chunk(r, out.data(), out.size()) != ESP_OK) return;
+    out.clear();
+  }
+  out += "]}";
+  if (httpd_resp_send_chunk(r, out.data(), out.size()) == ESP_OK) httpd_resp_send_chunk(r, nullptr, 0);
 }
 
 std::string GplugSmi::json_log_() {

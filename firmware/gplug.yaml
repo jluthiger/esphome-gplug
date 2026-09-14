@@ -160,6 +160,10 @@ sensor:
       name: "Power L3"
     frame_age:
       name: "Last meter frame"
+    free_heap:
+      name: "Free heap"
+    largest_block:
+      name: "Largest heap block"
   - platform: wifi_signal
     name: "Wi-Fi signal"
     update_interval: 60s

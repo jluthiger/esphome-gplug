@@ -232,6 +232,16 @@ export const fr = {
   fwNoReturn: "L'appareil ne se manifeste plus. Rechargez la page dans quelques minutes.",
   fwConnLost: "La connexion a été interrompue pendant le transfert.",
 
+  // Mémoire
+  memTitle: "Mémoire",
+  memFree: "Libre",
+  memMin: "Minimum depuis le démarrage",
+  memLargest: "Plus grand bloc",
+  memStack: "Pile libre (boucle / HTTP)",
+  memTrend: (d) => `Évolution, dernières ${d}`,
+  memWaiting: "La première mesure suit peu après le démarrage.",
+  memHint: "Une courbe qui baisse sans cesse sur plusieurs jours signale une fuite de mémoire. Un redémarrage efface l'évolution.",
+
   // Journal des événements
   logTitle: "Journal des événements",
   logHint: "Les 32 derniers événements, enregistrés dans l'appareil et conservés au redémarrage. Ils montrent surtout pourquoi l'appareil a redémarré.",
@@ -242,6 +252,9 @@ export const fr = {
   copyFailed: "Ce navigateur n'autorise pas la copie via une connexion non chiffrée. Enregistrez plutôt le journal comme fichier.",
   logRepeat: (n) => `répété ${n}×`,
   logUptime: (d) => `après ${d} de fonctionnement`,
+  logHeap: (n) => `${n} kB libres`,
+  logLowFree: (n) => `mémoire libre ${n} kB`,
+  logLowLargest: (n) => `plus grand bloc ${n} kB`,
   evBoot: "Redémarrage",
   evOta: "Micrologiciel mis à jour",
   evWifiUp: "Wi-Fi connecté",
@@ -251,6 +264,7 @@ export const fr = {
   evConfig: "Configuration modifiée",
   evStorage: "Problème de mémoire",
   evButton: "Bouton pressé : identifiants Wi-Fi effacés",
+  evLowHeap: "Mémoire faible",
   evUnknown: "Événement inconnu",
   rrPoweron: "Mise sous tension",
   rrExt: "Broche de réinitialisation",

@@ -225,8 +225,35 @@ function eventLog() {
     [ago(2),   0,    9, 0, 0,   0],   // reset button
     [0,        41,   1, 1, 180, 0],   // a boot before the clock synced: uptime only
   ];
+  if (MOCK_HEAP === "leak") raw.push([ago(0.5), 0, 10, 1, 46, 0]);   // low heap: free 46 kB
   return { now, uptime: 4100, cap: 32,
     events: raw.map(([t, up, code, detail, value, repeat]) => ({ t, up, code, detail, value, repeat })) };
+}
+
+// Mirrors /api/heap (heap_monitor.h): [uptime_s, free_kb, min_kb, largest_kb] every 5 min, oldest
+// first, up to 288 samples. The mock device has been up 26 h, so the ring is full. MOCK_HEAP=leak
+// makes free heap fall ~6 kB an hour into low-heap territory (and adds an EV_LOW_HEAP to the log),
+// which is the picture the Memory card exists to show; the default is a healthy, flat heap.
+const MOCK_HEAP = process.env.MOCK_HEAP || "";
+const HEAP_UP_S = 26 * 3600;
+function heapTrend() {
+  const up = HEAP_UP_S + Math.floor((Date.now() - state.t0) / 1000);
+  const samples = [];
+  let min = 999;
+  for (let t = up - 287 * 300; t <= up; t += 300) {
+    const h = t / 3600;
+    const noise = Math.round(3 * Math.sin(t / 1700) + 2 * Math.sin(t / 530));
+    const free = MOCK_HEAP === "leak" ? Math.max(20, Math.round(190 - 6 * (h - 2)) + noise) : 176 + noise;
+    const largest = MOCK_HEAP === "leak" ? Math.max(8, Math.min(64, Math.round(free / 3))) : 58 + (noise > 2 ? -6 : 0);
+    min = Math.min(min, free - 6);
+    if (t > 0) samples.push([t, free, min, largest]);
+  }
+  return { period: 300, uptime: up, samples };
+}
+function heapStatus() {
+  const last = heapTrend().samples.at(-1);
+  return { free: last[1] * 1024 + 312, min_free: last[2] * 1024, largest: last[3] * 1024,
+    stack_loop: 1420, stack_httpd: 2380 };
 }
 
 // Mirrors /api/frames: the last FRAME_LEN captures, newest-first -- DLMS HDLC frames or DSMR P1
@@ -314,11 +341,13 @@ function statusMeter() {
 }
 
 const routes = {
-  "GET /api/status": () => ({ ...state, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000, heap: 123456,
+  "GET /api/status": () => ({ ...state, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
+    heap: heapStatus().free, mem: heapStatus(),
     time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta() }),
   "GET /api/presets": () => presets,
   "GET /api/frames": () => frames(),
   "GET /api/log": () => eventLog(),
+  "GET /api/heap": () => heapTrend(),
   "GET /api/wifi/scan": () => new Promise((r) => setTimeout(() => r(NETS), 1200)),
   "POST /api/config/wifi": (b) => {
     state.wifi = { connected: false, ssid: b.ssid, ip: null, rssi: null, error: null };

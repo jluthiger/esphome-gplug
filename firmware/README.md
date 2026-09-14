@@ -311,9 +311,10 @@ by design: one setter, one call-site swap).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
-| GET | `/api/status` | version, hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap, wifi, hardware, meter counters |
+| GET | `/api/status` | version, hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop and httpd tasks), wifi, hardware, meter counters |
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
+| GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, samples:[[up_s, free_kb, min_kb, largest_kb],…]}`, oldest first, up to 288 samples (24 h). See "Heap monitoring" below |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |
 | GET | `/api/presets` | embedded presets (gzip) |
 | GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}, baud?, parity?: "N"\|"E", serial_flags?}`. The line parameters are the variant's (from `variants` in `presets.json`, same for all its presets) and are applied to the UART at once, so the sniffer listens before a profile exists |
@@ -406,6 +407,7 @@ whatever the profile reads. A quantity the profile lacks stays *unknown* in Home
 | `current_l1..l3` | Current L1..L3 | A | current, measurement | `I1..3` |
 | `power_l1..l3` | Power L1..L3 | W | power, measurement | `P1i`/`Pi1` minus `P1o`/`Po1` |
 | `frame_age` | Last meter frame | s | duration, diagnostic | time since the last decoded frame |
+| `free_heap`, `largest_block` | Free heap / Largest heap block | kB | measurement, diagnostic, every 5 min | free internal heap, largest free block |
 | `meter_status` (text) | Meter status | – | diagnostic | the `diag` verdict (table above) |
 | `meter_id` (text) | Meter ID | – | diagnostic | `SMid` |
 | (`wifi_signal` platform) | Wi-Fi signal | dBm | diagnostic, every 60 s | – |
@@ -428,6 +430,7 @@ whatever the profile reads. A quantity the profile lacks stays *unknown* in Home
 - Adopting configs inherit the list through the `gplug.yaml` package. To drop an entity, override
   the `sensor:` list in the adopting YAML, or disable the entity in Home Assistant.
 - Cost (2026-09-14): +8.7 kB flash (sensor and text_sensor cores, 21 entities), +1.0 kB static RAM.
+  The two heap entities came later with heap monitoring (its cost in `MEMORY.md`).
 
 ### Event log (`event_log.h`, `/api/log`)
 
@@ -436,7 +439,8 @@ is unplugged: **why did it restart**. `esp_reset_reason()` is read at boot and s
 a task or interrupt watchdog, and a brownout are told apart from a normal power-up or the
 software restart that an OTA and a config save perform. Alongside that: Wi-Fi up and down with
 the RSSI, the meter going quiet and coming back (with the `diag` verdict that says why), config
-changes, history-store failures, and the AP button erasing the Wi-Fi credentials.
+changes, history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
+(code 10, detail 1 = free heap / 2 = largest block, value in kB; see "Heap monitoring").
 
 Four decisions worth knowing:
 
@@ -462,6 +466,33 @@ restart with 185 kB free heap, Wi-Fi at -39 dBm three seconds later, and meter d
 after that. A crash, a watchdog and a brownout are covered by the host tests and the mock rather
 than provoked on hardware; `test/test_eventlog.cpp` pins the ring, the folding, the back-dating
 and the blob round-trip, including rejection of a corrupt blob.
+
+### Heap monitoring (`heap_monitor.h`, `/api/heap`)
+
+A leak shows as a trend, not as a number, so the loop samples the internal heap every 5 min into a
+RAM-only ring of 288 × 12 B (24 h, 3.4 kB): free, minimum free since boot, and largest free block.
+The last one falls with fragmentation while free heap holds, and a request needing a contiguous
+buffer fails on it first. Nothing is written to flash for the trend; a reboot clears it, which is
+also when a leak's damage is undone. The Setup tab's Memory card draws it (free solid, largest
+block dashed), and `free_heap` / `largest_block` go to Home Assistant from the same sample.
+`/api/heap` is streamed in ~1 kB chunks, not built as one 5-8 kB string, because it is most likely
+to be opened when a block that size is hard to find.
+
+**Low-heap event**: logged once when free heap drops below 48 kB or the largest block below 12 kB,
+re-armed only after both recover above 64 / 20 kB, and at most once an hour. That bounds the NVS
+cost at 24 records a day in the worst case (heap swinging across the whole band). Each record
+rewrites the 388 B log blob, ~14 NVS entries, so the worst case fills under three of the 448 kB
+partition's 112 pages a day: ~45 erases per page over five years. A healthy device never logs it. `EV_BOOT` already records the free heap at
+start, which the SPA shows next to the reset reason from 2026-09-14 on (older firmware stored it too).
+
+Verified on gPlugK 2026-09-14 (OTA, encrypted DLMS push, Home Assistant connected), 4 h 15 min
+across two boots (a power cut in between, logged as power-on): `/api/status` `mem`, `/api/heap`
+(chunked), and the "Free heap" / "Largest heap block" entities in Home Assistant. Free heap held at
+162-166 kB and the largest block at 112 kB for the whole run, so no leak over those hours. The
+minimum since boot fell by ~10 kB per half hour for the first ~2 h of each boot (154 -> 108 kB,
+159 -> 121 kB) and then stayed: some transient allocation peaks deeper for a while, not traced yet.
+`stack_httpd` read 784-804 B unused. The low-heap event, its latch and the
+chart's rendering are covered by `test/test_heapmon.cpp` and the mock (`MOCK_HEAP=leak`) only.
 
 **Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
 `esphome run`. To clear it, erase that region — take the offset from the boot log

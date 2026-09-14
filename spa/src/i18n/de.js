@@ -230,6 +230,16 @@ export const de = {
   fwNoReturn: "Gerät meldet sich nicht zurück. In ein paar Minuten die Seite neu laden.",
   fwConnLost: "Verbindung während der Übertragung abgebrochen.",
 
+  // Arbeitsspeicher
+  memTitle: "Arbeitsspeicher",
+  memFree: "Frei",
+  memMin: "Minimum seit Start",
+  memLargest: "Grösster Block",
+  memStack: "Stack frei (Loop / HTTP)",
+  memTrend: (d) => `Verlauf, letzte ${d}`,
+  memWaiting: "Erster Messwert folgt kurz nach dem Start.",
+  memHint: "Fällt die Linie über Tage stetig, verliert die Firmware Speicher. Ein Neustart setzt den Verlauf zurück.",
+
   // Ereignisprotokoll
   logTitle: "Ereignisprotokoll",
   logHint: "Die letzten 32 Ereignisse, im Gerät gespeichert und neustartfest. Zeigt vor allem, warum das Gerät neu gestartet ist.",
@@ -240,6 +250,9 @@ export const de = {
   copyFailed: "Dieser Browser erlaubt das Kopieren über eine unverschlüsselte Verbindung nicht. Speichern Sie das Protokoll stattdessen als Datei.",
   logRepeat: (n) => `${n}× wiederholt`,
   logUptime: (d) => `nach ${d} Laufzeit`,
+  logHeap: (n) => `${n} kB frei`,
+  logLowFree: (n) => `freier Speicher ${n} kB`,
+  logLowLargest: (n) => `grösster Block ${n} kB`,
   evBoot: "Neustart",
   evOta: "Firmware aktualisiert",
   evWifiUp: "WLAN verbunden",
@@ -249,6 +262,7 @@ export const de = {
   evConfig: "Konfiguration geändert",
   evStorage: "Speicherproblem",
   evButton: "Taste gedrückt: WLAN-Zugangsdaten gelöscht",
+  evLowHeap: "Wenig Arbeitsspeicher",
   evUnknown: "Unbekanntes Ereignis",
   rrPoweron: "Stromzufuhr eingeschaltet",
   rrExt: "Reset-Anschluss",

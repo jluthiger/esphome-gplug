@@ -231,6 +231,16 @@ export const it = {
   fwNoReturn: "Il dispositivo non si rifà vivo. Ricaricate la pagina fra qualche minuto.",
   fwConnLost: "La connessione si è interrotta durante il trasferimento.",
 
+  // Memoria
+  memTitle: "Memoria",
+  memFree: "Libera",
+  memMin: "Minimo dall'avvio",
+  memLargest: "Blocco più grande",
+  memStack: "Stack libero (loop / HTTP)",
+  memTrend: (d) => `Andamento, ultime ${d}`,
+  memWaiting: "La prima misura segue poco dopo l'avvio.",
+  memHint: "Una linea che scende di continuo per giorni indica una perdita di memoria. Un riavvio azzera l'andamento.",
+
   // Registro eventi
   logTitle: "Registro eventi",
   logHint: "Gli ultimi 32 eventi, salvati nel dispositivo e conservati al riavvio. Mostrano soprattutto perché il dispositivo si è riavviato.",
@@ -241,6 +251,9 @@ export const it = {
   copyFailed: "Questo browser non consente la copia tramite una connessione non cifrata. Salvate invece il registro come file.",
   logRepeat: (n) => `ripetuto ${n}×`,
   logUptime: (d) => `dopo ${d} di funzionamento`,
+  logHeap: (n) => `${n} kB liberi`,
+  logLowFree: (n) => `memoria libera ${n} kB`,
+  logLowLargest: (n) => `blocco più grande ${n} kB`,
   evBoot: "Riavvio",
   evOta: "Firmware aggiornato",
   evWifiUp: "Wi-Fi connesso",
@@ -250,6 +263,7 @@ export const it = {
   evConfig: "Configurazione modificata",
   evStorage: "Problema di memoria",
   evButton: "Pulsante premuto: credenziali Wi-Fi cancellate",
+  evLowHeap: "Memoria scarsa",
   evUnknown: "Evento sconosciuto",
   rrPoweron: "Alimentazione inserita",
   rrExt: "Pin di reset",

@@ -11,6 +11,7 @@
 #include "partition_flash.h"
 #include "protocol_sniff.h"
 #include "ha_values.h"
+#include "heap_monitor.h"
 #include "esphome/core/defines.h"
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
@@ -30,6 +31,9 @@ namespace gplug_smi {
 static constexpr size_t MAX_OBIS = 48;
 static constexpr size_t RING_LEN = 360;      // 60 min at 10 s
 static constexpr uint32_t RING_PERIOD_MS = 10000;
+// Heap trend (heap_monitor.h): 288 x 12 B = 3.4 kB of RAM for 24 h, never written to flash.
+static constexpr size_t MEM_RING_LEN = 288;
+static constexpr uint32_t MEM_PERIOD_MS = 300000;
 // Datenstrom capture: the last FRAME_LOG_LEN frames as received -- DLMS HDLC frames or whole DSMR
 // telegrams, both raw and (for DLMS) decrypted. 1280 B covers the descriptor buffer ceiling.
 static constexpr size_t FRAME_LOG_LEN = 5;
@@ -86,6 +90,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
 #ifdef USE_SENSOR
   void set_ha_sensor(uint8_t key, sensor::Sensor *s) { if (key < ::gplug_ha::HA_COUNT) ha_sensors_[key] = s; }
   void set_frame_age_sensor(sensor::Sensor *s) { frame_age_sensor_ = s; }
+  void set_free_heap_sensor(sensor::Sensor *s) { free_heap_sensor_ = s; }
+  void set_largest_block_sensor(sensor::Sensor *s) { largest_block_sensor_ = s; }
 #endif
 #ifdef USE_TEXT_SENSOR
   void set_meter_status_text(text_sensor::TextSensor *s) { meter_status_text_ = s; }
@@ -145,6 +151,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void handle_frame_detail_(AsyncWebServerRequest *req, const char *url);
   std::string json_history_(const char *range);
   std::string json_log_();
+  void handle_heap_(AsyncWebServerRequest *req);
+  void mem_service_();
   // Event log (event_log.h): rare, persistent "what happened" records in NVS.
   void log_setup_();
   void log_event_(uint8_t code, uint8_t detail = 0, uint8_t value = 0);
@@ -251,11 +259,23 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool wifi_was_up_{false};
   std::string last_diag_{"unconfigured"};
 
+  // Heap trend. Its own mutex, like the log: the loop task samples, the httpd task renders.
+  std::mutex mem_mutex_;
+  ::gplug_mem::Ring<MEM_RING_LEN> mem_ring_;
+  ::gplug_mem::LowLatch mem_latch_;
+  uint32_t mem_sample_ms_{0};
+  bool mem_sampled_{false};             // the first sample is taken at once, not 5 min after boot
+  // The loop task's stack high-water mark, read in mem_service_() because only the task itself can
+  // cheaply ask for it; the HTTP handler reports the httpd task's own mark directly.
+  uint32_t stack_loop_free_{0};
+
   // Home Assistant entities and what was last sent, so unavailable states and text are published on
   // change only; the numbers themselves go out on every tick.
 #ifdef USE_SENSOR
   sensor::Sensor *ha_sensors_[::gplug_ha::HA_COUNT]{};
   sensor::Sensor *frame_age_sensor_{nullptr};
+  sensor::Sensor *free_heap_sensor_{nullptr};
+  sensor::Sensor *largest_block_sensor_{nullptr};
   bool ha_sent_have_[::gplug_ha::HA_COUNT]{};
   bool ha_sent_once_{false};
 #endif

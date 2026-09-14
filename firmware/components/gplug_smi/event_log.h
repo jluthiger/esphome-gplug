@@ -30,6 +30,7 @@ enum : uint8_t {
   EV_CONFIG = 7,      // detail: 1 hardware, 2 meter, 3 wifi
   EV_STORAGE = 8,     // detail: 1 history append failed, 2 history unavailable at boot
   EV_BUTTON = 9,      // AP button held: Wi-Fi credentials erased
+  EV_LOW_HEAP = 10,   // detail: 1 free heap, 2 largest block (gplug_mem::Low); value = that figure in kB
 };
 
 // Mirrors esp_reset_reason_t, but decoupled from it: the numbers here go to flash and must not

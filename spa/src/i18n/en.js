@@ -230,6 +230,16 @@ export const en = {
   fwNoReturn: "The device is not reporting back. Reload the page in a few minutes.",
   fwConnLost: "The connection dropped during the transfer.",
 
+  // Memory
+  memTitle: "Memory",
+  memFree: "Free",
+  memMin: "Minimum since start",
+  memLargest: "Largest block",
+  memStack: "Stack free (loop / HTTP)",
+  memTrend: (d) => `Trend, last ${d}`,
+  memWaiting: "The first sample follows shortly after start.",
+  memHint: "A line that keeps falling over days means the firmware is leaking memory. A restart clears the trend.",
+
   // Event log
   logTitle: "Event log",
   logHint: "The last 32 events, stored on the device and kept across restarts. Above all it shows why the device restarted.",
@@ -240,6 +250,9 @@ export const en = {
   copyFailed: "This browser does not allow copying over an unencrypted connection. Save the log as a file instead.",
   logRepeat: (n) => `repeated ${n}×`,
   logUptime: (d) => `after ${d} of running time`,
+  logHeap: (n) => `${n} kB free`,
+  logLowFree: (n) => `free heap ${n} kB`,
+  logLowLargest: (n) => `largest block ${n} kB`,
   evBoot: "Restart",
   evOta: "Firmware updated",
   evWifiUp: "Wi-Fi connected",
@@ -249,6 +262,7 @@ export const en = {
   evConfig: "Configuration changed",
   evStorage: "Storage problem",
   evButton: "Button pressed: Wi-Fi credentials erased",
+  evLowHeap: "Low memory",
   evUnknown: "Unknown event",
   rrPoweron: "Power applied",
   rrExt: "Reset pin",

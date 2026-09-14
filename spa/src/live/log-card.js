@@ -13,7 +13,7 @@ import { copyText, download } from "../dl.js";
 // somewhere a user goes deliberately.
 
 const EV = { 1: "evBoot", 2: "evOta", 3: "evWifiUp", 4: "evWifiLost", 5: "evMeterLost",
-             6: "evMeterOk", 7: "evConfig", 8: "evStorage", 9: "evButton" };
+             6: "evMeterOk", 7: "evConfig", 8: "evStorage", 9: "evButton", 10: "evLowHeap" };
 // esp_reset_reason_t as event_log.h renumbers it; the three watchdog flavours read the same to a
 // user, so they share a string.
 const RR = { 1: "rrPoweron", 2: "rrExt", 3: "rrSw", 4: "rrPanic", 5: "rrWdt", 6: "rrWdt", 7: "rrWdt",
@@ -25,11 +25,15 @@ const ST = { 1: "stWrite", 2: "stUnavail" };
 const WHY = { 1: "dgKey", 2: "dgNoMatch", 3: "dgProtocol", 4: "dgGarbled", 5: "dgSilent" };
 
 function detailOf(e) {
-  if (e.code === 1) return S[RR[e.detail] || "rrUnknown"];
+  // EV_BOOT's value is the free heap right after start: a leak shows as that figure against the
+  // Memory card's trend just before the reset.
+  if (e.code === 1) return [S[RR[e.detail] || "rrUnknown"], e.value ? S.logHeap(e.value) : null].filter(Boolean).join(" · ");
   if (e.code === 5) return S[WHY[e.detail]] || null;
   if (e.code === 7) return S[CFG[e.detail]] || null;
   if (e.code === 8) return S[ST[e.detail]] || null;
   if (e.code === 3 && e.value) return `${-e.value} dBm`;
+  // EV_LOW_HEAP detail: 1 free heap, 2 largest block (heap_monitor.h); value in kB, capped at 255.
+  if (e.code === 10) return e.detail === 2 ? S.logLowLargest(e.value) : S.logLowFree(e.value);
   return null;
 }
 
@@ -87,7 +91,7 @@ export function LogCard({ wide }) {
               return html`
                 <tr>
                   <td class="ev-t">${when(e)}</td>
-                  <td class="ev-n ${e.code === 1 && e.detail === 4 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</td>
+                  <td class="ev-n ${e.code === 1 && e.detail === 4 || e.code === 10 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</td>
                   <td class="ev-d">${d || ""}</td>
                   <td class="ev-r">${e.repeat > 0 ? S.logRepeat(e.repeat + 1) : ""}</td>
                 </tr>`;
@@ -100,7 +104,7 @@ export function LogCard({ wide }) {
           <div class="ev">
             <div class="ev-t">${when(e)}</div>
             <div class="ev-w">
-              <span class="ev-n ${e.code === 1 && e.detail === 4 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</span>
+              <span class="ev-n ${e.code === 1 && e.detail === 4 || e.code === 10 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</span>
               ${d && html`<span class="ev-d">${d}</span>`}
               ${e.repeat > 0 && html`<span class="ev-r">${S.logRepeat(e.repeat + 1)}</span>`}
             </div>

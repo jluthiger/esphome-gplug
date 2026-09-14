@@ -68,6 +68,7 @@ export const api = {
   },
   frames: () => req("GET", "/api/frames", null, 4000),
   log: () => req("GET", "/api/log", null, 4000),
+  heap: () => req("GET", "/api/heap", null, 4000),
   frameRaw: (i) => req("GET", `/api/frames/${i}/raw`, null, 4000),
   framePlain: (i) => req("GET", `/api/frames/${i}/plain`, null, 4000),
   reboot: () => req("POST", "/api/reboot"),

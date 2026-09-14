@@ -116,6 +116,9 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .chart .line.exp { fill: none; stroke: var(--export); stroke-width: 2; stroke-linejoin: round; }
 .chart .zero { stroke: var(--zero); stroke-width: 1; stroke-dasharray: 3 4; }
 .chart .head { fill: var(--accent2); }
+.chart .line.mem { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.chart .line.mem2 { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.axis.wrap { flex-wrap: wrap; gap: 2px 12px; }
 .axis { display: flex; justify-content: space-between; font-size: .68rem; font-variant-numeric: tabular-nums; color: var(--muted2); margin-top: 4px; }
 .stat .v { font-size: 1.35rem; font-weight: 700; color: var(--fg); margin-top: 5px; font-variant-numeric: tabular-nums; }
 .stat .v.imp { color: var(--import); }

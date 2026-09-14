@@ -4,6 +4,7 @@ import { S, LANGS, getLang, setLang, presetLabel } from "../strings.js";
 import { Wifi } from "../steps/wifi.js";
 import { FirmwareCard } from "./firmware-card.js";
 import { LogCard } from "./log-card.js";
+import { MemCard } from "./mem-card.js";
 
 export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
   const [showWifi, setShowWifi] = useState(false);
@@ -45,7 +46,8 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
         <div class="keymask"><span class="m">•••• •••• •••• •••• •••• •••• •••• ••••</span><span class="badge ${keyBadge[0]}">${keyBadge[1]}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       </div>`}
-    <${FirmwareCard} status=${status} />`;
+    <${FirmwareCard} status=${status} />
+    <${MemCard} status=${status} />`;
   const prefs = html`
     <div class="card">
       <div class="lbl">${S.language}</div>
