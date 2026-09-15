@@ -10,11 +10,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
-### Fixed
-- Data Stream tab: when no meter profile is configured yet, the "no profile" card now has a button
-  back to the setup wizard's meter step instead of being a dead end.
-
-## [0.4.0] – 2026-09-14
+## [0.4.0] – 2026-09-15
 
 ### Added
 - The browser tab title names the device and the current screen (for example "gplugesp · Verlauf")
@@ -31,6 +27,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - Setup tab: restart the device from the firmware card, after a confirmation. The card waits until the
   device is back (or says that it is not), and the event log records that the restart was requested
   from the web app.
+
+### Fixed
+- Data Stream tab: when no meter profile is configured yet, the "no profile" card now has a button
+  back to the setup wizard's meter step instead of being a dead end.
 
 ### Changed
 - The firmware update card is now "Firmware and restart".
