@@ -10,6 +10,22 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+- Each gPlug now has its own network name, `gplug-` plus the last six hex digits of its MAC address
+  (for example `gplug-a1b2c3.local`), so several gPlugs can run in the same WLAN. The Wi-Fi setup
+  page shows that address before you save, and the setup wizard shows it on its first screen.
+
+### Upgrade notes
+- The device's address changes from `gplug.local` to `gplug-xxxxxx.local` after the update. Its IP
+  address stays the same. If you start the update from `gplug.local`, the firmware card reports that
+  the device did not come back, because that name no longer answers; open the new address (shown
+  in the router's client list, or found with `dns-sd -B _esphomelib._tcp`).
+- Bookmarks and a Home Assistant ESPHome integration set up with the host `gplug.local` need the
+  new address. Devices adopted in an ESPHome Device Builder keep their configured name and do not
+  change.
+- No USB reflash: the partition table is unchanged. Wi-Fi, meter settings, history and event log
+  are kept.
+
 ## [0.4.0] – 2026-09-15
 
 ### Added

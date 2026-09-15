@@ -8,7 +8,7 @@ export function Welcome({ status, onNext }) {
     ${status && html`
       <div class="card kv">
         <b>${S.version}</b><span class="num">${status.version || "?"}</span>
-        <b>${S.hardware}</b><span class="num">${status.hostname || "?"}</span>
+        <b>${S.host}</b><span class="num">${status.hostname ? `${status.hostname}.local` : "?"}</span>
       </div>`}
     <div class="nav"><button class="primary" onClick=${onNext}>${S.next}</button></div>`;
 }

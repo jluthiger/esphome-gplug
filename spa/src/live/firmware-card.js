@@ -141,7 +141,11 @@ export function FirmwareCard({ status }) {
   }
 
   const busy = phase === "upload" || phase === "reboot" || phase === "restart";
-  const otherName = info?.name && status?.hostname && info.name !== status.hostname;
+  // The image carries the compile-time name ("gplug"); the device adds its MAC suffix at boot
+  // ("gplug-a1b2c3"), so the released image matches either form. An adopted config bakes the full
+  // suffixed name in, which still compares equal, and still warns on another gPlug's image.
+  const otherName = info?.name && status?.hostname && info.name !== status.hostname
+    && info.name !== status.hostname.replace(/-[0-9a-f]{6}$/, "");
 
   // The upload state lives here, above the Collapsible, so closing the card mid-way loses nothing;
   // the card is still held open while busy so the "keep powered" warning stays in view.

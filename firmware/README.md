@@ -51,7 +51,7 @@ inactive app slot (`app0`/`app1`, 1408 kB each; image ~985 kB), nvs and `data` u
 hw/meter config and history survive:
 
 ```
-esphome upload dev.yaml --device <ip|gplug.local>             # native ESPHome OTA, port 3232 (~6 s)
+esphome upload dev.yaml --device <ip|gplug-xxxxxx.local>          # native ESPHome OTA, port 3232 (~6 s)
 curl -F update=@.esphome/build/gplug/.pioenvs/gplug/firmware.ota.bin http://<ip>/update   # what the SPA's firmware card does (~12 s)
 ```
 
