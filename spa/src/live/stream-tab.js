@@ -97,7 +97,13 @@ export function StreamTab({ wide }) {
 
   if (err && !frames) return html`<div class="err">${err}</div>`;
   if (!frames) return html`<p><span class="spin"></span> ${S.loading}</p>`;
-  if (frames.protocol === "none") return html`<div class="card"><p class="hint">${S.streamEmptyNone}</p></div>`;
+  if (frames.protocol === "none") return html`
+    <div class="card">
+      <p class="hint">${S.streamEmptyNone}</p>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" onClick=${() => { location.hash = "#setup/meter"; }}>${S.fixMeter}</button>
+      </div>
+    </div>`;
 
   // DSMR telegrams are ASCII to begin with, so "plain" is the telegram itself and "raw" is a hex
   // dump of the same bytes -- one capture, two views. DLMS keeps ciphertext vs decrypted APDU.

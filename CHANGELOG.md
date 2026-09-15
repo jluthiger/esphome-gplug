@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Fixed
+- Data Stream tab: when no meter profile is configured yet, the "no profile" card now has a button
+  back to the setup wizard's meter step instead of being a dead end.
+
 ## [0.4.0] – 2026-09-14
 
 ### Added
