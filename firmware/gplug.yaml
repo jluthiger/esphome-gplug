@@ -22,6 +22,11 @@ substitutions:
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
+  # One image runs on every gPlug, so a fixed name made two of them in one WLAN fight over
+  # gplug.local (issue #9). The suffix is the last three MAC bytes: gplug-a1b2c3.local. Adopting in a
+  # Device Builder turns it off again and bakes the discovered, already suffixed name into the
+  # config (esphome/components/dashboard_import), so an adopted device keeps its address.
+  name_add_mac_suffix: true
   min_version: 2026.6.0
   # project + dashboard_import together make the device show up under "Discovered" in any ESPHome
   # Device Builder on the LAN (both are required, see esphome/zeroconf.py DashboardImportDiscovery).

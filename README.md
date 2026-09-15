@@ -108,7 +108,9 @@ this repo's `stable` branch (the latest release) as a package, no clone needed.
 
 First boot: the device has no WiFi yet, so it opens the `gPlug-Setup` access point. Join it from a
 phone, the captive portal asks for your home WiFi, the device reboots into it, and the setup wizard
-is then at `http://gplug.local/` (pins, meter preset). From then on that address opens the live
+is then at `http://gplug-xxxxxx.local/` (pins, meter preset). The `xxxxxx` is the last three bytes
+of the device's MAC address, so several gPlugs can share one WLAN; the captive portal shows the full
+address before you save. From then on that address opens the live
 app instead — four tabs: **Live** (current power, 1 h chart, counters, per-phase), **History**
 (Day/Week/Month/Year from the device's own 15-min flash history, ~374 days, with a CSV export),
 **Data Stream** (the last captured raw DLMS frames, with hex export, for diagnosing a meter that
