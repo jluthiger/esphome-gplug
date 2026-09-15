@@ -11,7 +11,6 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 |---|---|
 | [`firmware/`](firmware/README.md) | ESPHome external component (`gplug_smi`): DSMR/P1, DLMS/COSEM + HDLC, AES-GCM decoding, 15-min history on flash, host-side test suite |
 | [`spa/`](spa/README.md) | Setup wizard + live app (Preact, no build framework), bundled into the firmware image and served from the device |
-| [`gplug/`](gplug) | Existing Tasmota scripts per variant/provider, source of the SPA's presets (`gPlugD`, `gPlugD-E`, `gPlugK`, `gPlugM`) |
 | [`intent/`](intent) | Intent doc: goal, scope, constraints |
 | [`install/`](install) | Web installer page (ESP Web Tools) + manifest, deployed to GitHub Pages by the release workflow |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed per release, with upgrade notes |
