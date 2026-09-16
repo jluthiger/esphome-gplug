@@ -296,8 +296,9 @@ branding, based on esphome 2026.6.5:
   where `.local` cannot resolve yet, and the webview closes when the phone changes Wi-Fi. Copying
   uses `document.execCommand("copy")` because `navigator.clipboard` needs a secure context; if the
   webview refuses, the button is replaced by a "copy by hand" hint. Below it: a screenshot hint and
-  the router device-list fallback for phones that do not resolve mDNS. Copy verified in desktop
-  Chrome against a static `/config.json` only (2026-09-16), not yet in iOS/Android captive webviews.
+  the router device-list fallback for phones that do not resolve mDNS. Copy verified in the Android
+  captive webview on gPlugK after a full flash erase (2026-09-16), and in desktop Chrome against a
+  static `/config.json`; the iOS captive webview is not yet checked.
   Cost: 4.7 kB gzipped for the whole page. Everything else is the
   same markup/JS/form-field contract as upstream's page
   (dynamic title/MAC/network-list from `/config.json`, `#ssid`/`#psk` fields posting to
