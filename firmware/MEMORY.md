@@ -1,6 +1,6 @@
 # Flash and RAM usage
 
-Snapshot of the `dev.yaml` build from 2026-09-14 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+Snapshot of the `dev.yaml` build from 2026-09-16 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
 4 MB flash), with the Home Assistant entities. Sizes in kB = 1024 bytes. Numbers come from the
 linker map, not from a running device, except where noted.
 
@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1066460 dram=128768 gplug_smi_obj=24992 -->
+<!-- size-baseline image=1068292 dram=128804 gplug_smi_obj=24992 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -42,15 +42,17 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,066,460 B = 1041 kB in a 1408 kB slot: **74.0 % full, 367 kB headroom** (2026-09-14, with
-chart pointer values, the restart button and the per-screen tab title: +2.5 kB, all of it SPA
+Image 1,068,292 B = 1043 kB in a 1408 kB slot: **74.1 % full, 365 kB headroom** (2026-09-16, with
+the captive page's copyable address, copy button and screenshot/router hints in four languages:
++1.3 kB, all of it the gzipped captive page; the MAC-suffixed name before it added 0.5 kB that was
+not recorded here; 1,066,460 B before, 2026-09-14, with chart pointer values, the restart button and the per-screen tab title: +2.5 kB, all of it SPA
 (44.3 -> 46.7 kB) and its strings; 1,063,994 B before, with collapsible Setup cards: +1.4 kB, of which 0.8 kB SPA and 0.5 kB `gplug_smi` code from moving the
 event-log write and the URL buffer off the httpd task; 1,062,602 B before, with heap monitoring: +3.3 kB, of which 1.3 kB SPA Memory card and strings, 1.5 kB `gplug_smi` code for
 the sampler, `/api/heap` and two more HA entities; 1,059,332 B before, with the Home Assistant
 entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
 before that, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 765 kB code run from flash, 206 kB read-only data, 59 kB IRAM code and 11 kB `.data` initial values
+By section: 765 kB code run from flash, 207 kB read-only data, 59 kB IRAM code and 11 kB `.data` initial values
 (those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
@@ -61,15 +63,15 @@ By owner (*generated*):
 | ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA) | 208.3 kB | 20.0 % |
 | Crypto (mbedTLS for AES-GCM, Noise/Ed25519 for the encrypted API) | 136.5 kB | 13.1 % |
 | Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 137.2 kB | 13.2 % |
-| String literals from all code | 79.7 kB | 7.7 % |
-| ESPHome core and components (incl. the captive_portal fork) | 67.3 kB | 6.5 % |
+| String literals from all code | 79.7 kB | 7.6 % |
+| ESPHome core and components (incl. the captive_portal fork) | 67.3 kB | 6.4 % |
 | `gplug_smi` code | 52.1 kB | 5.0 % |
-| Embedded web files, gzipped except the PNG: SPA 46.7 kB, icon 3.6 kB, captive page 3.1 kB, presets 1.6 kB, manifest 0.2 kB | 55.6 kB | 5.3 % |
-| ESPHome-generated `main.cpp` setup code | 5.0 kB | 0.5 % |
+| Embedded web files, gzipped except the PNG: SPA 46.7 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 57.3 kB | 5.5 % |
+| ESPHome-generated `main.cpp` setup code | 5.1 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.6 kB | 0.2 % |
 
 The platform (Wi-Fi, ESP-IDF, crypto, networking) is 75 % of the image; gPlug's own code and web
-files are about 10.3 %.
+files are about 10.5 %.
 
 **Misleading attribution:** `esp_idf_size` reports ~80 kB of `.rodata` in `api_connection.cpp.o`,
 which the script books as "String literals". That is the linker's merged string-literal pool (`.rodata.*.str1.4`): string literals from every
@@ -88,7 +90,7 @@ The C3 has 314 kB (321,296 B) of SRAM usable by the app; IRAM and DRAM share it.
 | ESP-IDF globals (scheduler lists, ISR stack, stdio, driver state) | 11.1 kB | 3.5 % |
 | ESPHome loop task stack (`esphome::loop_task_stack`) | 8.0 kB | 2.5 % |
 | lwIP and mDNS (DNS table, mDNS task stack) | 4.6 kB | 1.5 % |
-| Other component objects (logger, remaining ESPHome components) | 3.6 kB | 1.1 % |
+| Other component objects (logger, remaining ESPHome components) | 3.6 kB | 1.2 % |
 | **Static total** | **125.8 kB** | **40.1 %** |
 | **Left for the heap at boot** | **188.0 kB** | **59.9 %** |
 

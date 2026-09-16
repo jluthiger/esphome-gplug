@@ -288,10 +288,17 @@ branding, based on esphome 2026.6.5:
   is always gzip via `_gz_bytes()`); this is a deliberate narrowing, not an oversight.
 - `captive.html` – the actual branding **and the only screen that has to speak four languages
   without any stored preference**, since it is what a phone sees before the SPA exists. A flat
-  six-string table in the page's own module script picks German, French, Italian or English from
+  string table in the page's own module script picks German, French, Italian or English from
   `navigator.languages` and rewrites the labels; the markup itself ships German, which is what
   stays on screen if the captive-portal webview blocks scripting. Deliberately not the SPA's i18n
-  module: this page is framework-free on purpose. Cost: 1.5 kB gzipped. Everything else is the
+  module: this page is framework-free on purpose. The later `http://gplug-xxxxxx.local/` address
+  is plain selectable text with a Copy button, not a link: a link opens inside the captive webview,
+  where `.local` cannot resolve yet, and the webview closes when the phone changes Wi-Fi. Copying
+  uses `document.execCommand("copy")` because `navigator.clipboard` needs a secure context; if the
+  webview refuses, the button is replaced by a "copy by hand" hint. Below it: a screenshot hint and
+  the router device-list fallback for phones that do not resolve mDNS. Copy verified in desktop
+  Chrome against a static `/config.json` only (2026-09-16), not yet in iOS/Android captive webviews.
+  Cost: 4.7 kB gzipped for the whole page. Everything else is the
   same markup/JS/form-field contract as upstream's page
   (dynamic title/MAC/network-list from `/config.json`, `#ssid`/`#psk` fields posting to
   `/wifisave`; the upstream `/update` OTA form was removed, updates live in the SPA), only the `<style>` block and viewport/color-scheme meta

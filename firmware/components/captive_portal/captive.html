@@ -26,10 +26,10 @@ function o(e) {
 // framework-free by design, because phones render it inside a restricted captive-portal webview.
 // The markup ships German; if scripting is blocked there, that is what stays on screen.
 var L = {
-  de: {mac: "MAC-Adresse", nets: "WLAN-Netzwerke", conn: "Verbinde mit dem Netzwerk…", wait: "Bitte warten.", set: "WLAN-Einstellungen", pw: "Passwort", save: "Speichern", addr: "Danach im Heim-WLAN erreichbar unter"},
-  fr: {mac: "Adresse MAC", nets: "Réseaux Wi-Fi", conn: "Connexion au réseau…", wait: "Veuillez patienter.", set: "Paramètres Wi-Fi", pw: "Mot de passe", save: "Enregistrer", addr: "Ensuite accessible sur le Wi-Fi domestique à"},
-  it: {mac: "Indirizzo MAC", nets: "Reti Wi-Fi", conn: "Connessione alla rete…", wait: "Attendere.", set: "Impostazioni Wi-Fi", pw: "Password", save: "Salvare", addr: "Poi raggiungibile nella Wi-Fi di casa su"},
-  en: {mac: "MAC address", nets: "Wi-Fi networks", conn: "Connecting to network…", wait: "Please wait.", set: "Wi-Fi settings", pw: "Password", save: "Save", addr: "Afterwards reachable on your home Wi-Fi at"}
+  de: {mac: "MAC-Adresse", nets: "WLAN-Netzwerke", conn: "Verbinde mit dem Netzwerk…", wait: "Bitte warten.", set: "WLAN-Einstellungen", pw: "Passwort", save: "Speichern", addr: "Danach im Heim-WLAN erreichbar unter", copy: "Kopieren", copied: "Kopiert ✓", nocopy: "Kopieren nicht möglich. Adresse lange antippen und kopieren.", shot: "Machen Sie jetzt ein Bildschirmfoto: Diese Seite schliesst sich, sobald das Telefon das WLAN wechselt.", miss: "Nicht erreichbar? Suchen Sie in der Geräteliste Ihres Routers nach"},
+  fr: {mac: "Adresse MAC", nets: "Réseaux Wi-Fi", conn: "Connexion au réseau…", wait: "Veuillez patienter.", set: "Paramètres Wi-Fi", pw: "Mot de passe", save: "Enregistrer", addr: "Ensuite accessible sur le Wi-Fi domestique à", copy: "Copier", copied: "Copié ✓", nocopy: "Copie impossible. Appuyez longuement sur l'adresse pour la copier.", shot: "Faites maintenant une capture d'écran : cette page se ferme dès que le téléphone change de Wi-Fi.", miss: "Pas accessible ? Cherchez dans la liste des appareils de votre routeur"},
+  it: {mac: "Indirizzo MAC", nets: "Reti Wi-Fi", conn: "Connessione alla rete…", wait: "Attendere.", set: "Impostazioni Wi-Fi", pw: "Password", save: "Salvare", addr: "Poi raggiungibile nella Wi-Fi di casa su", copy: "Copiare", copied: "Copiato ✓", nocopy: "Copia non possibile. Tenere premuto sull'indirizzo e copiarlo.", shot: "Fate ora uno screenshot: questa pagina si chiude non appena il telefono cambia Wi-Fi.", miss: "Non raggiungibile? Cercate nella lista dei dispositivi del vostro router"},
+  en: {mac: "MAC address", nets: "Wi-Fi networks", conn: "Connecting to network…", wait: "Please wait.", set: "Wi-Fi settings", pw: "Password", save: "Save", addr: "Afterwards reachable on your home Wi-Fi at", copy: "Copy", copied: "Copied ✓", nocopy: "Copying is not possible here. Long-press the address and copy it.", shot: "Take a screenshot now: this page closes as soon as the phone switches Wi-Fi.", miss: "Not reachable? Look in your router's device list for"}
 };
 var lang = "de";
 var tags = navigator.languages || [navigator.language || ""];
@@ -53,8 +53,14 @@ fetch("/config.json").then(function (e) {
     // form, not only after Save: the phone closes this webview as soon as the AP goes down, which
     // can be seconds after Save, so the user must be able to read it before. The success box
     // repeats it for the time it stays up. Several gPlugs differ only by the MAC suffix in the name.
+    // Plain selectable text, not a link: tapping a link opens it inside the captive webview, where
+    // .local cannot resolve yet, and that webview does not reliably offer "copy link". The http://
+    // prefix stays in the text because mobile browsers treat a bare "name.local" as a search term.
+    // The screenshot hint is the one way that works on every phone; the router hint covers
+    // Android browsers and networks that do not resolve mDNS (the DHCP hostname is the same name).
     var url = "http://" + t.name + ".local/";
-    var addr = T.addr + '<br><a class="addr" href="' + url + '">' + url + "</a>";
+    var addr = T.addr + '<br><span class="addr">' + url + '</span><br><button type="button" class="copy">' +
+      T.copy + '</button><br><small>' + T.shot + "<br>" + T.miss + " <b>" + t.name + "</b>.</small>";
     document.getElementById("addr").innerHTML = addr;
     document.querySelector("aside").innerHTML = T.conn + "<br>" + T.wait + "<br><br>" + addr;
     let r = t.aps.slice(1).map(function (n) {
@@ -70,6 +76,26 @@ fetch("/config.json").then(function (e) {
     document.querySelector("#net").innerHTML = o(r);
     document.querySelector("link[rel~='icon']").href = `data:image/svg+xml,${s(-65)}`;
   });
+});
+// gPlug: copy the address. navigator.clipboard needs a secure context and this page is plain http,
+// so it is always undefined here; execCommand("copy") on a selected textarea is the remaining way,
+// and it only works inside a tap handler. Captive webviews may still refuse it, which the return
+// value tells, so the button then says to copy by hand instead of claiming success.
+document.addEventListener("click", function (ev) {
+  var b = ev.target.closest && ev.target.closest(".copy");
+  if (!b) return;
+  var ta = document.createElement("textarea");
+  ta.value = b.parentNode.querySelector(".addr").textContent;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  var ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+  if (ok) b.textContent = T.copied;
+  else b.outerHTML = "<small>" + T.nocopy + "</small>";
 });
 // gPlug: submit WiFi form via fetch and stay on this (branded) page instead of navigating to
 // /wifisave's bare text/plain response, which renders as unstyled text with no page around it
@@ -129,7 +155,15 @@ main {
 h1 { font-size: 1.1rem; font-weight: 600; }
 h3 { color: var(--muted); font-weight: 500; }
 #addr { color: var(--muted); margin: 14px 0 0; }
-.addr { color: var(--fg); font-weight: 600; font-size: 1.1rem; text-decoration: underline; word-break: break-all; }
+.addr {
+  display: inline-block; margin: 6px 0; color: var(--fg); font-weight: 600; font-size: 1.1rem;
+  word-break: break-all; -webkit-user-select: all; user-select: all;
+}
+button.copy {
+  width: auto; padding: 0 16px; margin: 0 0 8px; line-height: 2rem; font-size: 1rem;
+  background: transparent; color: var(--fg); border: 1px solid var(--border);
+}
+small { display: inline-block; font-size: .85rem; }
 .network {
   display: flex; justify-content: space-between; align-items: center;
   padding: 6px 4px; border-radius: 8px; cursor: pointer;

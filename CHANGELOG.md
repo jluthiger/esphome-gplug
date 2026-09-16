@@ -14,6 +14,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - Each gPlug now has its own network name, `gplug-` plus the last six hex digits of its MAC address
   (for example `gplug-a1b2c3.local`), so several gPlugs can run in the same WLAN. The Wi-Fi setup
   page shows that address before you save, and the setup wizard shows it on its first screen.
+- The Wi-Fi setup page shows the device's future address as text you can select, with a Copy
+  button, instead of a link that only opened inside the setup page and vanished with it. It also
+  suggests taking a screenshot before saving and, if the address does not open later, looking for
+  the gPlug's name in the router's device list.
 
 ### Upgrade notes
 - The device's address changes from `gplug.local` to `gplug-xxxxxx.local` after the update. Its IP
