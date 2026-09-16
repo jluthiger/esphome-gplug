@@ -15,10 +15,6 @@ on the device itself. See [`DESIGN.md`](DESIGN.md) for goal, scope and constrain
   No tools to install: Chrome or Edge on a desktop computer and a USB cable.
 </p>
 
-> [!WARNING]
-> **Still running Tasmota?** Copy the meter key (`dKEY="…"`) out of the Tasmota script *before*
-> you flash: erasing destroys it. Details in [`migration.md`](migration.md).
-
 Already running this firmware? Update without a cable in the device's own app, *Setup → Firmware*.
 
 ## Layout
