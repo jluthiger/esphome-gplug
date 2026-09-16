@@ -56,9 +56,13 @@
   <h2>After flashing</h2>
   <ol>
     <li>The gPlug opens a Wi-Fi access point called <strong>gPlug-Setup</strong>. Join it from your phone.</li>
-    <li>The captive portal asks for your home Wi-Fi; the device reboots into it.</li>
-    <li>Open <a href="http://gplug.local/">http://gplug.local/</a> — the setup wizard asks for the
-      gPlug variant and, on an encrypted meter, the key you saved.</li>
+    <li>The captive portal asks for your home Wi-Fi and shows the address the gPlug will have there,
+      <code>http://gplug-xxxxxx.local/</code> (the last six digits of its MAC address). Copy it or
+      take a screenshot before you save: the page closes when the phone leaves the access point.
+      The device then reboots into your Wi-Fi.</li>
+    <li>Back on your home Wi-Fi, open that address — the setup wizard asks for the gPlug variant
+      and, on an encrypted meter, the key you saved. If it does not open, look for
+      <code>gplug-xxxxxx</code> in your router's device list and use its IP address.</li>
   </ol>
   <p>From then on that same address is the live app, and further updates need no cable: <em>Setup →
   Firmware</em> takes the <code>.ota.bin</code> from the

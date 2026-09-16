@@ -5,6 +5,30 @@ Replace the Tasmota firmware on [gPlug](https://gplug.ch/) smart-meter adapters 
 decoding capabilities, but is usable by non-technical people via a guided setup wizard hosted
 on the device itself. See [`DESIGN.md`](DESIGN.md) for goal, scope and constraints, [`DECISIONS.md`](DECISIONS.md) for why things are the way they are.
 
+## Install
+
+<p align="center">
+  <a href="https://jluthiger.github.io/esphome-gplug/">
+    <img alt="Install gPlug firmware in your browser" src="https://img.shields.io/badge/Install_gPlug_firmware-in_your_browser-4d6a2c?style=for-the-badge&logo=espressif&logoColor=white" height="56">
+  </a>
+  <br>
+  <b><a href="https://jluthiger.github.io/esphome-gplug/">jluthiger.github.io/esphome-gplug</a></b>
+  <br>
+  No tools to install: Chrome or Edge on a desktop computer and a USB cable.
+</p>
+
+1. Plug the gPlug into the computer, open the [web installer](https://jluthiger.github.io/esphome-gplug/),
+   press **Install** and choose **Erase device**.
+2. Join the Wi-Fi **`gPlug-Setup`** from your phone and enter your home Wi-Fi. Note the address
+   the page shows (`http://gplug-xxxxxx.local/`): copy it or take a screenshot.
+3. Back on your home Wi-Fi, open that address. The setup wizard does the rest.
+
+> [!WARNING]
+> **Still running Tasmota?** Copy the meter key (`dKEY="…"`) out of the Tasmota script *before*
+> you flash: erasing destroys it. Details in [`migration.md`](migration.md).
+
+Already running this firmware? Update without a cable in the device's own app, *Setup → Firmware*.
+
 ## Layout
 
 | Path | What |

@@ -214,9 +214,11 @@ The device has no Wi-Fi credentials yet, so it opens its own access point called
 
 1. Join that network from a phone or laptop. A setup page opens by itself. If it does not, browse
    to `http://192.168.4.1/`.
-2. Enter your home Wi-Fi and save. The device restarts and joins it.
-3. Open `http://gplug.local/`. If your network does not resolve that name, look for the device's IP
-   address in your router, or read it from the USB log.
+2. Note the address the page shows, `http://gplug-xxxxxx.local/` (the last six hex digits of the
+   MAC address): copy it or take a screenshot, the page closes once the phone leaves the access
+   point. Enter your home Wi-Fi and save. The device restarts and joins it.
+3. Open that address. If your network does not resolve it, look for `gplug-xxxxxx` in your
+   router's device list and use its IP address, or read the IP from the USB log.
 4. The wizard asks for the device type, then for the meter profile and the key.
 
 Pick the profile that matches the Tasmota script you copied in the beginning:
@@ -245,7 +247,7 @@ script's `rxPin`, `rL`, `gL`, `bL` and `butA` values. Leave them alone unless yo
 The last wizard step waits for the meter and tells you what it sees. Within a minute you should
 have live values and a green LED.
 
-Open the app at `http://gplug.local/` and confirm:
+Open the app at `http://gplug-xxxxxx.local/` and confirm:
 
 - **Live** shows current power and the two counters, and they match the meter's own display.
 - **History** fills up over the following hours. A new record is written every 15 minutes.
@@ -292,4 +294,4 @@ export of the 15-minute load profile under **History**, and the ESPHome native A
 Assistant.
 
 Updates from here on need no cable: **Setup → firmware update**, or `esphome upload dev.yaml
---device gplug.local` from this repository.
+--device gplug-xxxxxx.local` from this repository.
