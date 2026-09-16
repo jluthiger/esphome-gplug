@@ -19,6 +19,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   suggests taking a screenshot before saving and, if the address does not open later, looking for
   the gPlug's name in the router's device list.
 
+### Fixed
+- The Wi-Fi setup page's Save button said "Saving..." in English whatever the phone's language;
+  it now says it in German, French, Italian or English like the rest of the page.
+
 ### Upgrade notes
 - The device's address changes from `gplug.local` to `gplug-xxxxxx.local` after the update. Its IP
   address stays the same. If you start the update from `gplug.local`, the firmware card reports that
