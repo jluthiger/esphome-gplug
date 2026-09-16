@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.5.0] – 2026-09-16
+
 ### Changed
 - Each gPlug now has its own network name, `gplug-` plus the last six hex digits of its MAC address
   (for example `gplug-a1b2c3.local`), so several gPlugs can run in the same WLAN. The Wi-Fi setup
@@ -22,6 +24,9 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 ### Fixed
 - The Wi-Fi setup page's Save button said "Saving..." in English whatever the phone's language;
   it now says it in German, French, Italian or English like the rest of the page.
+- The web installer page told you to open `http://gplug.local/` after the Wi-Fi setup, which no
+  longer answers since each gPlug has its own name. It now points to `gplug-xxxxxx.local` and to the
+  router's device list as a fallback.
 
 ### Upgrade notes
 - The device's address changes from `gplug.local` to `gplug-xxxxxx.local` after the update. Its IP
