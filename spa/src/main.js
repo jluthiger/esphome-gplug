@@ -84,7 +84,10 @@ function App() {
   // Route not decided from the URL yet: pick one once status is in.
   useEffect(() => {
     if (route !== null || !status) return;
-    const configured = status.hardware && status.meter;
+    // The firmware always sends both objects: `hardware` is {} until the hardware step is saved and
+    // `meter` carries protocol 0 until a profile is. Testing the objects themselves sent every
+    // freshly erased device that had joined WiFi straight to the live view, past the wizard.
+    const configured = status.hardware?.variant && status.meter?.protocol;
     openRoute(configured && status.wifi?.connected ? "live" : "wizard");
   }, [route, status]);
 

@@ -10,6 +10,11 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Fixed
+- After a fresh install and the Wi-Fi setup, the device's app opened the live view instead of the
+  setup wizard, so hardware and meter were never asked for. It now starts the wizard until both are
+  set up.
+
 ## [0.5.0] – 2026-09-16
 
 ### Changed

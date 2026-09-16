@@ -225,7 +225,7 @@ device in `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (e.g. `http
 
 | Method | Path | Body / result |
 |---|---|---|
-| GET | `/api/status` | `{version, hostname, uptime, build, app, ota_auth, heap, mem:{free, min_free, largest, stack_loop, stack_httpd}, hardware?, meter?, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}`. `app` is the first 16 hex digits of the running image's ELF SHA-256; the firmware card reads the same bytes at offset `0xB0` of the file it uploads and compares the two after the reboot, because `build` does not move when only embedded assets change |
+| GET | `/api/status` | `{version, hostname, uptime, build, app, ota_auth, heap, mem:{free, min_free, largest, stack_loop, stack_httpd}, hardware, meter:{preset, protocol, encrypted, …}, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}`. `app` is the first 16 hex digits of the running image's ELF SHA-256; the firmware card reads the same bytes at offset `0xB0` of the file it uploads and compares the two after the reboot, because `build` does not move when only embedded assets change. Both config objects are always present: `hardware` is `{}` until the hardware step is saved, `meter.protocol` is `0` (1 DSMR, 2 DLMS) until a profile is; the SPA opens the wizard unless `hardware.variant` and `meter.protocol` are set |
 | GET | `/api/presets` | `{variants:[…], presets:[…]}` (see `../firmware/components/gplug_smi/presets.json`) |
 | GET | `/api/wifi/scan` | `[{ssid, rssi, secure}]` |
 | POST | `/api/config/wifi` | `{ssid, psk}` |

@@ -338,14 +338,16 @@ function frameDetail(i, kind) {
   return hexDump(i + 1, n);
 }
 
+// Same shape as the firmware before and after setup: `hardware` is {} and `meter` has preset "" and
+// protocol 0 until configured, never null. A mock that sent null hid a routing bug the device showed.
 function statusMeter() {
-  if (!state.meter) return null;
-  return { preset: state.meter.preset, protocol: state.meter.descriptor?.protocol,
+  if (!state.meter) return { preset: "", protocol: 0, encrypted: false };
+  return { preset: state.meter.preset, protocol: { dsmr: 1, dlms: 2 }[state.meter.descriptor?.protocol] || 0,
     encrypted: state.meter.key !== undefined };
 }
 
 const routes = {
-  "GET /api/status": () => ({ ...state, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
+  "GET /api/status": () => ({ ...state, hardware: state.hardware || {}, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
     heap: heapStatus().free, mem: heapStatus(),
     time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta() }),
   "GET /api/presets": () => presets,
