@@ -3,7 +3,7 @@
 Replace the Tasmota firmware on [gPlug](https://gplug.ch/) smart-meter adapters with an
 [ESPHome](https://esphome.io/) firmware that keeps the Tasmota Smart Meter Interface's HAN
 decoding capabilities, but is usable by non-technical people via a guided setup wizard hosted
-on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope and constraints.
+on the device itself. See [`DESIGN.md`](DESIGN.md) for goal, scope and constraints, [`DECISIONS.md`](DECISIONS.md) for why things are the way they are.
 
 ## Layout
 
@@ -11,7 +11,8 @@ on the device itself. See [`intent/intent.md`](intent/intent.md) for goal, scope
 |---|---|
 | [`firmware/`](firmware/README.md) | ESPHome external component (`gplug_smi`): DSMR/P1, DLMS/COSEM + HDLC, AES-GCM decoding, 15-min history on flash, host-side test suite |
 | [`spa/`](spa/README.md) | Setup wizard + live app (Preact, no build framework), bundled into the firmware image and served from the device |
-| [`intent/`](intent) | Intent doc: goal, scope, constraints |
+| [`DESIGN.md`](DESIGN.md) | Design doc: goal, scope, constraints, acceptance criteria |
+| [`DECISIONS.md`](DECISIONS.md) | Decision log with rationale |
 | [`install/`](install) | Web installer page (ESP Web Tools) + manifest, deployed to GitHub Pages by the release workflow |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed per release, with upgrade notes |
 | [`migration.md`](migration.md) | Replacing Tasmota on an existing gPlug: what to save first, software setup for macOS, Linux and Windows, erasing, flashing, and the way back |

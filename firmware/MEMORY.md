@@ -139,7 +139,7 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 Last device reading: **197 kB free heap** with Wi-Fi joined and the SPA loaded (2026-09-10, older
 962 kB build, via `/api/status`). That is more than the 193 kB the linker leaves (188.0 kB on 2026-09-14) because the runtime
 heap also gets RAM the bootloader releases after startup, so the two figures don't subtract. Target
-in `intent/intent.md`: >= 80 kB free after 24 h. A current reading still has to be taken on a device;
+in `DESIGN.md`: >= 80 kB free after 24 h. A current reading still has to be taken on a device;
 since 2026-09-14 the device keeps its own 24 h trend of free heap, minimum and largest block
 (`/api/heap`, Memory card on the Setup tab), so that reading is a screenshot rather than a polling
 session.

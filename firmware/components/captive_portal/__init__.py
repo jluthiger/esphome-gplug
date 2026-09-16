@@ -31,7 +31,7 @@ _LOGGER = logging.getLogger(__name__)
 # real, editable captive.html at codegen time (same _gz_bytes()/static_const_array pattern
 # gplug_smi/__init__.py already uses for the SPA) instead of the vendored captive_index.h, so the
 # WiFi-setup page phones see during AP-fallback carries gPlug's branding. See firmware/README.md
-# and intent/intent.md (2026-09-10) for why. Diff this file and captive_portal.{h,cpp} against a
+# and DECISIONS.md (2026-09-10) for why. Diff this file and captive_portal.{h,cpp} against a
 # fresh copy of upstream before every ESPHome version bump.
 CONF_HTML = "html"
 CONF_HTML_RAW_ID = "html_raw_id"

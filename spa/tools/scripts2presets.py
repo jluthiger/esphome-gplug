@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parents[2] / "gplug")
 OUT = Path(sys.argv[2] if len(sys.argv) > 2 else Path(__file__).resolve().parents[2] / "firmware" / "components" / "gplug_smi" / "presets.json")
 
-# Hardware defaults per variant (from intent.md pin table)
+# Hardware defaults per variant (from DESIGN.md pin table)
 # baud / parity ("N" or "E") / serial_flags (Tasmota so2: 4 = invert RX, 8 = no pullup) describe the
 # variant's physical interface and are the same for every preset of a variant. The hardware step
 # sends them with the pins, so the firmware's UART already runs right before a profile is chosen and

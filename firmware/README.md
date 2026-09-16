@@ -197,7 +197,7 @@ with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin
   `dsmr:` component, used by [haribert/gplug-esphome](https://github.com/haribert/gplug-esphome) for
   gPlugE): identical. Known gap vs. that library: no support for a value spanning multiple physical
   telegram lines (e.g. the power-failure log, `1-0:99.97.0`) — inactive today, no current preset uses
-  such a field; see the 2026-09-10 finding in `intent/intent.md`.
+  such a field; see the 2026-09-10 finding in `DECISIONS.md`.
 - `aes_gcm.h` – AES-128-GCM. On the firmware (`ESP_PLATFORM`) this is a thin wrapper around ESP-IDF's
   `mbedtls_gcm_*`, matching [esphome-gplugk](https://github.com/jluthiger/esphome-gplugk)'s approach exactly
   (its `gplugk.cpp` was used as the reference). On host (running `test/*.cpp` on a dev machine) it falls
@@ -265,7 +265,7 @@ with `python gen_esp32part.py .esphome/build/gplug/.pioenvs/gplug/partitions.bin
     (iOS Captive Network Assistant / Android's equivalent), which is known to handle a full JS SPA
     poorly. Once real WiFi is joined, this SPA resumes owning `GET /` for hardware/meter setup and
     live/history viewing, in a normal, unrestricted mobile browser tab. See the 2026-09-10 finding in
-    `intent/intent.md`.
+    `DECISIONS.md`.
 
 ## Component `captive_portal` (fork)
 
@@ -494,7 +494,7 @@ across two boots (a power cut in between, logged as power-on): `/api/status` `me
 162-166 kB and the largest block at 112 kB for the whole run, so no leak over those hours. The
 minimum since boot fell by ~10 kB per half hour for the first ~2 h of each boot (154 -> 108 kB,
 159 -> 121 kB) and then stayed: some transient allocation peaks deeper for a while, not traced yet.
-`stack_httpd` read 784-804 B unused, 1328 B once the URL buffer moved off that stack (see `intent/intent.md`). The low-heap event, its latch and the
+`stack_httpd` read 784-804 B unused, 1328 B once the URL buffer moved off that stack (see the 2026-09-14 entry in `DECISIONS.md`). The low-heap event, its latch and the
 chart's rendering are covered by `test/test_heapmon.cpp` and the mock (`MOCK_HEAP=leak`) only.
 
 **Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
@@ -583,7 +583,7 @@ pass `ESP_INTR_FLAG_IRAM` anyway).
   `GplugSmi::on_dlms_apdu_` as the fallback when the flat structural walk (`decode_structure()`) finds
   nothing. Two earlier hand-derived hypotheses were tried, looked disproved, and were reverted — the
   real bug was in *how I was checking* (raw loop index instead of a proper dedup rank), not in the
-  underlying theory; see the two 2026-09-10 entries in `intent/intent.md` for the full trail.
+  underlying theory; see the two 2026-09-10 entries in `DECISIONS.md` for the full trail.
   `dbg_structure.cpp <hex files...>` remains for dumping any future capture's descriptors/values with
   byte offsets.
 - History is verified by host tests and a mock-server walkthrough only: real sector rotation, recovery

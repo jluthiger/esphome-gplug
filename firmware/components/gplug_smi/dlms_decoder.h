@@ -154,7 +154,7 @@ class DlmsDecoder {
   // pass, no risk of a byte pattern matching somewhere it shouldn't.
   //
   // Does NOT handle the gPlugM/L+G "capture list" push (descriptor array + separate untagged value
-  // array) -- that is a genuinely different structure; see the 2026-09-10 finding in intent.md.
+  // array) -- that is a genuinely different structure; see the 2026-09-10 finding in DECISIONS.md.
   // Returns false if nothing was decoded (either the buffer isn't this structure, or it's empty).
   template<typename Callback>
   static bool decode_structure(const uint8_t *buf, size_t len, Callback &&cb) {
@@ -196,7 +196,7 @@ class DlmsDecoder {
   // first-occurrence order (descriptors 0/1 in one capture share the identical clock OBIS and both
   // collapse to rank 0; ranks are NOT the raw loop index). An earlier attempt at this used the raw
   // loop index instead of a proper dedup rank and was wrongly concluded not to generalise -- it was a
-  // bookkeeping bug, not a wrong theory; see the 2026-Jun findings in intent.md for the evidence.
+  // bookkeeping bug, not a wrong theory; see the 2026-Jun findings in DECISIONS.md for the evidence.
   //
   // Our search pattern only carries the last 4 OBIS bytes (C.D.E.F, Tasmota-style), so when a meter
   // sends the same C.D.E.F under several A.B sub-indices (e.g. per-tariff or per-channel readings),

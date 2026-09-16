@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash
 ---
 
 You review changes in the gPlug ESPHome project. Start with `git diff HEAD` (and `git status` for
-new files). Read `CLAUDE.md` and the relevant parts of `intent/intent.md` "Constraints".
+new files). Read `CLAUDE.md` and the relevant parts of `DESIGN.md` "Constraints".
 
 Check, and report only concrete findings with file:line:
 

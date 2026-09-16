@@ -46,7 +46,7 @@ template <size_t N> class Ring {
   uint32_t pushed_{0};
 };
 
-// Thresholds against the intent target of >= 80 kB free after 24 h. The largest block matters as
+// Thresholds against the DESIGN.md target of >= 80 kB free after 24 h. The largest block matters as
 // much as the free total: TLS and the httpd need contiguous buffers of several kB, and a request
 // fails once no block is big enough, however much free heap is scattered around.
 static constexpr uint16_t LOW_FREE_KB = 48;

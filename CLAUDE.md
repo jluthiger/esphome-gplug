@@ -10,7 +10,7 @@ replacing Tasmota. Two halves that ship as one image:
 - **Frontend** `spa/`: Preact 10 + htm (no JSX, no framework), esbuild → one gzipped HTML embedded in
   the firmware as `firmware/components/gplug_smi/spa.html.gz` (**committed**).
 
-Read before non-trivial work: `intent/intent.md` (goal, constraints, decision log),
+Read before non-trivial work: `DESIGN.md` (goal, constraints), `DECISIONS.md` (decision log),
 `firmware/README.md` (component, HTTP API, diag table), `spa/README.md` (screens, device API used),
 `firmware/MEMORY.md` (flash/RAM budget). Phase: PoC.
 
@@ -66,7 +66,7 @@ are user-confirmed — never do either unprompted. Releases: `/release` (process
   existing code. Match that density.
 - Commits: imperative sentence subject (no Conventional Commits prefix), body in prose explaining
   the reason and what was deliberately left out.
-- Record design decisions with rationale in `intent/intent.md` decision log.
+- Record design decisions with rationale in `DECISIONS.md`.
 - User-visible changes get a line under *Unreleased* in `CHANGELOG.md` in the same commit.
 - `firmware/gplug.yaml` on `main` keeps `version: "<next>-dev"` and component `ref: main`; only a release
   commit changes them (`.github/release-check.sh`).
