@@ -9,7 +9,7 @@ on the device itself. See [`DESIGN.md`](DESIGN.md) for goal, scope and constrain
 
 <p align="center">
   <a href="https://jluthiger.github.io/esphome-gplug/">
-    <img alt="Install gPlug firmware in your browser" src="https://img.shields.io/badge/Install_gPlug_firmware-in_your_browser-4d6a2c?style=for-the-badge&logo=espressif&logoColor=white" height="88">
+    <img alt="Install gPlug firmware in your browser" src="install/install-button.svg" width="440">
   </a>
   <br>
   No tools to install: Chrome or Edge on a desktop computer and a USB cable.
