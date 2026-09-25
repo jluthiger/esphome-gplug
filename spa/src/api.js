@@ -54,6 +54,7 @@ export const api = {
   setWifi: (cfg) => req("POST", "/api/config/wifi", cfg),
   setHardware: (cfg) => req("POST", "/api/config/hardware", cfg),
   setMeter: (cfg) => req("POST", "/api/config/meter", cfg),
+  checkKey: (key) => req("POST", "/api/key/check", { key }),
   live: () => req("GET", "/api/live", null, 4000),
   ring: () => req("GET", "/api/ring", null, 4000),
   // Bulk read of the flash history; range=year scans the whole partition on the device, so it gets

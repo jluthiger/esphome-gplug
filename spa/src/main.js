@@ -128,7 +128,7 @@ function App() {
   else if (name === "hardware") body = html`<${Hardware} variants=${data.variants} value=${hw} onChange=${setHw}
       onBack=${back} onNext=${() => commit("hardware")} />`;
   else if (name === "meter") body = html`<${Meter} presets=${data.presets} variant=${hw?.variant} value=${meter}
-      storedKey=${!!status?.meter?.encrypted}
+      storedKey=${!!status?.meter?.encrypted} keyHint=${status?.meter?.key_hint}
       onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
   else body = html`<${Done} onOpenLive=${openLive} />`;
 

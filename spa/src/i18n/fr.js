@@ -103,6 +103,11 @@ export const fr = {
   dgKeyHint: "Le compteur émet des données chiffrées, mais la clé (GUEK) ne les déchiffre pas. Vous obtenez la clé auprès du gestionnaire de réseau.",
   keepKey: "Utiliser la clé enregistrée",
   keepKeyHint: "La clé reste sur l'appareil et n'est pas affichée.",
+  keyFingerprint: (fp) => `Identifiant ${fp} (somme de contrôle, change avec la clé)`,
+  keyCheck: "Comparer avec la lettre du gestionnaire de réseau",
+  keyCheckBtn: "Vérifier",
+  keyMatch: "Correspond à la clé enregistrée.",
+  keyMismatch: "Ne correspond pas. Désactivez l'interrupteur et saisissez la clé de la lettre.",
 
 
   // live screen chrome

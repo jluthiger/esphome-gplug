@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Added
+
+- The setup wizard shows a short fingerprint of the stored key (e.g. `Kennung 3A7F`) next to "Gespeicherten Schlüssel verwenden", so a key left over from another meter is recognisable. The fingerprint is a checksum and reveals nothing about the key itself. Below it, the key from the grid operator's letter can be checked against the stored one; the device only answers "matches" or "does not match".
+
 ## [0.5.1] – 2026-09-16
 
 ### Fixed

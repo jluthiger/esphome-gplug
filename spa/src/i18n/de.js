@@ -101,6 +101,11 @@ export const de = {
   dgKeyHint: "Der Zähler sendet verschlüsselt, aber der Schlüssel (GUEK) entschlüsselt die Daten nicht. Den Schlüssel erhalten Sie vom Netzbetreiber.",
   keepKey: "Gespeicherten Schlüssel verwenden",
   keepKeyHint: "Der Schlüssel bleibt auf dem Gerät und wird nicht angezeigt.",
+  keyFingerprint: (fp) => `Kennung ${fp} (Prüfsumme, ändert sich mit dem Schlüssel)`,
+  keyCheck: "Mit dem Brief des Netzbetreibers vergleichen",
+  keyCheckBtn: "Prüfen",
+  keyMatch: "Stimmt mit dem gespeicherten Schlüssel überein.",
+  keyMismatch: "Stimmt nicht überein. Schalter ausschalten und den Schlüssel aus dem Brief eingeben.",
 
 
   // live screen chrome

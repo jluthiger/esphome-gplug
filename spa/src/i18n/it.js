@@ -102,6 +102,11 @@ export const it = {
   dgKeyHint: "Il contatore invia dati cifrati, ma la chiave (GUEK) non li decifra. La chiave si ottiene dal gestore di rete.",
   keepKey: "Usare la chiave salvata",
   keepKeyHint: "La chiave resta sul dispositivo e non viene visualizzata.",
+  keyFingerprint: (fp) => `Identificativo ${fp} (checksum, cambia con la chiave)`,
+  keyCheck: "Confronta con la lettera del gestore di rete",
+  keyCheckBtn: "Verifica",
+  keyMatch: "Corrisponde alla chiave salvata.",
+  keyMismatch: "Non corrisponde. Disattivi l'interruttore e inserisca la chiave della lettera.",
 
 
   // live screen chrome

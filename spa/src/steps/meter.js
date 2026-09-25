@@ -9,7 +9,9 @@ const LONG_WAIT_S = 30;
 
 // storedKey: the device already holds a GUEK (status.meter.encrypted). It is never sent back, so
 // instead of retyping it the user can keep it (keep_key, see GplugSmi::merge_stored_keys_) --
-// the common case when only the profile was wrong.
+// the common case when only the profile was wrong. keyHint (status.meter.key_hint, absent on
+// firmware before 0.6.0) is a hash fingerprint of that key, so the user can tell a stored key from
+// another one without the device revealing any of it.
 //
 // Detection: from the moment the hardware step is committed, the firmware reads the protocol off
 // the header bytes of whatever the meter sends (/api/live "detect", protocol_sniff.h). This step
@@ -17,7 +19,7 @@ const LONG_WAIT_S = 30;
 // shown alone, so the user only confirms (and types the key when the line is encrypted). Several
 // fitting profiles (gPlugM has two DLMS ones) narrow the list to those. Tapping a card ends the
 // following; the wider lists stay reachable behind the "other profile" / "show all" actions.
-export function Meter({ presets, variant, value, storedKey, onChange, onNext, onBack }) {
+export function Meter({ presets, variant, value, storedKey, keyHint, onChange, onNext, onBack }) {
   const [expand, setExpand] = useState(0);   // 0 = fitting profiles, 1 = this variant's, 2 = all
   const [manual, setManual] = useState(false);
   const [live, setLive] = useState(null);
@@ -102,10 +104,11 @@ export function Meter({ presets, variant, value, storedKey, onChange, onNext, on
     ${more && html`<button onClick=${() => setExpand(level + 1)}>${moreLabel}</button>`}
     ${sel?.encrypted && storedKey && html`
       <div class="card switchrow" style="margin-top:14px">
-        <div><div class="t">${S.keepKey}</div><div class="s">${S.keepKeyHint}</div></div>
+        <div><div class="t">${S.keepKey}</div><div class="s">${keyHint && html`<span class="num">${S.keyFingerprint(keyHint)}</span><br />`}${S.keepKeyHint}</div></div>
         <button class="switch ${keep ? "on" : ""}" role="switch" aria-checked=${!!keep}
           onClick=${() => onChange({ ...value, keepKey: !value.keepKey })}><span></span></button>
       </div>`}
+    ${sel?.encrypted && keep && keyHint && html`<${KeyCheck} />`}
     ${sel?.encrypted && !keep && html`
       <label>${S.key}</label>
       <input class="num" type="text" autocomplete="off" spellcheck="false" maxlength="32"
@@ -124,4 +127,33 @@ export function Meter({ presets, variant, value, storedKey, onChange, onNext, on
       <button onClick=${onBack}>${S.back}</button>
       <button class="primary" disabled=${!sel || !keyOk} onClick=${onNext}>${S.next}</button>
     </div>`;
+}
+
+// Checks a key from the grid operator's letter against the stored one (POST /api/key/check); the
+// device answers only match or not. Offered only when status carries key_hint, which is the same
+// firmware release that has the route, so older devices never show a check that would 404.
+function KeyCheck() {
+  const [key, setKey] = useState("");
+  const [res, setRes] = useState(null);   // null | true | false | error message
+  const [busy, setBusy] = useState(false);
+  async function check() {
+    setBusy(true);
+    try { setRes((await api.checkKey(key)).match); } catch (e) { setRes(String(e.message || e)); }
+    setBusy(false);
+  }
+  const ok = HEX32.test(key);
+  return html`
+    <details>
+      <summary>${S.keyCheck}</summary>
+      <div class="row">
+        <input class="num" type="text" autocomplete="off" spellcheck="false" maxlength="32"
+          value=${key} placeholder="0123456789ABCDEF0123456789ABCDEF"
+          onInput=${(e) => { setKey(e.target.value.trim()); setRes(null); }} />
+        <button style="flex:0 0 auto" disabled=${!ok || busy} onClick=${check}>${S.keyCheckBtn}</button>
+      </div>
+      ${key && !ok && html`<div class="err">${S.keyInvalid}</div>`}
+      ${res === true && html`<p style="color:var(--green)">${S.keyMatch}</p>`}
+      ${res === false && html`<div class="err">${S.keyMismatch}</div>`}
+      ${typeof res === "string" && html`<div class="err">${res}</div>`}
+    </details>`;
 }

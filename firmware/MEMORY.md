@@ -1,6 +1,6 @@
 # Flash and RAM usage
 
-Snapshot of the `dev.yaml` build from 2026-09-16 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+Snapshot of the `dev.yaml` build from 2026-09-25 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
 4 MB flash), with the Home Assistant entities. Sizes in kB = 1024 bytes. Numbers come from the
 linker map, not from a running device, except where noted.
 
@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1068292 dram=128804 gplug_smi_obj=24992 -->
+<!-- size-baseline image=1069558 dram=128804 gplug_smi_obj=25000 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -42,7 +42,9 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,068,292 B = 1043 kB in a 1408 kB slot: **74.1 % full, 365 kB headroom** (2026-09-16, with
+Image 1,069,558 B = 1044 kB in a 1408 kB slot: **74.2 % full, 364 kB headroom** (2026-09-25, with
+the stored-key fingerprint and `/api/key/check` (issue #11): +1.3 kB, of which 0.7 kB SPA check
+and strings and 0.5 kB `gplug_smi` code for the SHA-256 call and the route; 1,068,292 B before, 2026-09-16, with
 the captive page's copyable address, copy button and screenshot/router hints in four languages:
 +1.3 kB, all of it the gzipped captive page; the MAC-suffixed name before it added 0.5 kB that was
 not recorded here; 1,066,460 B before, 2026-09-14, with chart pointer values, the restart button and the per-screen tab title: +2.5 kB, all of it SPA
@@ -52,21 +54,21 @@ the sampler, `/api/heap` and two more HA entities; 1,059,332 B before, with the 
 entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
 before that, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 765 kB code run from flash, 207 kB read-only data, 59 kB IRAM code and 11 kB `.data` initial values
+By section: 766 kB code run from flash, 208 kB read-only data, 59 kB IRAM code and 11 kB `.data` initial values
 (those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 28.6 % |
-| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA) | 208.3 kB | 20.0 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 28.5 % |
+| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA) | 208.3 kB | 19.9 % |
 | Crypto (mbedTLS for AES-GCM, Noise/Ed25519 for the encrypted API) | 136.5 kB | 13.1 % |
-| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 137.2 kB | 13.2 % |
-| String literals from all code | 79.7 kB | 7.6 % |
+| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 137.2 kB | 13.1 % |
+| String literals from all code | 79.8 kB | 7.6 % |
 | ESPHome core and components (incl. the captive_portal fork) | 67.3 kB | 6.4 % |
-| `gplug_smi` code | 52.1 kB | 5.0 % |
-| Embedded web files, gzipped except the PNG: SPA 46.7 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 57.3 kB | 5.5 % |
+| `gplug_smi` code | 52.6 kB | 5.0 % |
+| Embedded web files, gzipped except the PNG: SPA 47.4 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 57.9 kB | 5.5 % |
 | ESPHome-generated `main.cpp` setup code | 5.1 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.6 kB | 0.2 % |
 

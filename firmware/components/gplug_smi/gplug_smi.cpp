@@ -12,6 +12,7 @@
 #include <esp_app_desc.h>
 #include <esp_system.h>
 #include <esp_http_server.h>
+#include <mbedtls/sha256.h>
 #include <esp_heap_caps.h>
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
@@ -403,6 +404,15 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
   if (*key) {
     if (!hex_to_bytes(key, nd.key, 16)) { err = "key must be 32 hex chars"; return false; }
     nd.encrypted = true;
+    // The wizard shows this next to "use stored key" so the user can tell whether the stored key
+    // is still the one they entered, without the API ever returning key material (DECISIONS.md
+    // 2026-09-25). A hash rather than the key's first digits: 16 bits of prefix would be harmless
+    // in practice, but the rule "the GUEK is never returned" is simpler to keep than to qualify.
+    // Hashed over the 16 raw bytes, so upper- and lower-case entries of one key agree.
+    uint8_t h[32];
+    mbedtls_sha256(nd.key, 16, h, 0);
+    static const char H[] = "0123456789ABCDEF";
+    for (int i = 0; i < 2; i++) { nd.key_hint[2 * i] = H[h[i] >> 4]; nd.key_hint[2 * i + 1] = H[h[i] & 0xF]; }
   }
   const char *ak = doc["auth_key"] | "";
   if (*ak) {
@@ -823,6 +833,25 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     this->defer([this, body]() { if (!this->nvs_save_("meter", body)) ESP_LOGE(TAG, "nvs_save_(meter) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
+  // {"key":"32hex"} -> {"match":bool}: lets the user check the stored GUEK against the grid
+  // operator's letter. Only a yes/no leaves the device, so nothing of the key is learnt unless all
+  // 128 bits were already known. Compared against the live descriptor, not NVS: it is what decrypts,
+  // and an NVS read on the httpd task is what DECISIONS.md 2026-09-14 keeps to a minimum.
+  if (url == "/api/key/check") {
+    JsonDocument doc;
+    uint8_t k[16];
+    if (deserializeJson(doc, body) || !hex_to_bytes(doc["key"] | "", k, 16))
+      return send_json_(req, 400, "{\"error\":\"key must be 32 hex chars\"}");
+    uint8_t diff = 0;
+    bool stored;
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stored = desc_.encrypted;
+      for (int i = 0; i < 16; i++) diff |= k[i] ^ desc_.key[i];   // constant time, out of habit
+    }
+    if (!stored) return send_json_(req, 400, "{\"error\":\"no stored key\"}");
+    return send_json_(req, 200, std::string("{\"match\":") + (diff ? "false" : "true") + "}");
+  }
   if (url == "/api/config/wifi") {
     JsonDocument doc;
     if (deserializeJson(doc, body) || doc["ssid"].isNull()) return send_json_(req, 400, "{\"error\":\"ssid\"}");
@@ -921,6 +950,7 @@ std::string GplugSmi::json_status_() {
   s += ",\"meter\":{\"preset\":\""; json_escape(s, desc_.preset.c_str()); s += "\"";
   s += ",\"protocol\":" + std::to_string(desc_.protocol) + ",\"obis\":" + std::to_string(desc_.n);
   s += ",\"encrypted\":" + std::string(desc_.encrypted ? "true" : "false");
+  if (desc_.encrypted) s += ",\"key_hint\":\"" + std::string(desc_.key_hint) + "\"";
   s += ",\"dsmr_telegrams\":" + std::to_string(dsmr_.telegrams) + ",\"dsmr_crc_errors\":" + std::to_string(dsmr_.crc_errors);
   s += ",\"dlms_frames\":" + std::to_string(dlms_.stats.frames) + ",\"dlms_apdus\":" + std::to_string(dlms_.stats.apdus);
   s += ",\"dlms_fcs_errors\":" + std::to_string(dlms_.stats.fcs_errors) + ",\"dlms_auth_failed\":" + std::to_string(dlms_.stats.auth_failed) + "}";

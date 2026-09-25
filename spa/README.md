@@ -47,8 +47,8 @@ the diagnosis from its `diag` verdict with a button to the step that fixes it (t
 available: a customer port the utility hasn't enabled yet is not a setup error. The Live tab shows
 the same card when the problem appears later; there is deliberately no automatic redirect, since
 "no data" is as often a cable or the meter as a wrong setting. When the device already holds a
-GUEK, the meter step offers a "use stored key" toggle (on by default) and sends `keep_key` instead
-of the key,
+GUEK, the meter step offers a "use stored key" toggle (on by default), labelled with the key's
+fingerprint (`key_hint`) and with a check of a typed key against the stored one (`/api/key/check`), and sends `keep_key` instead of the key,
 which the SPA never gets back – so fixing only the profile doesn't mean retyping 32 hex digits.
 
 **The meter step proposes the profile** (`steps/meter.js`). Committing the hardware step sends the
@@ -225,9 +225,10 @@ device in `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (e.g. `http
 
 | Method | Path | Body / result |
 |---|---|---|
-| GET | `/api/status` | `{version, hostname, uptime, build, app, ota_auth, heap, mem:{free, min_free, largest, stack_loop, stack_httpd}, hardware, meter:{preset, protocol, encrypted, …}, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}`. `app` is the first 16 hex digits of the running image's ELF SHA-256; the firmware card reads the same bytes at offset `0xB0` of the file it uploads and compares the two after the reboot, because `build` does not move when only embedded assets change. Both config objects are always present: `hardware` is `{}` until the hardware step is saved, `meter.protocol` is `0` (1 DSMR, 2 DLMS) until a profile is; the SPA opens the wizard unless `hardware.variant` and `meter.protocol` are set |
+| GET | `/api/status` | `{version, hostname, uptime, build, app, ota_auth, heap, mem:{free, min_free, largest, stack_loop, stack_httpd}, hardware, meter:{preset, protocol, encrypted, key_hint?, …}, wifi:{…}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}}`. `app` is the first 16 hex digits of the running image's ELF SHA-256; the firmware card reads the same bytes at offset `0xB0` of the file it uploads and compares the two after the reboot, because `build` does not move when only embedded assets change. Both config objects are always present: `hardware` is `{}` until the hardware step is saved, `meter.protocol` is `0` (1 DSMR, 2 DLMS) until a profile is; `meter.key_hint` (4 hex digits of SHA-256 of the stored GUEK, only when one is stored, absent before 0.6.0) is shown under the meter step's "use stored key" toggle; the SPA opens the wizard unless `hardware.variant` and `meter.protocol` are set |
 | GET | `/api/presets` | `{variants:[…], presets:[…]}` (see `../firmware/components/gplug_smi/presets.json`) |
 | GET | `/api/wifi/scan` | `[{ssid, rssi, secure}]` |
+| POST | `/api/key/check` | `{key}` → `{match}`. The meter step's "compare with the letter" check under the "use stored key" toggle; offered only when `meter.key_hint` is present (same firmware release). 400 `no stored key` / `key must be 32 hex chars` |
 | POST | `/api/config/wifi` | `{ssid, psk}` |
 | POST | `/api/config/hardware` | `{variant, pins:{rx, red, green, blue, button}}` |
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, descriptor:{schema, protocol, mode, baud, rx, serial_flags, buffer, obis[]}}` |

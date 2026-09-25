@@ -1,6 +1,7 @@
 // Dev server: serves dist/index.html and fakes the device API so the wizard
 // can be exercised without hardware.  `npm run build && npm run dev`
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -340,10 +341,13 @@ function frameDetail(i, kind) {
 
 // Same shape as the firmware before and after setup: `hardware` is {} and `meter` has preset "" and
 // protocol 0 until configured, never null. A mock that sent null hid a routing bug the device showed.
+// key_hint: first 4 hex digits of SHA-256 over the key's 16 raw bytes, as the firmware computes it.
 function statusMeter() {
   if (!state.meter) return { preset: "", protocol: 0, encrypted: false };
+  const key = state.meter.key;
   return { preset: state.meter.preset, protocol: { dsmr: 1, dlms: 2 }[state.meter.descriptor?.protocol] || 0,
-    encrypted: state.meter.key !== undefined };
+    encrypted: key !== undefined,
+    ...(key !== undefined && { key_hint: createHash("sha256").update(Buffer.from(key, "hex")).digest("hex").slice(0, 4).toUpperCase() }) };
 }
 
 const routes = {
@@ -371,6 +375,11 @@ const routes = {
     }
     state.meter = b; state.t0 = Date.now(); state.meterCommits = (state.meterCommits || 0) + 1;
     return { ok: true };
+  },
+  "POST /api/key/check": (b) => {
+    if (!/^[0-9a-fA-F]{32}$/.test(b.key || "")) return { __status: 400, error: "key must be 32 hex chars" };
+    if (!state.meter?.key) return { __status: 400, error: "no stored key" };
+    return { match: b.key.toLowerCase() === state.meter.key.toLowerCase() };
   },
   "GET /api/live": () => live(),
   "GET /api/ring": () => ring(),

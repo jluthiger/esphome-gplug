@@ -101,6 +101,11 @@ export const en = {
   dgKeyHint: "The meter sends encrypted data, but the key (GUEK) does not decrypt it. You get the key from your grid operator.",
   keepKey: "Use the stored key",
   keepKeyHint: "The key stays on the device and is not shown.",
+  keyFingerprint: (fp) => `ID ${fp} (checksum, changes with the key)`,
+  keyCheck: "Compare with the grid operator's letter",
+  keyCheckBtn: "Check",
+  keyMatch: "Matches the stored key.",
+  keyMismatch: "Does not match. Turn the switch off and enter the key from the letter.",
 
 
   // live screen chrome

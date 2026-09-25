@@ -69,6 +69,7 @@ struct Descriptor {
   bool has_auth_key{false};
   uint8_t key[16]{};
   uint8_t auth_key[16]{};
+  char key_hint[5]{};        // first 4 hex digits of SHA-256(key), see apply_meter_json_
   uint8_t n{0};
   ObisEntry obis[MAX_OBIS];
   std::string preset;
