@@ -27,10 +27,12 @@ CONF_PRESETS_RAW_ID = "presets_raw_id"
 CONF_MANIFEST_RAW_ID = "manifest_raw_id"
 CONF_ICON_RAW_ID = "icon_raw_id"
 CONF_OTA_PASSWORD = "ota_password"
+CONF_UPDATE_ID = "update_id"
 # Referenced by the sensor/text_sensor platforms to find the component.
 CONF_GPLUG_SMI_ID = "gplug_smi_id"
 OTA_USERNAME = "admin"
 
+UpdateEntity = cg.esphome_ns.namespace("update").class_("UpdateEntity")
 gplug_ns = cg.esphome_ns.namespace("gplug_smi")
 GplugSmi = gplug_ns.class_("GplugSmi", cg.Component, uart.UARTDevice)
 
@@ -79,6 +81,10 @@ CONFIG_SCHEMA = (
             # SPA's firmware card) with HTTP Basic auth, user "admin". Empty = no auth. gplug.yaml feeds
             # the same value to `ota: password:` so both OTA paths share one password.
             cv.Optional(CONF_OTA_PASSWORD, default=""): cv.sensitive(),
+            # Optional: the `update: platform: http_request` entity behind the firmware card's
+            # "Check for updates" / install from the release (GET/POST /api/update*). Without it
+            # those routes answer 404 / state "unavailable" and the card offers the file upload only.
+            cv.Optional(CONF_UPDATE_ID): cv.use_id(UpdateEntity),
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
@@ -126,8 +132,13 @@ async def to_code(config):
     # web_server_base wraps every handler registered via add_handler() -- only ota.web_server's
     # /update here; the SPA and captive portal use add_handler_without_auth() -- in Basic auth once
     # a username is set. Set before setup(), since the wrap happens when the handler is added.
+    if CONF_UPDATE_ID in config:
+        cg.add(var.set_update(await cg.get_variable(config[CONF_UPDATE_ID])))
+
     if config[CONF_OTA_PASSWORD]:
         cg.add(var.set_ota_auth(True))
+        # POST /api/update/install checks it itself: that route is registered without auth.
+        cg.add(var.set_ota_password(config[CONF_OTA_PASSWORD]))
         cg.add_define("USE_WEBSERVER_AUTH")
         cg.add(base.set_auth_username(OTA_USERNAME))
         cg.add(base.set_auth_password(config[CONF_OTA_PASSWORD]))

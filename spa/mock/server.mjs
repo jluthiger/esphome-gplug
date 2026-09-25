@@ -17,9 +17,15 @@ const OTA_PASSWORD = process.env.MOCK_OTA_PASSWORD || "";
 // before -- what the bootloader does with an image that crash-loops. The firmware card should
 // report that, and can only see it by comparing image identities (`app`), not build timestamps.
 const OTA_ROLLBACK = process.env.MOCK_OTA_ROLLBACK === "1";
+// Install from the release (GET/POST /api/update*). MOCK_UPDATE=0.7.0 makes "Check for updates"
+// find that version; MOCK_UPDATE=offline makes the check fail as it does without internet access;
+// unset, the manifest holds the running version ("up to date"). MOCK_UPDATE_FAIL=1 aborts the
+// download halfway, as a wrong MD5 or a dropped connection does on the device.
+const MOCK_UPDATE = process.env.MOCK_UPDATE || "";
+const UPDATE_FAIL = process.env.MOCK_UPDATE_FAIL === "1";
 
 const state = {
-  version: "0.1.0-mock", hostname: "gplug-a1b2c3", build: Math.floor(Date.now() / 1000) - 86400,
+  version: "0.1.0-mock", fw: "0.6.0", hostname: "gplug-a1b2c3", build: Math.floor(Date.now() / 1000) - 86400,
   // Like the device's `app`: the first 16 hex digits of the running image's ELF SHA-256. The
   // firmware card compares it against the file it uploaded, so the mock has to take the uploaded
   // file's own hash on a successful "update" -- otherwise the success path is untestable here.
@@ -29,6 +35,44 @@ const state = {
   wifi: { connected: false, ssid: null, ip: null, rssi: null, error: null },
   t0: Date.now(), hwT0: Date.now(),
 };
+
+// Like GplugSmi's UpdSnap: what the last check found, kept until the next check or a reboot.
+const upd = { state: "unchecked", latest: "", release_url: "", progress: 0, checkedAt: 0, error: "" };
+const updNewer = () => !!upd.latest && upd.latest !== state.fw;   // the mock only ever offers newer
+
+function updCheck() {
+  const busy = upd.state === "checking" || upd.state === "installing";
+  if (busy || Date.now() - upd.checkedAt < 10000) return;   // UPD_CHECK_MIN_GAP_MS
+  Object.assign(upd, { state: "checking", error: "" });
+  setTimeout(() => {
+    upd.checkedAt = Date.now();
+    if (MOCK_UPDATE === "offline") return Object.assign(upd, { state: "error", error: "check" });
+    upd.latest = MOCK_UPDATE || state.fw;
+    upd.release_url = `https://github.com/jluthiger/esphome-gplug/releases/tag/v${upd.latest}`;
+    upd.state = updNewer() ? "available" : "none";
+  }, 2500);
+}
+
+// The device's download: progress while the loop task writes the other slot, then the same 6 s
+// reboot as /update, coming back with the new version and image.
+function updInstall() {
+  Object.assign(upd, { state: "installing", progress: 0 });
+  const t = setInterval(() => {
+    upd.progress = Math.min(100, upd.progress + 5);
+    if (UPDATE_FAIL && upd.progress >= 50) {
+      clearInterval(t);
+      return Object.assign(upd, { state: "error", error: "install", progress: 0 });
+    }
+    if (upd.progress < 100) return;
+    clearInterval(t);
+    state.rebootUntil = Date.now() + 6000;
+    state.t0 = Date.now() + 6000;
+    state.build = Math.floor(Date.now() / 1000);
+    state.fw = upd.latest;
+    state.app = createHash("sha256").update(upd.latest).digest("hex").slice(0, 16);
+    Object.assign(upd, { state: "unchecked", latest: "", release_url: "", progress: 0, checkedAt: 0 });
+  }, 400);
+}
 
 const NETS = [
   { ssid: "Home-WLAN", rssi: -48, secure: true },
@@ -385,6 +429,17 @@ const routes = {
   "GET /api/ring": () => ring(),
   // Like the OTA path below: API down for 6 s, then a fresh uptime, so the firmware card's wait for
   // the device can be exercised. The log gets what the device writes: the request, then the boot.
+  "GET /api/update": () => ({ state: upd.state, current: state.fw, latest: upd.latest, newer: updNewer(),
+    release_url: upd.release_url, progress: upd.progress,
+    checked_ago: upd.checkedAt ? Math.floor((Date.now() - upd.checkedAt) / 1000) : null, error: upd.error }),
+  "POST /api/update/check": () => { updCheck(); return { ok: true }; },
+  "POST /api/update/install": (b, req) => {
+    if (OTA_PASSWORD && req.headers.authorization !== "Basic " + Buffer.from("admin:" + OTA_PASSWORD).toString("base64"))
+      return { __status: 401, error: "auth" };
+    if (upd.state !== "available" || !updNewer()) return { __status: 409, error: "no update" };
+    updInstall();
+    return { ok: true };
+  },
   "POST /api/reboot": () => {
     state.rebootUntil = Date.now() + 6000;
     state.t0 = Date.now() + 6000;
@@ -454,7 +509,7 @@ createServer(async (req, res) => {
 
   const fn = routes[key];
   if (fn) {
-    const out = await fn(body ? JSON.parse(body) : undefined);
+    const out = await fn(body ? JSON.parse(body) : undefined, req);
     console.log(key, body || "");
     const code = out?.__status || 200;
     if (out) delete out.__status;

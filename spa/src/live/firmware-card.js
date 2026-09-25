@@ -1,12 +1,14 @@
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { Collapsible } from "./collapsible.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 
-// Firmware update from the phone: pick an ESPHome OTA image, check its header here, upload it to
-// the device's /update handler, then wait for the reboot and confirm a different build came up.
-// The only update path once onboarding is done that needs no ESPHome tooling.
+// Firmware update from the phone, two ways. From the release: "Check for updates" asks the device
+// to read the release manifest on github.io (/api/update*), and a newer version is installed only
+// after a second, explicit tap -- the device downloads it itself. From a file: pick an ESPHome OTA
+// image, check its header here, upload it to the device's /update handler. Both end the same way:
+// wait for the reboot and confirm a different image came up.
 //
 // A plain restart lives here too: it is the same wait for the device to come back, and sharing the
 // phase state means a restart can never be started in the middle of an upload.
@@ -18,6 +20,9 @@ const ELF_SHA_OFF = 0xb0;          // esp_app_desc_t.app_elf_sha256: 0x20 + 144,
 const REBOOT_TIMEOUT_MS = 120000;  // an OTA reboot also verifies and switches the image
 const RESTART_TIMEOUT_MS = 60000;
 const CONFIRM_MS = 10000;          // how long "Really restart?" waits before it takes itself back
+const REL_CONFIRM_MS = 60000;      // the install confirmation may need a password typed first
+const REL_TIMEOUT_MS = 300000;     // download over TLS (~1.2 MB) plus the reboot
+const REL_CHECK_MS = 75000;        // a little over the device's own 60 s check timeout
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -71,7 +76,88 @@ export function FirmwareCard({ status }) {
   const [msg, setMsg] = useState("");
   const msgText = (m) => (m && S[m] !== undefined ? S[m] : m);
   const [build, setBuild] = useState(status?.build);
+  const [fw, setFw] = useState(status?.fw);
   const confirmTimer = useRef(null);
+  // The device's release check (GET /api/update), or null while unknown or on a firmware without it.
+  const [rel, setRel] = useState(null);
+  const alive = useRef(true);
+
+  // Reading the last check's result costs the device nothing and contacts no one. An install that is
+  // already running (started before a tab switch, or from Home Assistant) is picked up and followed.
+  useEffect(() => {
+    api.updateInfo().then((u) => {
+      if (!alive.current) return;
+      setRel(u);
+      if (u.state === "installing") followInstall(Date.now(), null, u.latest);
+    }).catch(() => {});
+    return () => { alive.current = false; clearTimeout(confirmTimer.current); };
+  }, []);
+
+  async function checkRelease() {
+    setMsg("");
+    try {
+      await api.updateCheck();
+    } catch (e) { setRel((r) => ({ ...r, state: "error", error: "check" })); return; }
+    const t0 = Date.now();
+    setRel((r) => ({ ...r, state: "checking" }));
+    while (alive.current && Date.now() - t0 < REL_CHECK_MS) {
+      await sleep(1500);
+      try {
+        const u = await api.updateInfo();
+        if (!alive.current) return;
+        setRel(u);
+        if (u.state !== "checking") return;
+      } catch { /* keep polling */ }
+    }
+    if (alive.current) setRel((r) => ({ ...r, state: "error", error: "check" }));
+  }
+
+  function askRelease() {
+    setPhase("rconfirm"); setMsg("");
+    clearTimeout(confirmTimer.current);
+    confirmTimer.current = setTimeout(() => setPhase((p) => (p === "rconfirm" ? "idle" : p)), REL_CONFIRM_MS);
+  }
+
+  async function installRelease() {
+    clearTimeout(confirmTimer.current);
+    const target = rel?.latest;
+    let beforeApp = status?.app;
+    try { beforeApp = (await api.status()).app; } catch { /* keep the last known one */ }
+    setPhase("download"); setProgress(0); setMsg("");
+    const t0 = Date.now();
+    try {
+      await api.updateInstall(status?.ota_auth ? password : "");
+    } catch (e) {
+      if (e.message === S.fwAuth) { setPhase("rconfirm"); setMsg("fwAuth"); return; }
+      setPhase("failed"); setMsg(e.message); return;
+    }
+    followInstall(t0, beforeApp, target);
+  }
+
+  // The device downloads on its loop task, but its web server keeps answering, so progress is
+  // polled. The download ends in a reboot (the polls fail, or the state resets) or in "error" with
+  // the old image still running.
+  async function followInstall(t0, beforeApp, target) {
+    setPhase("download");
+    while (alive.current && Date.now() - t0 < REL_TIMEOUT_MS) {
+      await sleep(1000);
+      let u;
+      try { u = await api.updateInfo(); } catch { break; }
+      if (!alive.current) return;
+      if (u.state === "installing") { setProgress(u.progress / 100); continue; }
+      if (u.state === "error") { setRel(u); setPhase("failed"); setMsg("fwRelErrInstall"); return; }
+      break;
+    }
+    if (!alive.current) return;
+    setPhase("reboot");
+    const s = await waitForReboot(t0, REL_TIMEOUT_MS);
+    if (!alive.current) return;
+    if (!s) { setPhase("failed"); setMsg("fwNoReturn"); return; }
+    setBuild(s.build); setFw(s.fw); setRel(null);
+    // The version is what was asked for; the image hash catches a rollback to the old image.
+    if (target && s.fw) setPhase(s.fw === target ? "done" : "same");
+    else setPhase(beforeApp && s.app === beforeApp ? "same" : "done");
+  }
 
   async function pick(e) {
     const f = e.target.files?.[0];
@@ -140,22 +226,40 @@ export function FirmwareCard({ status }) {
     else setPhase("lost");
   }
 
-  const busy = phase === "upload" || phase === "reboot" || phase === "restart";
+  const busy = phase === "upload" || phase === "download" || phase === "reboot" || phase === "restart";
   // The image carries the compile-time name ("gplug"); the device adds its MAC suffix at boot
   // ("gplug-a1b2c3"), so the released image matches either form. An adopted config bakes the full
   // suffixed name in, which still compares equal, and still warns on another gPlug's image.
   const otherName = info?.name && status?.hostname && info.name !== status.hostname
     && info.name !== status.hostname.replace(/-[0-9a-f]{6}$/, "");
 
+  const moving = phase === "upload" || phase === "download";
+
   // The upload state lives here, above the Collapsible, so closing the card mid-way loses nothing;
   // the card is still held open while busy so the "keep powered" warning stays in view.
   return html`
-    <${Collapsible} id="fw" title=${S.fwTitle} summary=${fmtBuild(build)} locked=${busy}>
+    <${Collapsible} id="fw" title=${S.fwTitle} summary=${fw || fmtBuild(build)} locked=${busy}>
       <div class="kv">
+        ${fw && html`<b>${S.fwVersion}</b><span>${fw}</span>`}
         ${status?.version && html`<b>${S.fwEsphome}</b><span>${status.version}</span>`}
         ${build ? html`<b>${S.fwBuild}</b><span>${fmtBuild(build)}</span>` : null}
       </div>
       <input ref=${input} type="file" accept=".bin,application/octet-stream" hidden onChange=${pick} />
+
+      ${phase === "idle" && rel && html`<${Release} rel=${rel} fw=${fw} onCheck=${checkRelease} onInstall=${askRelease} />`}
+
+      ${phase === "rconfirm" && html`
+        <p style="margin:14px 0 0"><b>${S.fwRelAvail(fw || rel?.current, rel?.latest)}</b></p>
+        <p class="hint" style="margin:8px 0 0">${S.fwRelConfirmHint}</p>
+        ${status?.ota_auth && html`
+          <label>${S.fwPassword}</label>
+          <input type="password" autocomplete="current-password" value=${password}
+            onInput=${(e) => setPassword(e.target.value)} />`}
+        ${msg && html`<div class="err">${msgText(msg)}</div>`}
+        <div class="nav">
+          <button onClick=${() => { clearTimeout(confirmTimer.current); setPhase("idle"); setMsg(""); }}>${S.fwCancel}</button>
+          <button class="primary" disabled=${status?.ota_auth && !password} onClick=${installRelease}>${S.fwRelConfirm}</button>
+        </div>`}
 
       ${phase === "idle" && html`
         <p style="margin:14px 0 0"><button onClick=${() => input.current.click()}>${S.fwPick}</button></p>
@@ -187,10 +291,10 @@ export function FirmwareCard({ status }) {
         </div>`}
 
       ${busy && html`
-        <div class="progress"><i style=${`width:${phase === "upload" ? Math.round(progress * 100) : 100}%`}></i></div>
+        <div class="progress"><i style=${`width:${moving ? Math.round(progress * 100) : 100}%`}></i></div>
         <div class="between">
-          <span class="muted"><span class="spin"></span> ${phase === "upload" ? S.fwUploading : S.fwRebooting}</span>
-          ${phase === "upload" && html`<span class="num">${Math.round(progress * 100)} %</span>`}
+          <span class="muted"><span class="spin"></span> ${phase === "upload" ? S.fwUploading : phase === "download" ? S.fwRelDownloading : S.fwRebooting}</span>
+          ${moving && html`<span class="num">${Math.round(progress * 100)} %</span>`}
         </div>
         ${phase !== "restart" && html`<p class="hint" style="margin:8px 0 0">${S.fwKeepPower}</p>`}`}
 
@@ -212,4 +316,25 @@ export function FirmwareCard({ status }) {
         <div class="err">${S.fwFailed}: ${msgText(msg)}</div>
         <p style="margin:14px 0 0"><button onClick=${reset}>${S.fwCancel}</button></p>`}
     <//>`;
+}
+
+// The release part of the card, shown while nothing else is going on. Every state keeps a way
+// forward: a check can always be repeated, and a failed one points at the file upload below.
+function Release({ rel, fw, onCheck, onInstall }) {
+  const checkBtn = html`<p style="margin:14px 0 0"><button onClick=${onCheck}>${S.fwRelCheck}</button></p>`;
+  if (rel.state === "checking") {
+    return html`<p class="muted" style="margin:14px 0 0"><span class="spin"></span> ${S.fwRelChecking}</p>`;
+  }
+  if (rel.state === "available" && rel.newer) {
+    return html`
+      <p style="margin:14px 0 0"><span class="badge ok">${S.fwRelAvail(fw || rel.current, rel.latest)}</span></p>
+      ${rel.release_url && html`<p style="margin:8px 0 0"><a href=${rel.release_url} target="_blank" rel="noopener">${S.fwRelNotes}</a></p>`}
+      <p style="margin:14px 0 0"><button class="primary" onClick=${onInstall}>${S.fwRelInstall(rel.latest)}</button></p>`;
+  }
+  if (rel.state === "none") return html`<p class="hint" style="margin:14px 0 0">${S.fwRelNone(fw || rel.current)}</p>${checkBtn}`;
+  if (rel.state === "error") {
+    return html`<div class="err">${rel.error === "install" ? S.fwRelErrInstall : S.fwRelErrCheck}</div>${checkBtn}`;
+  }
+  if (rel.state === "unchecked") return html`${checkBtn}<p class="hint" style="margin:8px 0 0">${S.fwRelHint}</p>`;
+  return null;   // "installing" is shown by the card's busy view; "unavailable" = built without it
 }

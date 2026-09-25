@@ -13,9 +13,11 @@ const DEVICE_ERRORS = {
   "key must be 32 hex chars": "keyInvalid",
   "auth_key must be 32 hex chars": "keyInvalid",
   "history disabled": "errHistoryOff",
+  "auth": "fwAuth",
+  "no update": "fwRelGone",
 };
 
-async function req(method, path, body, ms = 8000) {
+async function req(method, path, body, ms = 8000, headers = undefined) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -23,7 +25,7 @@ async function req(method, path, body, ms = 8000) {
     try {
       r = await fetch(BASE + path, {
         method,
-        headers: body ? { "content-type": "application/json" } : undefined,
+        headers: body ? { "content-type": "application/json", ...headers } : headers,
         body: body ? JSON.stringify(body) : undefined,
         signal: ctrl.signal,
       });
@@ -73,6 +75,13 @@ export const api = {
   frameRaw: (i) => req("GET", `/api/frames/${i}/raw`, null, 4000),
   framePlain: (i) => req("GET", `/api/frames/${i}/plain`, null, 4000),
   reboot: () => req("POST", "/api/reboot"),
+  // Install from the release (GET/POST /api/update*). Reading the state costs the device nothing;
+  // only check() makes it contact github.io. install() carries the OTA password up front like the
+  // file upload; the device answers a wrong one with a bare 401 (no browser login dialog).
+  updateInfo: () => req("GET", "/api/update", null, 4000),
+  updateCheck: () => req("POST", "/api/update/check"),
+  updateInstall: (password) => req("POST", "/api/update/install", null, 8000,
+    password ? { Authorization: basicAuth(password) } : undefined),
   firmware: uploadFirmware,
   firmwareAuth: checkFirmwareAuth,
 };
@@ -100,6 +109,11 @@ function checkFirmwareAuth(password) {
   });
 }
 
+function basicAuth(password) {
+  const bytes = new TextEncoder().encode("admin:" + password);   // UTF-8-safe btoa
+  return "Basic " + btoa(String.fromCharCode(...bytes));
+}
+
 // POST the image to ESPHome's ota.web_server handler (/update, multipart field "update"). XHR, not
 // fetch: fetch has no upload progress. Resolves with the HTTP status and ESPHome's plain-text verdict
 // ("Update Successful!" / "Update Failed!"); the device reboots itself right after a success.
@@ -107,10 +121,7 @@ function uploadFirmware(file, password, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", BASE + "/update");
-    if (password) {
-      const bytes = new TextEncoder().encode("admin:" + password);   // UTF-8-safe btoa
-      xhr.setRequestHeader("Authorization", "Basic " + btoa(String.fromCharCode(...bytes)));
-    }
+    if (password) xhr.setRequestHeader("Authorization", basicAuth(password));
     xhr.timeout = 180000;
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
     xhr.onload = () => resolve({ status: xhr.status, text: xhr.responseText || "" });

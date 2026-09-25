@@ -1,5 +1,6 @@
 #include "gplug_smi.h"
 #include "history_csv.h"
+#include "version_cmp.h"
 #include "esphome/core/application.h"
 #include "esphome/core/log.h"
 #include "esphome/core/version.h"
@@ -84,6 +85,14 @@ void GplugSmi::setup() {
   wifi::global_wifi_component->set_keep_scan_results(true);
   this->base_->init();
   this->base_->add_handler_without_auth(this);   // registered before captive portal → we serve "/"
+#ifdef USE_UPDATE
+  // Fires on the loop task: when a manifest check completes and while an install reports progress.
+  if (upd_ != nullptr) upd_->add_on_state_callback([this]() {
+    bool check_done = upd_checking_;
+    upd_checking_ = false;
+    this->update_snapshot_(check_done);
+  });
+#endif
   ESP_LOGI(TAG, "ready, protocol=%d baud=%u obis=%u", desc_.protocol, (unsigned) desc_.baud, desc_.n);
 }
 
@@ -181,6 +190,7 @@ void GplugSmi::loop() {
   this->hist_service_();
   this->log_service_();
   this->mem_service_();
+  this->update_service_();
 }
 
 // ---------------------------------------------------------------- decoding
@@ -791,6 +801,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/history.csv") return handle_history_csv_(req);
     if (url == "/api/log") return send_json_(req, 200, json_log_());
     if (url == "/api/heap") return handle_heap_(req);
+    if (url == "/api/update") return send_json_(req, 200, json_update_());
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
     if (url == "/manifest.webmanifest") return send_gz_(req, "application/manifest+json", manifest_, manifest_len_);
@@ -803,6 +814,9 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
   }
 
   std::string body;
+  // No body on these two; read_body_() would refuse the empty request.
+  if (url == "/api/update/check") return handle_update_post_(req, false);
+  if (url == "/api/update/install") return handle_update_post_(req, true);
   if (url == "/api/reboot") {
     send_json_(req, 200, "{\"ok\":true}");
     // RR_SW alone cannot say who restarted the device (OTA, AP button and this route all end in
@@ -901,7 +915,13 @@ std::string GplugSmi::json_status_() {
   std::string ip;
   if (conn) for (auto &a : w->wifi_sta_ip_addresses()) if (a.is_set()) { char ipb[network::IP_ADDRESS_BUFFER_SIZE]; a.str_to(ipb); ip = ipb; break; }
   char ssid_buf[wifi::SSID_BUFFER_SIZE] = {};
-  std::string s = "{\"version\":\"" ESPHOME_VERSION "\",\"hostname\":\"";
+  std::string s = "{\"version\":\"" ESPHOME_VERSION "\"";
+  // The gPlug release (gplug.yaml `version`), which is what the update check compares against the
+  // manifest; `version` above is the ESPHome release and stays for older SPAs.
+#ifdef ESPHOME_PROJECT_VERSION
+  s += ",\"fw\":\"" ESPHOME_PROJECT_VERSION "\"";
+#endif
+  s += ",\"hostname\":\"";
   json_escape(s, App.get_name().c_str());
   s += "\",\"uptime\":" + std::to_string(millis() / 1000);
   // build: lets the SPA's firmware card tell the new image from the old one after an OTA reboot
@@ -1617,6 +1637,181 @@ std::string GplugSmi::json_wifi_scan_() {
   }
   s += "]";
   return s;
+}
+
+// ---- Firmware update from the release (issue 12) ----------------------------------------------
+//
+// ESPHome's http_request update entity does the work: it fetches the manifest on its own task and
+// flashes on the loop task. What this adds is the policy the entity lacks: nothing happens unless
+// the user asks (update_interval: never in gplug.yaml, so not even a check at boot -- the device
+// contacts github.io only on "Check for updates"), an install is offered only for a strictly newer
+// release (version_cmp.h), and a failed check is reported instead of silently leaving the old state.
+
+static const uint32_t UPD_CHECK_TIMEOUT_MS = 60000;   // DNS + TLS handshake + 10 s read timeout, with margin
+static const uint32_t UPD_CHECK_MIN_GAP_MS = 10000;   // a double tap does not fetch twice
+
+#ifdef USE_UPDATE
+static const char *upd_state_name(uint8_t st) {
+  static const char *const N[] = {"unchecked", "checking", "none", "available", "installing", "error"};
+  return st < sizeof(N) / sizeof(N[0]) ? N[st] : "error";
+}
+#endif
+
+// Loop task only. Copies the entity's view into upd_snap_ for the httpd task.
+void GplugSmi::update_snapshot_(bool check_done) {
+#ifdef USE_UPDATE
+  const auto &info = upd_->update_info;
+  std::lock_guard<std::mutex> lk(upd_mutex_);
+  UpdSnap &s = upd_snap_;
+  snprintf(s.latest, sizeof(s.latest), "%s", info.latest_version.c_str());
+  snprintf(s.release_url, sizeof(s.release_url), "%s", info.release_url.c_str());
+#ifdef ESPHOME_PROJECT_VERSION
+  s.newer = ::gplug_ver::newer(s.latest, ESPHOME_PROJECT_VERSION);
+#endif
+  if (check_done) {
+    s.checked_ms = millis() | 1;
+    s.error[0] = 0;
+  }
+  switch (upd_->state) {
+    case update::UPDATE_STATE_INSTALLING:
+      s.state = UPD_INSTALLING;
+      s.progress = info.has_progress ? (uint8_t) std::min(100.0f, std::max(0.0f, info.progress)) : 0;
+      break;
+    case update::UPDATE_STATE_AVAILABLE:
+      // The entity falls back to "available" when a download fails (wrong MD5, connection lost); the
+      // old image is still running and still valid, so the card says the install failed.
+      if (upd_installing_ && upd_comp_->status_has_error()) {
+        upd_installing_ = false;
+        s.state = UPD_ERROR;
+        snprintf(s.error, sizeof(s.error), "install");
+      } else {
+        s.state = s.newer ? UPD_AVAILABLE : UPD_NONE;
+      }
+      break;
+    case update::UPDATE_STATE_NO_UPDATE:
+      s.state = UPD_NONE;
+      break;
+    default:
+      if (s.state != UPD_ERROR) s.state = UPD_UNCHECKED;
+      break;
+  }
+#endif
+}
+
+// Loop task. A failed check only sets the entity's error flag and publishes nothing, so it is polled.
+void GplugSmi::update_service_() {
+#ifdef USE_UPDATE
+  if (!upd_checking_) return;
+  if (!upd_comp_->status_has_error() && millis() - upd_check_ms_ < UPD_CHECK_TIMEOUT_MS) return;
+  upd_checking_ = false;
+  std::lock_guard<std::mutex> lk(upd_mutex_);
+  upd_snap_.state = UPD_ERROR;
+  upd_snap_.checked_ms = millis() | 1;
+  snprintf(upd_snap_.error, sizeof(upd_snap_.error), "check");
+#endif
+}
+
+// Loop task, deferred from POST /api/update/check.
+void GplugSmi::update_start_check_() {
+#ifdef USE_UPDATE
+  if (upd_checking_) return;
+  if (upd_installing_ || upd_->state == update::UPDATE_STATE_INSTALLING) {
+    // The handler already showed "checking"; put back what the entity says instead of leaving it.
+    this->update_snapshot_(false);
+    return;
+  }
+  if (!wifi::global_wifi_component->is_connected()) {
+    // The entity would only log "not connected" and return; report it like any failed check.
+    std::lock_guard<std::mutex> lk(upd_mutex_);
+    upd_snap_.state = UPD_ERROR;
+    upd_snap_.checked_ms = millis() | 1;
+    snprintf(upd_snap_.error, sizeof(upd_snap_.error), "check");
+    return;
+  }
+  // The flag is sticky from an earlier failure; cleared here, it tells this check's outcome apart.
+  upd_comp_->status_clear_error();
+  upd_checking_ = true;
+  upd_check_ms_ = millis();
+  upd_->check();
+#endif
+}
+
+void GplugSmi::handle_update_post_(AsyncWebServerRequest *req, bool install) {
+#ifndef USE_UPDATE
+  return send_json_(req, 404, "{\"error\":\"not found\"}");
+#else
+  if (upd_ == nullptr) return send_json_(req, 404, "{\"error\":\"not found\"}");
+  if (!install) {
+    {
+      std::lock_guard<std::mutex> lk(upd_mutex_);
+      UpdSnap &s = upd_snap_;
+      bool busy = s.state == UPD_CHECKING || s.state == UPD_INSTALLING;
+      bool recent = s.checked_ms != 0 && millis() - s.checked_ms < UPD_CHECK_MIN_GAP_MS;
+      if (!busy && !recent) {
+        // Set here, not in the deferred start, so the SPA's first poll already sees "checking".
+        s.state = UPD_CHECKING;
+        s.error[0] = 0;
+        this->defer([this]() { this->update_start_check_(); });
+      }
+    }
+    return send_json_(req, 200, "{\"ok\":true}");
+  }
+  // Installing replaces the firmware, so it is guarded by the same password as the file upload
+  // (POST /update). 401 without WWW-Authenticate: the SPA asks for the password itself, and the
+  // header would make the browser pop up its own login dialog over the card.
+  // USE_WEBSERVER_AUTH is defined exactly when ota_password is set (__init__.py), and only then does
+  // the shim have authenticate().
+#ifdef USE_WEBSERVER_AUTH
+  if (ota_auth_ && !req->authenticate("admin", ota_password_)) return send_json_(req, 401, "{\"error\":\"auth\"}");
+#endif
+  {
+    std::lock_guard<std::mutex> lk(upd_mutex_);
+    if (upd_snap_.state != UPD_AVAILABLE || !upd_snap_.newer) return send_json_(req, 409, "{\"error\":\"no update\"}");
+    upd_snap_.state = UPD_INSTALLING;
+    upd_snap_.progress = 0;
+  }
+  send_json_(req, 200, "{\"ok\":true}");
+  // perform() hands the download to the loop task, which then blocks for the whole transfer and
+  // reboots on success. Folded log events are flushed first, as /api/reboot does: the restart that
+  // follows never reaches log_service_()'s rate limit. EV_OTA is logged after the reboot by the
+  // image comparison in log_setup_(), which is also what tells this restart apart.
+  this->defer([this]() {
+    upd_installing_ = true;
+    this->log_flush_();
+    upd_->perform();
+  });
+#endif
+}
+
+std::string GplugSmi::json_update_() {
+  UpdSnap s;
+  {
+    std::lock_guard<std::mutex> lk(upd_mutex_);
+    s = upd_snap_;
+  }
+  std::string out = "{\"state\":\"";
+#ifdef USE_UPDATE
+  out += upd_state_name(s.state);
+#else
+  out += "unavailable";
+#endif
+  out += "\",\"current\":\"";
+#ifdef ESPHOME_PROJECT_VERSION
+  out += ESPHOME_PROJECT_VERSION;
+#endif
+  out += "\",\"latest\":\"";
+  json_escape(out, s.latest);
+  out += "\",\"newer\":";
+  out += s.newer ? "true" : "false";
+  out += ",\"release_url\":\"";
+  json_escape(out, s.release_url);
+  out += "\",\"progress\":" + std::to_string(s.progress);
+  out += ",\"checked_ago\":";
+  out += s.checked_ms ? std::to_string((millis() - s.checked_ms) / 1000) : "null";
+  out += ",\"error\":\"";
+  out += s.error;
+  out += "\"}";
+  return out;
 }
 
 }  // namespace gplug_smi

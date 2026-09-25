@@ -19,6 +19,9 @@
 #ifdef USE_TEXT_SENSOR
 #include "esphome/components/text_sensor/text_sensor.h"
 #endif
+#ifdef USE_UPDATE
+#include "esphome/components/update/update_entity.h"
+#endif
 
 #include <array>
 #include <mutex>
@@ -87,6 +90,14 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
     manifest_ = manifest_gz; manifest_len_ = manifest_len; icon_ = icon_png; icon_len_ = icon_len;
   }
   void set_ota_auth(bool on) { ota_auth_ = on; }
+  void set_ota_password(const char *pw) { ota_password_ = pw; }
+#ifdef USE_UPDATE
+  // Install from the release manifest (issue 12). T is http_request's HttpRequestUpdate: the entity
+  // that fetches the manifest and flashes, and the component whose error flag is the only sign a
+  // manifest check failed (it publishes no state then). Templated so this header needs no
+  // http_request include; the generated main.cpp instantiates it with the concrete type.
+  template<typename T> void set_update(T *u) { upd_ = u; upd_comp_ = u; }
+#endif
   // Home Assistant entities (sensor.py / text_sensor.py). Any of them may be left out of the YAML.
 #ifdef USE_SENSOR
   void set_ha_sensor(uint8_t key, sensor::Sensor *s) { if (key < ::gplug_ha::HA_COUNT) ha_sensors_[key] = s; }
@@ -146,6 +157,11 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void send_json_(AsyncWebServerRequest *req, int code, const std::string &body);
   bool read_body_(AsyncWebServerRequest *req, std::string &out);
   std::string json_status_();
+  std::string json_update_();
+  void handle_update_post_(AsyncWebServerRequest *req, bool install);
+  void update_service_();
+  void update_start_check_();
+  void update_snapshot_(bool check_done);
   std::string json_live_();
   std::string json_ring_();
   std::string json_frames_();
@@ -290,6 +306,30 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   text_sensor::TextSensor *meter_status_text_{nullptr};
   text_sensor::TextSensor *meter_id_text_{nullptr};
 #endif
+
+  // Firmware update from the release (GET/POST /api/update*). The loop task owns the entity and
+  // copies what the SPA needs into upd_snap_; the httpd task only ever reads that copy, because the
+  // entity's std::strings are reassigned on the loop task when a check completes.
+  const char *ota_password_{""};
+  enum UpdState : uint8_t { UPD_UNCHECKED, UPD_CHECKING, UPD_NONE, UPD_AVAILABLE, UPD_INSTALLING, UPD_ERROR };
+  struct UpdSnap {
+    UpdState state{UPD_UNCHECKED};
+    bool newer{false};
+    uint8_t progress{0};          // percent, while installing
+    char error[8]{};              // "check" or "install" when state is UPD_ERROR
+    char latest[24]{};
+    char release_url[112]{};
+    uint32_t checked_ms{0};       // millis() of the last completed check, 0 = none since boot
+  };
+  mutable std::mutex upd_mutex_;
+  UpdSnap upd_snap_;
+#ifdef USE_UPDATE
+  update::UpdateEntity *upd_{nullptr};
+  Component *upd_comp_{nullptr};
+#endif
+  bool upd_checking_{false};      // loop task only
+  bool upd_installing_{false};    // loop task only
+  uint32_t upd_check_ms_{0};      // loop task only: when the running check started
 };
 
 }  // namespace gplug_smi

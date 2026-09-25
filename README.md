@@ -37,6 +37,7 @@ so nothing below is needed just to run the firmware:
 | Where | What | For |
 |---|---|---|
 | <https://jluthiger.github.io/esphome-gplug/> | Web installer (ESP Web Tools) | A fresh gPlug, or one still on Tasmota: flash over USB from Chrome or Edge, no tools installed |
+| | `manifest.json` + `gplug-ota.bin` | A gPlug on 0.6.0 or later updating itself: *Setup → Firmware → Check for updates*, installs after a confirmation |
 | [Latest release](https://github.com/jluthiger/esphome-gplug/releases/latest) | `gplug-<version>.ota.bin` | Updating a gPlug that already runs this firmware: *Setup → Firmware* in the device's own app |
 | | `gplug-<version>.factory.bin` | Full flash from `0x0` with esptool |
 
@@ -72,13 +73,17 @@ With Claude Code: `/release`. By hand:
    GitHub, `esphome config`/`compile dev.yaml` fail locally, because the component ref now names it --
    build and test before the release commit.
 3. **Hardware test** of the rc, results noted in the release: OTA from the previous *release* (not a
-   development build) keeps Wi-Fi, meter settings, history count and event log; `diag` is `ok`; Home
-   Assistant entities are present; the app loads on a phone and a desktop; the web installer on a
+   development build; an rc is never on Pages, so this is the file upload) keeps Wi-Fi, meter
+   settings, history count and event log; `diag` is `ok`; Home Assistant entities are present; the app loads on a phone and a desktop; the web installer on a
    spare unit when there is one. Variants not tested on hardware are listed as such.
 4. **Release**: one commit on top of the tested rc that changes nothing but `version: "0.3.0"`,
    `ref: v0.3.0` and the date in the changelog;
    `.github/release-check.sh 0.3.0`; `git tag v0.3.0 && git push origin main v0.3.0`. The workflow
-   publishes the release with the changelog section as notes, deploys the installer page and moves `stable`.
+   publishes the release with the changelog section as notes, deploys the installer page (which is
+   also what devices' "Check for updates" reads: `manifest.json` with the app image's MD5 and
+   `gplug-ota.bin`) and moves `stable`.
+   After the deploy, "Check for updates" on a device still on the previous release must offer the
+   new version and install it.
 5. **Back to development**: `version: "0.4.0-dev"`, `ref: main`, commit and push.
 
 The workflow rebuilds the SPA and refuses to release if the committed `spa.html.gz` is stale, checks

@@ -82,6 +82,34 @@ catches the bootloader rollback. Only a firmware too old to report `app` falls b
 timestamp. Both verdicts were walked through the real card against the mock
 (`MOCK_OTA_ROLLBACK=1` makes it accept an upload and come back on the old image), and the hash a
 real gPlugK reports matches the one read out of the flashed `firmware.bin` at `0xB0`.
+**Install from the release** (issue 12; mock-verified 2026-09-25, hardware pending). Third
+path, for end users: the firmware card's "Check for updates" makes the device read the release
+manifest on GitHub Pages (`update_manifest` in `gplug.yaml`,
+`https://jluthiger.github.io/esphome-gplug/manifest.json`, stable releases only) and, after a
+second explicit tap, download and flash the image itself. It is ESPHome's own
+`update: platform: http_request` + `ota: platform: http_request`; `gplug_smi` adds the policy:
+
+- **Manual only.** `update_interval: never`, so no check at boot and none on a schedule; the
+  device contacts github.io only on `POST /api/update/check` (or a check asked for in Home
+  Assistant, which also gets a standard `update` entity "Firmware"). No NVS or flash writes.
+- **Strictly newer only.** The entity calls anything that differs "available"; the card offers an
+  install only when `version_cmp.h` says the manifest's version is newer (a `-dev` build is never
+  offered the previous release).
+- **Confirmed install only**, guarded by `ota_password` like `/update`. The download runs on the
+  loop task (meter reading pauses, the quarter hour in progress is lost to the reboot) while the
+  httpd task keeps answering `/api/update` with the progress.
+- **Integrity**: MD5 from the manifest, fetched over HTTPS with the ESP-IDF certificate bundle
+  (`verify_ssl: true`); after the reboot the card compares `fw` with the version it installed.
+  Images are not signed (PoC; `DECISIONS.md`).
+- **Cost**: +126 kB flash for esp_http_client, mbedTLS TLS/X.509 and the common-CA bundle, +0.8 kB
+  static RAM (2026-09-25). The TLS session allocates its buffers (16 kB in + 4 kB out) only
+  during a check or download; peak heap during both still to be measured on hardware.
+
+The release workflow puts `gplug-ota.bin` next to the factory image on Pages and fills the
+manifest's `ota` entry (`path`, `md5`, `release_url`). A release before this feature has no `ota`
+entry, so the first device-driven update is possible from the first release that ships it to the
+one after.
+
 There is no OTA on the captive-portal page any more (removed 2026-09-11): that page is onboarding
 only. A bad image is rejected before the slot
 switch (`esp_ota_ops: OTA image has invalid magic byte`); an image that boots but crash-loops is
@@ -319,7 +347,7 @@ by design: one setter, one call-site swap).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
-| GET | `/api/status` | version, hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop and httpd tasks), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present) |
+| GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop and httpd tasks), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present) |
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, samples:[[up_s, free_kb, min_kb, largest_kb],…]}`, oldest first, up to 288 samples (24 h). See "Heap monitoring" below |
@@ -329,6 +357,9 @@ by design: one setter, one call-site swap).
 | POST | `/api/key/check` | `{key}` (32 hex) → `{match: bool}`: compares against the GUEK of the running meter config, constant time; 400 `key must be 32 hex chars`, 400 `no stored key`. Only yes/no leaves the device |
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
+| GET | `/api/update` | the last release check, a copy the loop task keeps for the httpd task (no network access): `{state: unchecked\|checking\|none\|available\|installing\|error, current, latest, newer, release_url, progress, checked_ago, error: ""\|check\|install}`; `state` is `unavailable` in a build without `update_id`. `newer` is SemVer precedence (`version_cmp.h`), not the entity's "differs". See "Install from the release" |
+| POST | `/api/update/check` | no body; `{ok:true}`, then on the loop task the `http_request` update entity fetches the manifest on its own task. A no-op while a check or install runs or within 10 s of the last check. A failed check (no Wi-Fi, no internet, bad manifest, 60 s timeout) ends in `state: error, error: check` |
+| POST | `/api/update/install` | no body; 409 `no update` unless `available` and `newer`; 401 `auth` when `ota_password` is set and the Basic header (user `admin`) is missing or wrong (checked by the handler: the route is registered without auth, and no `WWW-Authenticate` so the browser shows no dialog). Answers `{ok:true}`, then on the loop task flushes the event log and calls `perform()`: download, MD5 check, reboot |
 | POST | `/api/reboot` | no body; answers `{ok:true}`, then on the loop task logs `EV_RESTART` (detail 1 = SPA), flushes the event log and calls `App.safe_reboot()`. The SPA's firmware card uses it for "restart device" |
 | GET | `/api/log` | the persistent event log: `{now, uptime, cap, events:[{t, up, code, detail, value, repeat},…]}`, oldest first. `t` is 0 for a record written before the clock had ever synced, which is what `up` (uptime in seconds) is for. Codes and details are numbers, deliberately: the SPA renders them in the user's language (see below) |
 | GET | `/api/history.csv?from=<qh>&to=<qh>` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. Field names are the implementation's own (German). Columns and the rules for empty cells: `history_csv.h`; streamed sector by sector (below) |
@@ -420,6 +451,7 @@ whatever the profile reads. A quantity the profile lacks stays *unknown* in Home
 | `meter_status` (text) | Meter status | – | diagnostic | the `diag` verdict (table above) |
 | `meter_id` (text) | Meter ID | – | diagnostic | `SMid` |
 | (`wifi_signal` platform) | Wi-Fi signal | dBm | diagnostic, every 60 s | – |
+| (`update: http_request`) | Firmware | – | update | installed vs. release manifest; checks only when asked (HA "check for updates" or the app), installs only on HA's Install or the app's confirmation |
 
 - **Aliases and units** come from the presets, which inherited them from the Tasmota scripts and
   disagree: voltage is `V1..3` on gPlugD/K and `U1..3` on gPlugM, per-phase power `P1i`/`P1o` on

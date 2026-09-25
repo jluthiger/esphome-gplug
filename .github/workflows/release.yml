@@ -125,10 +125,18 @@ jobs:
           # Full image incl. bootloader + partition table: esptool / ESP Web Tools, written at 0x0.
           cp "$BUILD/firmware.factory.bin" "out/gplug-${VERSION}.factory.bin"
           # Installer site: page, manifest, and the factory image under a stable name so an older
-          # bookmark of the page keeps working.
+          # bookmark of the page keeps working. The app image goes there too, for the devices'
+          # own "Check for updates" (manifest `ota`, read by ESPHome's http_request update
+          # platform): one fixed HTTPS host, where release assets would redirect to another.
+          # Its MD5 is what the device checks the download against.
           cp install/index.html out/install/index.html
           cp "$BUILD/firmware.factory.bin" out/install/gplug-factory.bin
-          sed "s/__VERSION__/${VERSION}/g" install/manifest.json > out/install/manifest.json
+          cp "$BUILD/firmware.ota.bin" out/install/gplug-ota.bin
+          OTA_MD5=$(md5sum out/install/gplug-ota.bin | cut -d' ' -f1)
+          sed -e "s/__VERSION__/${VERSION}/g" -e "s/__OTA_MD5__/${OTA_MD5}/g" \
+            install/manifest.json > out/install/manifest.json
+          python3 -m json.tool out/install/manifest.json > /dev/null
+          if grep -q '__' out/install/manifest.json; then echo "unfilled placeholder in manifest.json"; exit 1; fi
           ls -l out out/install
 
       - uses: actions/upload-artifact@v7

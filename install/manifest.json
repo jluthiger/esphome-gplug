@@ -11,7 +11,12 @@
       "improv": false,
       "parts": [
         { "path": "gplug-factory.bin", "offset": 0 }
-      ]
+      ],
+      "ota": {
+        "path": "gplug-ota.bin",
+        "md5": "__OTA_MD5__",
+        "release_url": "https://github.com/jluthiger/esphome-gplug/releases/tag/v__VERSION__"
+      }
     }
   ]
 }

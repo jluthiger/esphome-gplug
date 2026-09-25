@@ -175,8 +175,8 @@ def report(m):
           f"{m['iram'] / 1024:.0f} kB IRAM code and {m['data'] / 1024:.0f} kB `.data` initial values\n")
     rows = [
         ("Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`)", i["wifi"]),
-        ("ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA)", i["idf"]),
-        ("Crypto (mbedTLS for AES-GCM, Noise/Ed25519 for the encrypted API)", i["crypto"]),
+        ("ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls)", i["idf"]),
+        ("Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API)", i["crypto"]),
         ("Networking (lwIP, ESP-IDF HTTP server + parser, mDNS)", i["net"]),
         ("String literals from all code", i["strings"]),
         ("ESPHome core and components (incl. the captive_portal fork)", i["esphome"]),
