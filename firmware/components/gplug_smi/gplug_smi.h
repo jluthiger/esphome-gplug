@@ -1,6 +1,7 @@
 #pragma once
 #include "esphome/core/component.h"
 #include "esphome/core/gpio.h"
+#include "esphome/components/esp32/gpio.h"
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/web_server_base/web_server_base.h"
 #include "dsmr_parser.h"
@@ -128,6 +129,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   bool apply_hw_json_(const std::string &json, std::string &err);
   void apply_uart_();
   void apply_button_pin_();
+  void release_pin_(uint8_t num);
   void poll_button_();
   void apply_led_pins_();
   void update_led_();
@@ -196,6 +198,11 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
 
   Descriptor desc_;
   std::string hw_json_{"{}"};
+  // Pin objects are members and reconfigured in place: a hw or meter POST re-applies them, and a
+  // fresh `new` per call leaked one object per pin and wizard run (nothing ever freed the old one).
+  esp32::ESP32InternalGPIOPin uart_rx_pin_;
+  esp32::ESP32InternalGPIOPin button_pin_;
+  esp32::ESP32InternalGPIOPin led_red_pin_, led_green_pin_, led_blue_pin_;
   int8_t button_pin_num_{-1};
   GPIOPin *button_gpio_{nullptr};
   bool button_down_{false};

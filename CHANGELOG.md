@@ -10,6 +10,11 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Fixed
+
+- Saving the hardware or meter settings no longer loses a little memory each time; after changing the LED or button pins, the old pins no longer stay lit or active.
+- A DLMS meter sending a broken or never-ending multi-part message can no longer make the gPlug collect data without limit until memory runs out; such a message is dropped after 4 kB.
+
 ## [0.6.0] – 2026-09-25
 
 ### Added

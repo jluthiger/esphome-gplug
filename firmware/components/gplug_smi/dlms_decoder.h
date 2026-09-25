@@ -23,6 +23,12 @@ struct Stats {
   uint32_t frames{0}, fcs_errors{0}, hcs_errors{0}, apdus{0}, auth_failed{0}, overflow{0};
 };
 
+// Upper bound for a reassembled APDU (GBT segments or a ciphered APDU split over HDLC frames).
+// The largest real push seen so far (L+G E450, two frames) is well under 1 kB; the length field
+// alone would allow ~64 kB, and GBT has no total at all, so without a cap a lost "last" segment or
+// a corrupt length makes the buffer grow with every frame on a device with ~400 kB SRAM.
+static constexpr size_t MAX_APDU = 4096;
+
 struct Value {
   bool found{false};
   bool is_string{false};
@@ -335,7 +341,11 @@ class DlmsDecoder {
       bool last = control & 0x80;
       size_t off = 7;
       if (off + blen > n) return false;
-      if (seq == 1) gbt_.clear();
+      if (seq == 1) { gbt_.clear(); gbt_skip_ = false; }
+      // After an overflow the rest of that transfer is dropped too: appended to an empty buffer it
+      // would reassemble into a truncated APDU and be decoded as if it were whole.
+      if (gbt_skip_) return false;
+      if (gbt_.size() + blen > MAX_APDU) { stats.overflow++; gbt_.clear(); gbt_skip_ = !last; return false; }
       gbt_.insert(gbt_.end(), p + off, p + off + blen);
       if (!last) return false;
       std::vector<uint8_t> whole; whole.swap(gbt_);
@@ -349,6 +359,7 @@ class DlmsDecoder {
     if (n && p[0] == 0xDB) {                                    // start of a (possibly multi-frame) ciphered APDU
       pending_.assign(p, p + n);
       pending_total_ = ciphered_total_len_(p, n);
+      if (pending_total_ > MAX_APDU) { stats.overflow++; pending_.clear(); pending_total_ = 0; return false; }
       if (pending_total_ && pending_.size() < pending_total_) return false;   // wait for more HDLC frames
       std::vector<uint8_t> whole; whole.swap(pending_); pending_total_ = 0;
       return on_apdu_(whole.data(), whole.size());
@@ -420,6 +431,7 @@ class DlmsDecoder {
 
   std::vector<uint8_t> frame_, apdu_, gbt_, pending_;
   size_t pending_total_{0};
+  bool gbt_skip_{false};
   size_t expect_{0};
   bool in_frame_{false};
   size_t max_frame_{1280};

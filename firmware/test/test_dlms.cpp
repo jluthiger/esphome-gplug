@@ -123,6 +123,37 @@ int main() {
   { DlmsDecoder d; auto f = hdlc(glo_cipher(key, ak, plaintext(), 3, false));
     bool ok = false; for (uint8_t c : f) ok |= d.feed(c);
     CHECK(!ok && d.key_invalid() && d.encrypted_seen()); }
+  // 8. GBT transfer that never ends stays bounded: the overflow drops the rest of that transfer
+  //    (including its "last" segment), and the next transfer starting at seq 1 decodes again.
+  { DlmsDecoder d;
+    auto seg = [](uint16_t seq, bool last, const uint8_t *p, uint8_t n) {
+      std::vector<uint8_t> s = {0xE0, (uint8_t) (last ? 0x80 : 0x00), (uint8_t) (seq >> 8), (uint8_t) seq, 0x00, 0x00, n};
+      s.insert(s.end(), p, p + n);
+      return hdlc(s);
+    };
+    std::vector<uint8_t> fill(200, 0x55);
+    int n = 0;
+    uint16_t seq = 1;
+    for (; seq <= 40; seq++) for (uint8_t c : seg(seq, false, fill.data(), 200)) n += d.feed(c);   // 8 kB > MAX_APDU
+    CHECK(n == 0 && d.stats.overflow == 1);
+    for (uint8_t c : seg(seq, true, fill.data(), 200)) n += d.feed(c);
+    CHECK(n == 0);
+    auto pt = plaintext();
+    for (uint8_t c : seg(1, true, pt.data(), (uint8_t) pt.size())) n += d.feed(c);
+    CHECK(n == 1 && d.stats.apdus == 1);
+    Value v = lookup(d, "1.7.0"); CHECK(v.found && v.num == 1110); }
+  // 9. ciphered APDU announcing more than MAX_APDU is dropped at once, its continuation frames are
+  //    not collected, and the next regular APDU decodes.
+  { DlmsDecoder d; d.set_key(key);
+    std::vector<uint8_t> big = {0xDB, 0x08, 'K', 'A', 'M', 1, 2, 3, 4, 5, 0x82, 0xFF, 0xF0, 0x20, 0, 0, 0, 1};
+    big.resize(200, 0x55);
+    std::vector<uint8_t> cont(200, 0x55);
+    int n = 0;
+    for (uint8_t c : hdlc(big)) n += d.feed(c);
+    for (int i = 0; i < 5; i++) for (uint8_t c : hdlc(cont)) n += d.feed(c);
+    CHECK(n == 0 && d.stats.overflow == 1);
+    for (uint8_t c : hdlc(glo_cipher(key, ak, plaintext(), 9, false))) n += d.feed(c);
+    CHECK(n == 1 && !d.key_invalid()); }
 
   printf(fails ? "%d FAILED\n" : "all ok\n", fails);
   return fails ? 1 : 0;

@@ -503,17 +503,20 @@ bool GplugSmi::apply_hw_json_(const std::string &json, std::string &err) {
     detect_ms_ = 0;
   }
   this->apply_uart_();
+  // All new pin numbers are set before any pin is re-applied, so release_pin_() sees the complete
+  // new assignment and never resets a GPIO that just moved to another role.
   int button = doc["pins"]["button"] | -1;
-  if (button != button_pin_num_) { button_pin_num_ = (int8_t) button; this->apply_button_pin_(); }
   int red = doc["pins"]["red"] | -1;
   int green = doc["pins"]["green"] | -1;
   int blue = doc["pins"]["blue"] | -1;
-  if (red != led_red_pin_num_ || green != led_green_pin_num_ || blue != led_blue_pin_num_) {
-    led_red_pin_num_ = (int8_t) red;
-    led_green_pin_num_ = (int8_t) green;
-    led_blue_pin_num_ = (int8_t) blue;
-    this->apply_led_pins_();
-  }
+  bool button_changed = button != button_pin_num_;
+  bool leds_changed = red != led_red_pin_num_ || green != led_green_pin_num_ || blue != led_blue_pin_num_;
+  button_pin_num_ = (int8_t) button;
+  led_red_pin_num_ = (int8_t) red;
+  led_green_pin_num_ = (int8_t) green;
+  led_blue_pin_num_ = (int8_t) blue;
+  if (button_changed) this->apply_button_pin_();
+  if (leds_changed) this->apply_led_pins_();
   return true;
 }
 
@@ -522,16 +525,27 @@ bool GplugSmi::apply_hw_json_(const std::string &json, std::string &err) {
 // as the esptool nvs-erase workaround, without a cable). Only armed once per boot per press so
 // holding it longer than 3 s doesn't retrigger.
 void GplugSmi::apply_button_pin_() {
+  if (button_gpio_ != nullptr) this->release_pin_(button_pin_.get_pin());
   button_gpio_ = nullptr;
   button_down_ = false;
   button_ap_triggered_ = false;
   if (button_pin_num_ < 0) return;
-  auto *pin = new esp32::ESP32InternalGPIOPin();   // NOLINT: lives for the rest of the runtime
-  pin->set_pin((gpio_num_t) button_pin_num_);
-  pin->set_inverted(false);
-  pin->set_flags(gpio::Flags(gpio::FLAG_INPUT | gpio::FLAG_PULLUP));
-  pin->setup();
-  button_gpio_ = pin;
+  button_pin_.set_pin((gpio_num_t) button_pin_num_);
+  button_pin_.set_inverted(false);
+  button_pin_.set_flags(gpio::Flags(gpio::FLAG_INPUT | gpio::FLAG_PULLUP));
+  button_pin_.setup();
+  button_gpio_ = &button_pin_;
+}
+
+// A GPIO dropped from the button or LED role goes back to its reset state; otherwise an old LED
+// pin keeps driving whatever level it last had. Skipped when the new config still uses the pin
+// in any role, since reset would undo the setup that role just did.
+void GplugSmi::release_pin_(uint8_t num) {
+  int n = num;
+  if (n == desc_.rx || n == button_pin_num_ || n == led_red_pin_num_ || n == led_green_pin_num_ ||
+      n == led_blue_pin_num_)
+    return;
+  gpio_reset_pin((gpio_num_t) num);
 }
 
 void GplugSmi::poll_button_() {
@@ -585,21 +599,25 @@ static constexpr uint32_t LED_NO_DATA_TIMEOUT_MS = 60000;
 // computed mode has been stable for this long, so the LED never visibly flickers between two
 // colors while the underlying state is still settling.
 static constexpr uint32_t LED_DEBOUNCE_MS = 300;
-static GPIOPin *make_led_pin_(int8_t num) {
+static GPIOPin *setup_led_pin_(esp32::ESP32InternalGPIOPin &pin, int8_t num) {
   if (num < 0) return nullptr;
-  auto *pin = new esp32::ESP32InternalGPIOPin();   // NOLINT: lives for the rest of the runtime
-  pin->set_pin((gpio_num_t) num);
-  pin->set_inverted(false);
-  pin->set_flags(gpio::FLAG_OUTPUT);
-  pin->setup();
-  pin->digital_write(false);
-  return pin;
+  pin.set_pin((gpio_num_t) num);
+  pin.set_inverted(false);
+  pin.set_flags(gpio::FLAG_OUTPUT);
+  pin.setup();
+  pin.digital_write(false);
+  return &pin;
 }
 
 void GplugSmi::apply_led_pins_() {
-  led_red_gpio_ = make_led_pin_(led_red_pin_num_);
-  led_green_gpio_ = make_led_pin_(led_green_pin_num_);
-  led_blue_gpio_ = make_led_pin_(led_blue_pin_num_);
+  // All three old pins are released before any new one is set up, so a colour that moved onto
+  // another colour's old GPIO is not reset afterwards.
+  if (led_red_gpio_ != nullptr) this->release_pin_(led_red_pin_.get_pin());
+  if (led_green_gpio_ != nullptr) this->release_pin_(led_green_pin_.get_pin());
+  if (led_blue_gpio_ != nullptr) this->release_pin_(led_blue_pin_.get_pin());
+  led_red_gpio_ = setup_led_pin_(led_red_pin_, led_red_pin_num_);
+  led_green_gpio_ = setup_led_pin_(led_green_pin_, led_green_pin_num_);
+  led_blue_gpio_ = setup_led_pin_(led_blue_pin_, led_blue_pin_num_);
   led_blink_on_ = false;
   led_blink_last_ms_ = 0;
   led_pending_mode_ = -1;
@@ -717,13 +735,12 @@ void GplugSmi::apply_uart_() {
   u->set_baud_rate(desc_.baud);
   u->set_parity(desc_.parity_even ? uart::UART_CONFIG_PARITY_EVEN : uart::UART_CONFIG_PARITY_NONE);
   if (desc_.rx >= 0) {
-    auto *pin = new esp32::ESP32InternalGPIOPin();   // NOLINT: lives for the rest of the runtime
-    pin->set_pin((gpio_num_t) desc_.rx);
-    pin->set_inverted(desc_.serial_flags & 0x04);
+    uart_rx_pin_.set_pin((gpio_num_t) desc_.rx);
+    uart_rx_pin_.set_inverted(desc_.serial_flags & 0x04);
     gpio::Flags flags = gpio::FLAG_INPUT;
     if (!(desc_.serial_flags & 0x08)) flags = gpio::Flags(flags | gpio::FLAG_PULLUP);
-    pin->set_flags(flags);
-    u->set_rx_pin(pin);
+    uart_rx_pin_.set_flags(flags);
+    u->set_rx_pin(&uart_rx_pin_);
   }
   u->load_settings(false);
   ESP_LOGI(TAG, "uart: %u baud, rx=%d, parity=%s, invert=%d", (unsigned) desc_.baud, desc_.rx,
