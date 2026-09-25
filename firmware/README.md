@@ -123,9 +123,11 @@ Verified on the gPlugK 2026-09-25 (0.6.0-rc.2 build):
   kept running; with the right MD5 the download, reboot and version check ended in "Firmware
   aktualisiert" on 0.6.1-test. Wi-Fi, meter settings (`diag` `ok`), history count and event log
   were kept across the update.
-- Not yet verified on hardware: a download over TLS (the first comes with an update from 0.6.0 to
-  the next release), the loop task's stack high-water mark during a download, and an install
-  started from Home Assistant.
+- The real thing, the same day: 0.6.0-rc.3 → 0.6.0 via "Check for updates" against the live
+  Pages manifest, downloaded over TLS from github.io and installed; settings, history and event
+  log kept.
+- Not yet verified on hardware: the loop task's stack high-water mark during a download, and an
+  install started from Home Assistant.
 
 The release workflow puts `gplug-ota.bin` next to the factory image on Pages and fills the
 manifest's `ota` entry (`path`, `md5`, `release_url`). A release before this feature has no `ota`

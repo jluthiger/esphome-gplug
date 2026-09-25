@@ -155,8 +155,9 @@ Last device reading: **197 kB free heap** with Wi-Fi joined and the SPA loaded (
 heap also gets RAM the bootloader releases after startup, so the two figures don't subtract. Target
 in `DESIGN.md`: >= 80 kB free after 24 h. A current reading still has to be taken on a device.
 During an update check over TLS (gPlugK 2026-09-25): 159 kB free, minimum since boot 106 kB,
-largest block 112 kB, httpd stack 1328 B unused (unchanged). A download over TLS is still to be
-read on a device; it runs on the loop task, whose stack mark during a download is not measured yet.
+largest block 112 kB, httpd stack 1328 B unused (unchanged). A download over TLS worked on the
+gPlugK (0.6.0-rc.3 → 0.6.0, 2026-09-25); its heap peak and the loop task's stack mark during it are
+not measured yet (both are reset by the reboot that follows).
 Since 2026-09-14 the device keeps its own 24 h trend of free heap, minimum and largest block
 (`/api/heap`, Memory card on the Setup tab), so that reading is a screenshot rather than a polling
 session.
