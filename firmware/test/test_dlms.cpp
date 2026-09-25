@@ -112,7 +112,13 @@ int main() {
     auto f1 = hdlc(a1), f2 = hdlc(a2);
     bool ok = false; for (uint8_t c : f1) ok |= d.feed(c); CHECK(!ok);
     for (uint8_t c : f2) ok |= d.feed(c); CHECK(ok && d.stats.frames == 2 && d.stats.apdus == 1);
-    Value v = lookup(d, "60.7.0"); CHECK(v.found && v.num == 20); }
+    Value v = lookup(d, "60.7.0"); CHECK(v.found && v.num == 20);
+    // The reassembly buffer is cleared in place, not swapped out: a second split APDU on the same
+    // decoder must start from empty, not append to the first one.
+    auto apdu2 = glo_cipher(key, ak, pt, 8, false);
+    std::vector<uint8_t> b1(apdu2.begin(), apdu2.begin() + half), b2(apdu2.begin() + half, apdu2.end());
+    ok = false; for (uint8_t c : hdlc(b1)) ok |= d.feed(c); CHECK(!ok);
+    for (uint8_t c : hdlc(b2)) ok |= d.feed(c); CHECK(ok && d.stats.apdus == 2 && d.frame_counter() == 8); }
   // 6. shared flag between frames (…7E7E… collapsed to one 7E) and leading garbage
   { DlmsDecoder d; d.set_key(key);
     auto f = hdlc(glo_cipher(key, ak, plaintext(), 3, false));

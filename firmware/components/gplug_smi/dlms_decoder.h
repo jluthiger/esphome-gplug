@@ -348,11 +348,18 @@ class DlmsDecoder {
       if (gbt_.size() + blen > MAX_APDU) { stats.overflow++; gbt_.clear(); gbt_skip_ = !last; return false; }
       gbt_.insert(gbt_.end(), p + off, p + off + blen);
       if (!last) return false;
-      std::vector<uint8_t> whole; whole.swap(gbt_);
-      if (!whole.empty() && whole[0] == 0xDB) return on_apdu_(whole.data(), whole.size());
+      // The reassembly buffers are decoded in place and cleared, not swapped into a local: that
+      // freed and reallocated them on every push, fragmenting the heap over a long uptime. Their
+      // capacity stays at the largest APDU seen, bounded by MAX_APDU.
+      if (!gbt_.empty() && gbt_[0] == 0xDB) {
+        bool ok = on_apdu_(gbt_.data(), gbt_.size());
+        gbt_.clear();
+        return ok;
+      }
       // Unencrypted, GBT-reassembled: the whole buffer is the final APDU (may still carry a leading
       // DLMS-tag header; find() searches the whole buffer so an unstripped header does not matter).
-      apdu_.assign(whole.begin(), whole.end());
+      apdu_.assign(gbt_.begin(), gbt_.end());
+      gbt_.clear();
       stats.apdus++;
       return true;
     }
@@ -361,14 +368,12 @@ class DlmsDecoder {
       pending_total_ = ciphered_total_len_(p, n);
       if (pending_total_ > MAX_APDU) { stats.overflow++; pending_.clear(); pending_total_ = 0; return false; }
       if (pending_total_ && pending_.size() < pending_total_) return false;   // wait for more HDLC frames
-      std::vector<uint8_t> whole; whole.swap(pending_); pending_total_ = 0;
-      return on_apdu_(whole.data(), whole.size());
+      return finish_pending_();
     }
     if (pending_total_) {                                       // continuation of a split ciphered APDU
       pending_.insert(pending_.end(), p, p + n);
       if (pending_.size() < pending_total_) return false;
-      std::vector<uint8_t> whole; whole.swap(pending_); pending_total_ = 0;
-      return on_apdu_(whole.data(), whole.size());
+      return finish_pending_();
     }
     if (n && p[0] == 0x0F) {                                    // unencrypted data-notification
       apdu_.assign(p, p + n);
@@ -376,6 +381,12 @@ class DlmsDecoder {
       return true;
     }
     return false;
+  }
+
+  bool finish_pending_() {
+    bool ok = on_apdu_(pending_.data(), pending_.size());
+    pending_.clear(); pending_total_ = 0;
+    return ok;
   }
 
   // total length of a DB APDU from its header (0 if unknown)
