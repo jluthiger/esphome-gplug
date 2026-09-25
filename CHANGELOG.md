@@ -10,15 +10,12 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
-### Added
-
-- Firmware updates without downloading a file: *Setup → Firmware* has "Nach Updates suchen" (check for updates). If a newer release exists, the card shows it with a link to what's new, and after a confirmation the gPlug downloads and installs it by itself. The gPlug contacts the internet (github.io) only when you press the button, never on its own. Uploading a firmware file still works as before. Home Assistant shows the same as a "Firmware" update entity.
-- The firmware card shows the gPlug version.
-
 ## [0.6.0] – 2026-09-25
 
 ### Added
 
+- Firmware updates without downloading a file: *Setup → Firmware* has "Nach Updates suchen" (check for updates). If a newer release exists, the card shows it with a link to what's new, and after a confirmation the gPlug downloads and installs it by itself. The gPlug contacts the internet (github.io) only when you press the button, never on its own. Uploading a firmware file still works as before. Home Assistant shows the same as a "Firmware" update entity.
+- The firmware card shows the gPlug version.
 - The setup wizard shows a short fingerprint of the stored key (e.g. `Kennung 3A7F`) next to "Gespeicherten Schlüssel verwenden", so a key left over from another meter is recognisable. The fingerprint is a checksum and reveals nothing about the key itself. Below it, the key from the grid operator's letter can be checked against the stored one; the device only answers "matches" or "does not match".
 
 ## [0.5.1] – 2026-09-16
