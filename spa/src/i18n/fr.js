@@ -248,7 +248,7 @@ export const fr = {
   fwRelConfirmHint: "L'appareil télécharge le firmware depuis github.io et redémarre. Le quart d'heure en cours est perdu ; les réglages et l'historique sont conservés.",
   fwRelConfirm: "Installer maintenant",
   fwRelDownloading: "L'appareil télécharge le firmware…",
-  fwRelErrCheck: "github.io injoignable. Sans accès à Internet, téléversez le fichier firmware ci-dessous.",
+  fwRelErrCheck: "La recherche de mises à jour a échoué. Réessayez plus tard ou téléversez le fichier firmware ci-dessous.",
   fwRelErrInstall: "Échec du téléchargement ; le firmware actuel continue de fonctionner.",
   fwRelGone: "Plus de mise à jour disponible. Veuillez relancer la recherche.",
   rsButton: "Redémarrer l'appareil",

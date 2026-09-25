@@ -246,7 +246,7 @@ export const en = {
   fwRelConfirmHint: "The device downloads the firmware from github.io and restarts. The quarter hour in progress is lost; settings and history are kept.",
   fwRelConfirm: "Install now",
   fwRelDownloading: "Device is downloading the firmware…",
-  fwRelErrCheck: "Could not reach github.io. Without internet access, upload the firmware file below.",
+  fwRelErrCheck: "Update check failed. Try again later or upload the firmware file below.",
   fwRelErrInstall: "Download failed; the current firmware keeps running.",
   fwRelGone: "No update available any more. Please check again.",
   rsButton: "Restart device",

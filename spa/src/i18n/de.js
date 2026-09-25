@@ -246,7 +246,7 @@ export const de = {
   fwRelConfirmHint: "Das Gerät lädt die Firmware von github.io und startet neu. Die laufende Viertelstunde geht verloren, Einstellungen und Verlauf bleiben erhalten.",
   fwRelConfirm: "Jetzt installieren",
   fwRelDownloading: "Gerät lädt Firmware herunter…",
-  fwRelErrCheck: "github.io nicht erreichbar. Ohne Internetzugang die Firmware-Datei unten hochladen.",
+  fwRelErrCheck: "Update-Suche fehlgeschlagen. Später erneut versuchen oder die Firmware-Datei unten hochladen.",
   fwRelErrInstall: "Download fehlgeschlagen, die bisherige Firmware läuft weiter.",
   fwRelGone: "Kein Update mehr verfügbar. Bitte erneut suchen.",
   rsButton: "Gerät neu starten",

@@ -146,7 +146,7 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 | lwIP TCP/IP task stack | 3 kB |
 | System event task stack | 2.3 kB |
 | Meter descriptor copy, only during a config save (heap on purpose, too big for the httpd stack) | ~3 kB |
-| TLS session, only during an update check or download: `MBEDTLS_SSL_IN_CONTENT_LEN` 16 kB + `OUT` 4 kB, plus handshake and certificate parsing | ~30-40 kB, not yet measured |
+| TLS session, only during an update check or download: `MBEDTLS_SSL_IN_CONTENT_LEN` 16 kB + `OUT` 4 kB, plus handshake and certificate parsing | ~30-40 kB; after an HTTPS manifest check the minimum since boot was 106 kB with 159 kB free (gPlugK 2026-09-25), so at most ~53 kB in use at the peak, boot and Wi-Fi join included |
 | `update_task` stack, only while a manifest check runs (ESPHome's `xTaskCreate(..., 8192, ...)`) | 8 kB |
 | Manifest body during a check (`content_length`, ~0.5 kB) | <1 kB |
 
@@ -154,8 +154,9 @@ Last device reading: **197 kB free heap** with Wi-Fi joined and the SPA loaded (
 962 kB build, via `/api/status`). That is more than the 193 kB the linker leaves (188.0 kB on 2026-09-14) because the runtime
 heap also gets RAM the bootloader releases after startup, so the two figures don't subtract. Target
 in `DESIGN.md`: >= 80 kB free after 24 h. A current reading still has to be taken on a device.
-The minimum free heap and largest block during an update check and a download
-(TLS, above) still have to be read on a device: the Memory card's minimum since boot shows it.
+During an update check over TLS (gPlugK 2026-09-25): 159 kB free, minimum since boot 106 kB,
+largest block 112 kB, httpd stack 1328 B unused (unchanged). A download over TLS is still to be
+read on a device; it runs on the loop task, whose stack mark during a download is not measured yet.
 Since 2026-09-14 the device keeps its own 24 h trend of free heap, minimum and largest block
 (`/api/heap`, Memory card on the Setup tab), so that reading is a screenshot rather than a polling
 session.

@@ -82,7 +82,7 @@ catches the bootloader rollback. Only a firmware too old to report `app` falls b
 timestamp. Both verdicts were walked through the real card against the mock
 (`MOCK_OTA_ROLLBACK=1` makes it accept an upload and come back on the old image), and the hash a
 real gPlugK reports matches the one read out of the flashed `firmware.bin` at `0xB0`.
-**Install from the release** (issue 12; mock-verified 2026-09-25, hardware pending). Third
+**Install from the release** (issue 12; verified on gPlugK 2026-09-25, see below). Third
 path, for end users: the firmware card's "Check for updates" makes the device read the release
 manifest on GitHub Pages (`update_manifest` in `gplug.yaml`,
 `https://jluthiger.github.io/esphome-gplug/manifest.json`, stable releases only) and, after a
@@ -111,6 +111,21 @@ A device on an rc or a `-dev` build whose number is above the last stable releas
 that older release offered in HA after a check (the app does not offer it). It takes a check and an
 Install pressed in HA; left as is for the PoC rather than hiding the entity, which is the useful
 part for HA users on releases.
+
+Verified on the gPlugK 2026-09-25 (0.6.0-rc.2 build):
+- Manifest check over HTTPS against the live Pages manifest: certificate verified, answer in ~1.2 s.
+  That manifest (0.5.1) has no `ota` entry, so the check ends in `Manifest does not contain
+  required fields` and the card's error state -- which is why the message says "check failed", not
+  "not reachable". Heap after it: 159 kB free, minimum since boot 106 kB, largest block 112 kB.
+- Install from a local manifest over plain HTTP (`-s update_manifest http://<mac>:8000/manifest.json`,
+  image built with `-s version 0.6.1-test`): a wrong MD5 in the manifest was caught after the full
+  download (`Aborting due to MD5 mismatch`), the card showed the install error and the old image
+  kept running; with the right MD5 the download, reboot and version check ended in "Firmware
+  aktualisiert" on 0.6.1-test. Wi-Fi, meter settings (`diag` `ok`), history count and event log
+  were kept across the update.
+- Not yet verified on hardware: a download over TLS (the first comes with an update from 0.6.0 to
+  the next release), the loop task's stack high-water mark during a download, and an install
+  started from Home Assistant.
 
 The release workflow puts `gplug-ota.bin` next to the factory image on Pages and fills the
 manifest's `ota` entry (`path`, `md5`, `release_url`). A release before this feature has no `ota`

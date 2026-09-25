@@ -247,7 +247,7 @@ export const it = {
   fwRelConfirmHint: "Il dispositivo scarica il firmware da github.io e si riavvia. Il quarto d'ora in corso va perso; impostazioni e storico vengono mantenuti.",
   fwRelConfirm: "Installa ora",
   fwRelDownloading: "Il dispositivo scarica il firmware…",
-  fwRelErrCheck: "github.io non raggiungibile. Senza accesso a Internet caricate il file firmware qui sotto.",
+  fwRelErrCheck: "Ricerca aggiornamenti non riuscita. Riprovate più tardi o caricate il file firmware qui sotto.",
   fwRelErrInstall: "Download non riuscito; il firmware attuale continua a funzionare.",
   fwRelGone: "Nessun aggiornamento più disponibile. Cercate di nuovo.",
   rsButton: "Riavvia dispositivo",
