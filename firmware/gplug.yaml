@@ -21,7 +21,7 @@ substitutions:
   # On main it is the next release with -dev, so a development build never passes for a release;
   # a release commit sets it to the tag's version, together with the component `ref` below
   # (.github/release-check.sh, README.md "Cutting a release").
-  version: "0.6.0"
+  version: "0.7.0-dev"
 
 esphome:
   name: ${name}
@@ -65,7 +65,7 @@ external_components:
       url: https://github.com/jluthiger/esphome-gplug
       # main on main; v<version> in a release commit, so the gplug.yaml on `stable` and the component
       # it builds are always from the same tag.
-      ref: v0.6.0
+      ref: main
       path: firmware/components
     # Fetched on every build. With a cache (it was 1d) the component and this file -- which an
     # adopting config pulls as a package with its own cache -- could come from different commits: a
