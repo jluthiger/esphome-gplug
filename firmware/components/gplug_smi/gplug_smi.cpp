@@ -1672,6 +1672,10 @@ void GplugSmi::update_snapshot_(bool check_done) {
     s.checked_ms = millis() | 1;
     s.error[0] = 0;
   }
+  // upd_installing_ follows the entity, not our own route: Home Assistant's Install calls perform()
+  // directly, and its failure must still end in "error", not in a card waiting for a reboot.
+  if (upd_->state == update::UPDATE_STATE_INSTALLING) upd_installing_ = true;
+  else if (!upd_comp_->status_has_error()) upd_installing_ = false;
   switch (upd_->state) {
     case update::UPDATE_STATE_INSTALLING:
       s.state = UPD_INSTALLING;
@@ -1776,9 +1780,15 @@ void GplugSmi::handle_update_post_(AsyncWebServerRequest *req, bool install) {
   // follows never reaches log_service_()'s rate limit. EV_OTA is logged after the reboot by the
   // image comparison in log_setup_(), which is also what tells this restart apart.
   this->defer([this]() {
-    upd_installing_ = true;
+    // perform() silently does nothing unless the entity itself says "available" (a check from Home
+    // Assistant may have published something else since); the snapshot must not stay "installing".
+    if (upd_->state != update::UPDATE_STATE_AVAILABLE) {
+      this->update_snapshot_(false);
+      return;
+    }
     this->log_flush_();
-    upd_->perform();
+    upd_comp_->status_clear_error();   // a failed earlier check must not read as a failed install
+    upd_->perform();   // publishes INSTALLING, which sets upd_installing_ in the state callback
   });
 #endif
 }
@@ -1791,7 +1801,7 @@ std::string GplugSmi::json_update_() {
   }
   std::string out = "{\"state\":\"";
 #ifdef USE_UPDATE
-  out += upd_state_name(s.state);
+  out += upd_ != nullptr ? upd_state_name(s.state) : "unavailable";
 #else
   out += "unavailable";
 #endif

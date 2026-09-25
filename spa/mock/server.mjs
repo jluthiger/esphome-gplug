@@ -427,8 +427,6 @@ const routes = {
   },
   "GET /api/live": () => live(),
   "GET /api/ring": () => ring(),
-  // Like the OTA path below: API down for 6 s, then a fresh uptime, so the firmware card's wait for
-  // the device can be exercised. The log gets what the device writes: the request, then the boot.
   "GET /api/update": () => ({ state: upd.state, current: state.fw, latest: upd.latest, newer: updNewer(),
     release_url: upd.release_url, progress: upd.progress,
     checked_ago: upd.checkedAt ? Math.floor((Date.now() - upd.checkedAt) / 1000) : null, error: upd.error }),
@@ -440,6 +438,8 @@ const routes = {
     updInstall();
     return { ok: true };
   },
+  // Like the OTA path below: API down for 6 s, then a fresh uptime, so the firmware card's wait for
+  // the device can be exercised. The log gets what the device writes: the request, then the boot.
   "POST /api/reboot": () => {
     state.rebootUntil = Date.now() + 6000;
     state.t0 = Date.now() + 6000;

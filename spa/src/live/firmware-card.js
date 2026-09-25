@@ -129,6 +129,8 @@ export function FirmwareCard({ status }) {
       await api.updateInstall(status?.ota_auth ? password : "");
     } catch (e) {
       if (e.message === S.fwAuth) { setPhase("rconfirm"); setMsg("fwAuth"); return; }
+      // 409: the device no longer has this update on offer; show what it has now, not the stale offer.
+      api.updateInfo().then((u) => alive.current && setRel(u)).catch(() => setRel(null));
       setPhase("failed"); setMsg(e.message); return;
     }
     followInstall(t0, beforeApp, target);
@@ -139,10 +141,13 @@ export function FirmwareCard({ status }) {
   // the old image still running.
   async function followInstall(t0, beforeApp, target) {
     setPhase("download");
+    let missed = 0;
     while (alive.current && Date.now() - t0 < REL_TIMEOUT_MS) {
       await sleep(1000);
       let u;
-      try { u = await api.updateInfo(); } catch { break; }
+      // A single missed poll is not a reboot: the download can saturate the device's Wi-Fi. Three
+      // in a row are, and waitForReboot() then confirms it with a fresh uptime.
+      try { u = await api.updateInfo(); missed = 0; } catch { if (++missed >= 3) break; continue; }
       if (!alive.current) return;
       if (u.state === "installing") { setProgress(u.progress / 100); continue; }
       if (u.state === "error") { setRel(u); setPhase("failed"); setMsg("fwRelErrInstall"); return; }

@@ -105,6 +105,13 @@ second explicit tap, download and flash the image itself. It is ESPHome's own
   static RAM (2026-09-25). The TLS session allocates its buffers (16 kB in + 4 kB out) only
   during a check or download; peak heap during both still to be measured on hardware.
 
+**Known gap: Home Assistant can offer a downgrade.** The entity itself calls any version that
+differs from the running one "available", and HA's Install flashes it without asking `gplug_smi`.
+A device on an rc or a `-dev` build whose number is above the last stable release therefore sees
+that older release offered in HA after a check (the app does not offer it). It takes a check and an
+Install pressed in HA; left as is for the PoC rather than hiding the entity, which is the useful
+part for HA users on releases.
+
 The release workflow puts `gplug-ota.bin` next to the factory image on Pages and fills the
 manifest's `ota` entry (`path`, `md5`, `release_url`). A release before this feature has no `ota`
 entry, so the first device-driven update is possible from the first release that ships it to the
