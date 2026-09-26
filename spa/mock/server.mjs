@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { compile, toFields, PRESETS, TOPIC_TPL_MAX, PAYLOAD_TPL_MAX } from "../src/live/mqtt-template.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8080);
@@ -394,10 +395,84 @@ function statusMeter() {
     ...(key !== undefined && { key_hint: createHash("sha256").update(Buffer.from(key, "hex")).digest("hex").slice(0, 4).toUpperCase() }) };
 }
 
+// MQTT (GET/POST /api/config/mqtt, status `mqtt`), validated with the same template port the card
+// previews with. MOCK_MQTT=auth|tcp makes the broker refuse the login or be unreachable once MQTT
+// is enabled; unset, it connects after 2 s and "sends" one message per period.
+const MOCK_MQTT = process.env.MOCK_MQTT || "";
+const mqtt = {
+  cfg: { enabled: false, host: "", port: 1883, client_id: "", user: "", mode: PRESETS[0].each ? "each" : "period",
+    topic: PRESETS[0].topic, payload: PRESETS[0].payload, period: 10, qos: 0, retain: false },
+  password: "", since: 0,
+};
+
+function mqttCtx() {
+  const fields = (state.meter?.descriptor?.obis || []).map((o) => ({ name: o.name, obis: o.obis, unit: o.unit || "",
+    prec: o.precision || 0, ...(o.type === "string" && { string: true }) }));
+  return { ctx: { device: state.hostname, mac: "a1b2c3d4e5f6" }, fields };
+}
+
+// GplugSmi::mqtt_compile_: both templates against the current profile; null when both compile.
+function mqttCompileError(cfg) {
+  const f = toFields(mqttCtx());
+  for (const field of ["topic", "payload"]) {
+    const c = compile(cfg[field], cfg.mode === "each", field === "topic", f);
+    if (!c.ok) return { error: c.code, field, pos: c.pos, ...(c.worst && { worst: c.worst }) };
+  }
+  return null;
+}
+
+// Mirrors GplugSmi::json_mqtt_status_.
+function mqttStatus() {
+  const base = { sent: 0, dropped: 0, skipped: 0, last_ago: null };
+  if (!mqtt.cfg.enabled) return { state: "off", error: "", ...base };
+  const tpl = mqttCompileError(mqtt.cfg);   // the profile may have changed since the save
+  if (tpl) return { state: "error", error: tpl.error, ...base };
+  const t = (Date.now() - mqtt.since) / 1000;
+  if (t < 2 || MOCK_MQTT === "auth" || MOCK_MQTT === "tcp") return { state: "connecting", error: t < 2 ? "" : MOCK_MQTT, ...base };
+  const n = Math.floor((t - 2) / mqtt.cfg.period);
+  const per = mqtt.cfg.mode === "each" ? mqttCtx().fields.filter((x) => !x.string).length : 1;
+  return { state: "connected", error: "", ...base, sent: n * per, last_ago: n ? Math.floor((t - 2) % mqtt.cfg.period) : null };
+}
+
+// GplugSmi::mqtt_parse_: fields left out keep their value, the password included.
+function mqttPost(b) {
+  const next = { ...mqtt.cfg };
+  let password = mqtt.password;
+  const bad = (error) => ({ __status: 400, error });
+  for (const [k, max] of [["host", 63], ["client_id", 64], ["user", 64], ["password", 64]]) {
+    if (b[k] === undefined) continue;
+    if (typeof b[k] !== "string" || new TextEncoder().encode(b[k]).length > max) return bad(k);
+    if (k === "password") password = b[k]; else next[k] = b[k];
+  }
+  if (b.enabled !== undefined) next.enabled = !!b.enabled;
+  if (b.retain !== undefined) next.retain = !!b.retain;
+  const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+  if (b.port !== undefined) { if (!int(b.port, 1, 65535)) return bad("port"); next.port = b.port; }
+  if (b.period !== undefined) { if (!int(b.period, 5, 3600)) return bad("period"); next.period = b.period; }
+  if (b.qos !== undefined) { if (b.qos !== 0 && b.qos !== 1) return bad("qos"); next.qos = b.qos; }
+  if (b.mode !== undefined) { if (b.mode !== "period" && b.mode !== "each") return bad("mode"); next.mode = b.mode; }
+  for (const [k, max] of [["topic", TOPIC_TPL_MAX], ["payload", PAYLOAD_TPL_MAX]]) {
+    if (b[k] === undefined) continue;
+    const len = new TextEncoder().encode(b[k]).length;
+    if (len > max) return { __status: 400, error: "tpl_too_long", field: k, pos: len };
+    next[k] = b[k];
+  }
+  if (next.enabled && !next.host) return bad("host");
+  const tpl = mqttCompileError(next);
+  if (tpl) return { __status: 400, ...tpl };
+  const reconnect = ["enabled", "host", "port", "client_id", "user"].some((k) => next[k] !== mqtt.cfg[k]) || password !== mqtt.password;
+  mqtt.cfg = next;
+  mqtt.password = password;
+  if (reconnect) mqtt.since = Date.now();
+  return { ok: true };
+}
+
 const routes = {
   "GET /api/status": () => ({ ...state, hardware: state.hardware || {}, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
-    heap: heapStatus().free, mem: heapStatus(),
-    time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta() }),
+    heap: heapStatus().free, mem: { ...heapStatus(), ...(mqtt.cfg.enabled && { stack_mqtt: 1650 }) },
+    time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta(), mqtt: mqttStatus() }),
+  "GET /api/config/mqtt": () => ({ ...mqtt.cfg, password_set: !!mqtt.password, ...mqttCtx() }),
+  "POST /api/config/mqtt": (b) => mqttPost(b),
   "GET /api/presets": () => presets,
   "GET /api/frames": () => frames(),
   "GET /api/log": () => eventLog(),

@@ -13,6 +13,7 @@
 #include "protocol_sniff.h"
 #include "ha_values.h"
 #include "heap_monitor.h"
+#include "mqtt_template.h"
 #include "esphome/core/defines.h"
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
@@ -25,9 +26,13 @@
 #endif
 
 #include <array>
+#include <atomic>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
+
+struct esp_mqtt_client;   // esp-mqtt's handle; mqtt_client.h stays out of this header
 
 namespace esphome {
 namespace gplug_smi {
@@ -80,6 +85,55 @@ struct Descriptor {
 };
 
 struct Sample { int16_t pi, po, p1, p2, p3; };   // W
+
+// MQTT publishing (issue 14, mqtt.cpp): the settings as stored in NVS key "mqtt" and returned by
+// GET /api/config/mqtt (password excepted).
+struct MqttSettings {
+  bool enabled{false};
+  bool each{false};            // one message per value instead of one per period
+  bool retain{false};
+  uint8_t qos{0};
+  uint16_t port{1883};
+  uint16_t period{10};         // s
+  char host[64]{};
+  char client_id[65]{};        // empty = the device name
+  char user[65]{};
+  char password[65]{};
+  char topic[::gplug_mqtt::TOPIC_TPL_MAX + 1]{};
+  char payload[::gplug_mqtt::PAYLOAD_TPL_MAX + 1]{};
+};
+
+// What the loop task publishes from: the settings, both templates compiled against one meter
+// profile, and that profile's register strings. The strings are a copy so rendering can run
+// outside mutex_ while a meter save replaces desc_. ~7 kB, allocated only while MQTT is enabled
+// (and briefly on the httpd task to validate a POST).
+struct MqttRun {
+  MqttSettings cfg;
+  uint32_t gen{0};             // GplugSmi::desc_gen_ the templates were compiled against
+  bool ok{false};              // false: the profile changed and the templates no longer compile
+  uint8_t n{0};
+  char names[MAX_OBIS][12];
+  char obis[MAX_OBIS][24];
+  char units[MAX_OBIS][8];
+  const char *np[MAX_OBIS], *op[MAX_OBIS], *up[MAX_OBIS];
+  uint8_t prec[MAX_OBIS];
+  bool is_string[MAX_OBIS];
+  float v[MAX_OBIS];
+  bool have[MAX_OBIS];
+  char smid[40];
+  char mac[13];
+  ::gplug_mqtt::Compiled topic, payload;
+  char topic_buf[::gplug_mqtt::TOPIC_BUF];
+  char payload_buf[::gplug_mqtt::PAYLOAD_BUF];
+};
+
+// A POST or recompile failure, as the API reports it: {"error":code,"field":…,"pos":…}.
+struct MqttErr {
+  const char *code{nullptr};
+  const char *field{nullptr};  // "topic" / "payload" for template errors
+  uint16_t pos{0};
+  uint32_t worst{0};
+};
 
 class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandler {
  public:
@@ -183,6 +237,19 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void hist_backpatch_(uint32_t qh_now);
   void hist_service_();
   std::string json_wifi_scan_();
+  // MQTT (mqtt.cpp)
+  void mqtt_setup_();
+  void mqtt_service_();
+  void mqtt_start_();
+  void mqtt_stop_();
+  void mqtt_publish_(MqttRun &r);
+  bool mqtt_parse_(const std::string &json, MqttSettings &s, MqttErr &e);
+  bool mqtt_compile_(MqttRun &r, MqttErr &e);
+  std::string mqtt_json_(const MqttSettings &s, bool for_nvs);
+  void handle_mqtt_get_(AsyncWebServerRequest *req);
+  void handle_mqtt_post_(AsyncWebServerRequest *req, const std::string &body);
+  void json_mqtt_status_(std::string &s);
+  static void mqtt_event_(void *arg, const char *base, int32_t id, void *data);
 
   web_server_base::WebServerBase *base_;
   // The httpd task's stack is ESPHome's 4096 + 256 B and measured 784 B unused on the gPlugK
@@ -334,6 +401,30 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   update::UpdateEntity *upd_{nullptr};
   Component *upd_comp_{nullptr};
 #endif
+  // MQTT. The httpd task validates a POST into a complete MqttRun and hands it over through
+  // mqtt_pending_; the loop task owns the client and the running MqttRun, so a slow broker can
+  // never hold a lock the web server waits for. The esp-mqtt task only writes the atomics.
+  mutable std::mutex mqtt_mutex_;               // mqtt_cfg_, mqtt_pending_*
+  std::unique_ptr<MqttSettings> mqtt_cfg_;      // current settings, for GET and the next POST
+  std::unique_ptr<MqttRun> mqtt_pending_;
+  bool mqtt_pending_set_{false};
+  bool mqtt_pending_reconnect_{false};
+  std::unique_ptr<MqttRun> mqtt_run_;           // loop task only
+  // Written by the loop task only; atomic because the event handler compares against it to ignore a
+  // client that is being torn down.
+  std::atomic<::esp_mqtt_client *> mqtt_client_{nullptr};
+  uint32_t mqtt_retry_ms_{0};                   // loop task only: last failed start, 0 = none
+  uint32_t mqtt_last_ms_{0};                    // loop task only
+  uint32_t desc_gen_{0};                        // under mutex_; apply_meter_json_ bumps it
+  enum MqttState : uint8_t { MQ_OFF, MQ_CONNECTING, MQ_CONNECTED };
+  enum MqttConnErr : uint8_t { MQE_NONE, MQE_TCP, MQE_REFUSED, MQE_AUTH };
+  std::atomic<uint8_t> mqtt_state_{MQ_OFF};
+  std::atomic<uint8_t> mqtt_conn_err_{MQE_NONE};
+  std::atomic<const char *> mqtt_tpl_err_{nullptr};   // tpl_unknown / tpl_overflow after a profile change
+  std::atomic<uint32_t> mqtt_sent_{0}, mqtt_dropped_{0}, mqtt_skipped_{0};
+  std::atomic<uint32_t> mqtt_pub_ms_{0};        // millis() of the last message handed to the client
+  std::atomic<uint32_t> mqtt_stack_free_{0};    // esp-mqtt task's stack high-water mark
+
   bool upd_checking_{false};      // loop task only
   bool upd_installing_{false};    // loop task only
   uint32_t upd_check_ms_{0};      // loop task only: when the running check started

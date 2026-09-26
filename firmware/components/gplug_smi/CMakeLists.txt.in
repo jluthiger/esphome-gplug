@@ -16,5 +16,9 @@
 # store writes the `data` partition raw via esp_partition_read/write/erase_range -- see
 # components/gplug_smi/partition_flash.h. Same failure mode without it: undefined references at
 # link, not a compile error.
+#
+# mqtt (esp-mqtt) is the client behind MQTT publishing (mqtt.cpp). ESPHome leaves that IDF component
+# out of the build unless its own `mqtt:` is configured, so __init__.py re-includes it, and it needs
+# REQUIRES here like the others.
 FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
-idf_component_register(SRCS ${app_sources} REQUIRES mbedtls esp_partition spi_flash)
+idf_component_register(SRCS ${app_sources} REQUIRES mbedtls esp_partition spi_flash mqtt)

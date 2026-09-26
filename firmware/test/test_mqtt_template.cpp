@@ -153,6 +153,10 @@ int main() {
     CHECK(run("t/{meter}", false, true, f, s).out == "t/m___");
     CHECK(run("{meter}", false, false, f, s).out == "m+#?");
     CHECK(run("{values_lp}", false, false, f, s).out == "a+b#c=1");
+    // A meter ID that is not ASCII (garbage on a DSMR line) cannot produce invalid UTF-8.
+    Snapshot s8{v, have, "a\xc3\xa9\xff", 0};
+    CHECK(run("t/{meter}", false, true, f, s8).out == "t/a___");
+    CHECK(run("{meter}", false, false, f, s8).out == "a???");
   }
 
   // --- 5. line-protocol field keys escape , = and space ---

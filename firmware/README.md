@@ -371,7 +371,7 @@ by design: one setter, one call-site swap).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
-| GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop and httpd tasks), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present) |
+| GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd, stack_mqtt?}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop, httpd and, once MQTT has run, esp-mqtt tasks), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present), `mqtt:{state: off\|connecting\|connected\|error, error: ""\|tcp\|refused\|auth\|tpl_unknown\|tpl_overflow, sent, dropped, skipped, last_ago}` (counters since boot; `error` state = the templates stopped compiling after a meter-profile change, see "MQTT") |
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, samples:[[up_s, free_kb, min_kb, largest_kb],…]}`, oldest first, up to 288 samples (24 h). See "Heap monitoring" below |
@@ -381,6 +381,8 @@ by design: one setter, one call-site swap).
 | POST | `/api/key/check` | `{key}` (32 hex) → `{match: bool}`: compares against the GUEK of the running meter config, constant time; 400 `key must be 32 hex chars`, 400 `no stored key`. Only yes/no leaves the device |
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
+| GET | `/api/config/mqtt` | `{enabled, host, port, client_id, user, password_set, mode: period\|each, topic, payload, period, qos, retain, ctx:{device, mac}, fields:[{name, obis, unit, prec, string?}]}`. The password is never returned. `ctx` and `fields` (the running profile) let the SPA preview exactly what the device would send. Defaults until the first save: off, port 1883, period 10 s, QoS 0, the `json` preset |
+| POST | `/api/config/mqtt` | the GET shape without `password_set`/`ctx`/`fields`, plus `password`. Fields left out keep their value (the password too; `""` clears it). 400 `{error}` with `json`, `host` (empty while enabled, or > 63 B), `port`, `client_id`/`user`/`password` (> 64 B), `period` (5-3600 s), `qos` (0/1), `mode`; template errors as `{error, field: topic\|payload, pos, worst?}` (see "MQTT"). Both templates are compiled even while disabled. 503 `memory` when the ~8 kB for validation cannot be allocated (GET likewise for its 1 kB copy). Applied without a restart: a template, period, QoS or retain change from the next period, a connection change with a reconnect |
 | GET | `/api/update` | the last release check, a copy the loop task keeps for the httpd task (no network access): `{state: unchecked\|checking\|none\|available\|installing\|error, current, latest, newer, release_url, progress, checked_ago, error: ""\|check\|install}`; `state` is `unavailable` in a build without `update_id`. `newer` is SemVer precedence (`version_cmp.h`), not the entity's "differs". See "Install from the release" |
 | POST | `/api/update/check` | no body; `{ok:true}`, then on the loop task the `http_request` update entity fetches the manifest on its own task. A no-op while a check or install runs or within 10 s of the last check. A failed check (no Wi-Fi, no internet, bad manifest, 60 s timeout) ends in `state: error, error: check` |
 | POST | `/api/update/install` | no body; 409 `no update` unless `available` and `newer`; 401 `auth` when `ota_password` is set and the Basic header (user `admin`) is missing or wrong (checked by the handler: the route is registered without auth, and no `WWW-Authenticate` so the browser shows no dialog). Answers `{ok:true}`, then on the loop task flushes the event log and calls `perform()`: download, MD5 check, reboot |
@@ -507,7 +509,7 @@ several causes, so the ones worth telling apart get a record of their own next t
 after a boot into a new image, and `EV_RESTART` (code 11, detail 1 = from the SPA via `/api/reboot`),
 written and flushed just before the restart. Alongside that: Wi-Fi up and down with
 the RSSI, the meter going quiet and coming back (with the `diag` verdict that says why), config
-changes, history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
+changes (code 7, detail 1 hardware / 2 meter / 3 Wi-Fi / 4 MQTT), history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
 (code 10, detail 1 = free heap / 2 = largest block, value in kB; see "Heap monitoring").
 
 Four decisions worth knowing:
@@ -534,6 +536,74 @@ restart with 185 kB free heap, Wi-Fi at -39 dBm three seconds later, and meter d
 after that. A crash, a watchdog and a brownout are covered by the host tests and the mock rather
 than provoked on hardware; `test/test_eventlog.cpp` pins the ring, the folding, the back-dating
 and the blob round-trip, including rejection of a corrupt blob.
+
+### MQTT (`mqtt_template.h`, `mqtt.cpp`, `/api/config/mqtt`)
+
+Optional and off by default. Set in *Setup → MQTT*: broker (plain TCP, no TLS yet), optional login,
+and a topic and payload **template**, so each consumer gets the layout it wants (Node-RED,
+ioBroker, InfluxDB, scripts) without a new image. Only live values are published; the 15-min
+history stays on HTTP. No Home Assistant discovery: HA gets the device through the native API.
+esp-mqtt is used directly instead of ESPHome's `mqtt:`, whose broker is compile-time YAML and which
+publishes every entity under a fixed scheme (DECISIONS.md 2026-09-26).
+
+**Template syntax.** A placeholder is `{` followed by a lowercase letter up to the next `}`; every
+other brace is literal, so JSON is written as-is. Plain substitution, no loops or conditions.
+
+| Key | Mode | Renders |
+|---|---|---|
+| `{device}`, `{mac}` | both | device name (MAC-suffixed), 12 lowercase hex digits |
+| `{meter}` | both | meter ID (`smid`), "" if the meter sends none |
+| `{ts}`, `{iso}` | both | epoch seconds, `2026-09-26T12:00:00Z` (UTC). A template that uses either is skipped (`skipped`) until SNTP has synced |
+| `{v:X}`, `{u:X}` | both | value / unit of register X, by name first, else by exact OBIS string (`{v:Pi}`, `{v:1-0:1.7.0}`). Missing value → `null` |
+| `{values}` | `period` payload | `{"Ei":1234.500,…}`: every numeric register that has a value, like `/api/live` `values` |
+| `{values_lp}` | `period` payload | `Ei=1234.500,…`: an InfluxDB line-protocol field set |
+| `{name}`, `{obis}`, `{value}`, `{unit}` | `each` | the register being published; `each` sends one message per numeric register with a value, and its topic must contain `{name}` or `{obis}` |
+
+Numbers use the register's precision (at most 6 decimals); NaN, infinity and \|v\| ≥ 1e12 render
+`null`. Substituted strings are JSON-escaped in the payload (control bytes become `?`); in the topic
+`+`, `#` and control bytes become `_`, so no register name or meter ID can make a wildcard. Presets
+(in the SPA and as firmware constants, `PRESETS`): `json` (the default) `gplug/{device}/state` with
+`{"device":"{device}","meter":"{meter}","ts":{ts},"values":{values}}`; `each` `gplug/{device}/{name}`
+with `{value}`; `influx` `gplug/{device}/influx` with `energy,device={device} {values_lp} {ts}000000000`.
+
+**Checked on save, not per publish.** `compile()` resolves names against the running profile and
+computes the exact worst-case rendered length (escaped device name, register names and units, 20
+characters per number, 2 x 39 for the meter ID). Limits: topic template 128 B, payload template
+512 B, 64 tokens, render buffers 256 B topic / 2048 B payload; the default template over the largest
+profile (48 registers, 11-character names) needs ~1.8 kB. Error tokens, with the byte `pos` in the
+template: `tpl_syntax` (a `{key` without its `}`), `tpl_unknown` (unknown key or register, or `{v:}`
+of a text register), `tpl_context` (key in the wrong mode or in the topic), `tpl_topic` (`+`, `#` or
+a control byte in the topic, or `each` without `{name}`/`{obis}`), `tpl_empty`, `tpl_too_long`,
+`tpl_overflow` (with `worst`). A meter save compiles again on the loop task; if the templates no
+longer fit, publishing pauses and `/api/status` shows `mqtt.state: error` with the token, until the
+template is edited or the profile changes again. The meter save itself is never refused because of
+MQTT. `spa/src/live/mqtt-template.js` is a port for the SPA's preview; `test/mqtt_template_vectors.tsv`
+runs against both (`test/test_mqtt_template.cpp`, `spa/build.mjs`).
+
+**Threading.** The httpd task validates a POST into a complete `MqttRun` (settings, both compiled
+templates and a copy of the profile's register strings) and hands it to the loop task, which owns
+the client: a hung broker cannot block the web server. Once per period the loop snapshots the values
+under `mutex_`, renders outside it and hands messages to `esp_mqtt_client_enqueue()`, never the
+blocking `publish()`. Values older than 30 s are not published. While disconnected nothing is queued
+(`dropped`); `retain` covers subscribers that join later; `sent` counts messages handed to the
+outbox. The esp-mqtt event handler only writes atomics and ignores a client other than the current
+one. A reconnect or switch-off hands the old client to a short-lived `mqtt_stop` task (3 kB stack):
+`esp_mqtt_client_destroy()` waits without a timeout for the esp-mqtt task, which holds the client
+lock through DNS and TCP connect and sleeps half the reconnect interval between attempts, so on
+the loop it could block past the 5 s task watchdog. esp-mqtt settings: keepalive 60 s, reconnect
+10 s, network timeout 2 s (bounds the lock hold that `enqueue()` can wait for), outbox limit 4 kB,
+task stack 4 kB; sdkconfig `CONFIG_MQTT_POLL_READ_TIMEOUT_MS=50`, because the task sends one queued
+message per pass and the 1000 ms default drained QoS 0 at ~1 message/s, and the TLS and WebSocket
+transports off. A client that fails to init or start is retried after 10 s. The meter ID, which
+comes off the HAN line unchecked, has bytes >= 0x80 replaced (`_` in a topic, `?` in a payload):
+a topic that is not valid UTF-8 makes an MQTT 3.1.1 broker close the connection.
+
+**Storage.** NVS key `mqtt`, normalized JSON including the password (stored in the clear, the same
+trust level as the GUEK in `meter`; the API never returns it). Written only when the user saves, so
+MQTT adds nothing to the flash-wear budget; kept across reboots and OTA updates.
+
+Status: host tests and the mock only (2026-09-26); the image compiles (+38 kB: 31 kB firmware, 6.5 kB SPA card). Not yet run
+against a broker on hardware.
 
 ### Heap monitoring (`heap_monitor.h`, `/api/heap`)
 

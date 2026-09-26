@@ -107,6 +107,19 @@ async def to_code(config):
         # here, and mbedtls_gcm_* comes back undefined at link time despite ESP-IDF already
         # building libmbedcrypto.a for WiFi/TLS elsewhere. See CMakeLists.txt.in for detail.
         esp32.add_extra_build_file("src/CMakeLists.txt", Path(__file__).parent / "CMakeLists.txt.in")
+        # esp-mqtt for MQTT publishing (mqtt.cpp). ESPHome excludes the IDF component by default and
+        # only re-includes it for its own `mqtt:`, whose compile-time broker and fixed topic scheme
+        # do not fit runtime templates (DECISIONS.md 2026-09-26).
+        esp32.include_builtin_idf_component("mqtt")
+        # esp-mqtt sends one queued message per pass of its task and then waits up to
+        # MQTT_POLL_READ_TIMEOUT_MS for incoming data. At QoS 0 nothing comes back, so with the
+        # 1000 ms default "one message per value" drained ~1 message/s and overflowed the outbox
+        # (found in review, 2026-09-26); 50 ms allows ~20/s. Only plain TCP is used, so the TLS and
+        # WebSocket transports are left out.
+        esp32.add_idf_sdkconfig_option("CONFIG_MQTT_USE_CUSTOM_CONFIG", True)
+        esp32.add_idf_sdkconfig_option("CONFIG_MQTT_POLL_READ_TIMEOUT_MS", 50)
+        esp32.add_idf_sdkconfig_option("CONFIG_MQTT_TRANSPORT_SSL", False)
+        esp32.add_idf_sdkconfig_option("CONFIG_MQTT_TRANSPORT_WEBSOCKET", False)
 
     base = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])
     var = cg.new_Pvariable(config[CONF_ID], base)

@@ -50,6 +50,7 @@ void GplugSmi::setup() {
     std::string err;
     if (!this->apply_meter_json_(s, err)) ESP_LOGW(TAG, "stored meter config invalid: %s", err.c_str());
   }
+  this->mqtt_setup_();   // after the meter: templates compile against its profile
   // apply_meter_json_() flags the next record HF_CONFIG_CHANGE because a *replaced* config may map
   // another register to "Ei" or belong to a swapped meter. At boot the config is the same one the
   // last record was written with and the meter's counters are absolute, so the chain is intact: a
@@ -191,6 +192,7 @@ void GplugSmi::loop() {
   this->log_service_();
   this->mem_service_();
   this->update_service_();
+  this->mqtt_service_();
 }
 
 // ---------------------------------------------------------------- decoding
@@ -450,6 +452,7 @@ bool GplugSmi::apply_meter_json_(const std::string &json, std::string &err) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
     desc_ = nd;
+    desc_gen_++;   // MQTT templates were compiled against the old profile (mqtt_service_)
     memset(have_, 0, sizeof have_);
     ei_wh_exact_ = eo_wh_exact_ = -1;
     smid_[0] = 0;
@@ -809,6 +812,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/wifi/scan") return send_json_(req, 200, json_wifi_scan_());
     if (url == "/api/presets") return send_gz_(req, "application/json", presets_, presets_len_);
     if (url == "/api/config/hardware") return send_json_(req, 200, hw_json_);
+    if (url == "/api/config/mqtt") return handle_mqtt_get_(req);
     if (url == "/api/frames") return send_json_(req, 200, json_frames_());
     // url_to() strips the query string, so the literal compare still matches /api/history?range=...
     if (url == "/api/history") {
@@ -864,6 +868,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     this->defer([this, body]() { if (!this->nvs_save_("meter", body)) ESP_LOGE(TAG, "nvs_save_(meter) failed -- config applied live but won't survive a reboot"); });
     return send_json_(req, 200, "{\"ok\":true}");
   }
+  if (url == "/api/config/mqtt") return handle_mqtt_post_(req, body);
   // {"key":"32hex"} -> {"match":bool}: lets the user check the stored GUEK against the grid
   // operator's letter. Only a yes/no leaves the device, so nothing of the key is learnt unless all
   // 128 bits were already known. Compared against the live descriptor, not NVS: it is what decrypts,
@@ -977,7 +982,9 @@ std::string GplugSmi::json_status_() {
     s += ",\"stack_loop\":" + std::to_string(stack_loop_free_);
   }
   // This handler runs on the httpd task, so "this task" is the one whose stack is worth watching.
-  s += ",\"stack_httpd\":" + std::to_string((unsigned) uxTaskGetStackHighWaterMark(nullptr)) + "}";
+  s += ",\"stack_httpd\":" + std::to_string((unsigned) uxTaskGetStackHighWaterMark(nullptr));
+  if (uint32_t m = mqtt_stack_free_.load()) s += ",\"stack_mqtt\":" + std::to_string(m);
+  s += "}";
   s += ",\"wifi\":{\"connected\":" + std::string(conn ? "true" : "false");
   if (conn) {
     s += ",\"ssid\":\""; json_escape(s, w->wifi_ssid_to(ssid_buf)); s += "\"";
@@ -1007,6 +1014,7 @@ std::string GplugSmi::json_status_() {
     s += ",\"erases\":" + std::to_string(m.erases) + ",\"writes\":" + std::to_string(m.writes);
     s += ",\"crc_errors\":" + std::to_string(m.crc_errors) + "}";
   }
+  this->json_mqtt_status_(s);
   s += "}";
   return s;
 }

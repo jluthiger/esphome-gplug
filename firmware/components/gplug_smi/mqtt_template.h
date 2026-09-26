@@ -18,7 +18,8 @@
 //
 // Escaping is one rule per context, not per key: in a payload every substituted string is JSON-
 // escaped (`"` and `\` get a backslash, control bytes become `?`), in a topic `+`, `#` and control
-// bytes become `_` so a register or meter ID can never turn a topic into a wildcard, and line-
+// bytes become `_` so a register or meter ID can never turn a topic into a wildcard (the meter ID,
+// which comes off the HAN line unchecked, also loses bytes >= 0x80: `_` / `?`), and line-
 // protocol field keys in {values_lp} escape `,`, `=` and space. Literal text is checked instead:
 // a topic literal with `+`, `#` or a control byte is rejected at compile time.
 //
@@ -234,9 +235,14 @@ struct Out_ {
     else ovf = true;
   }
   void raw(const char *s, size_t l) { for (size_t i = 0; i < l; i++) put(s[i]); }
-  void str(const char *s, Esc e) {
+  // ascii: also replace bytes >= 0x80. Only for the meter ID, which comes off the HAN line
+  // unchecked (DSMR copies it verbatim): a topic that is not valid UTF-8 makes an MQTT 3.1.1 broker
+  // drop the connection, and it would make a JSON payload invalid. Profile names and units are
+  // the user's own UTF-8 ("m³") and pass unchanged. One byte in, one byte out, so the bound holds.
+  void str(const char *s, Esc e, bool ascii = false) {
     for (; *s; s++) {
       char ch = *s;
+      if (ascii && (uint8_t) ch >= 0x80) { put(e == ESC_TOPIC ? '_' : '?'); continue; }
       if (e == ESC_TOPIC) { put(ch == '+' || ch == '#' || (uint8_t) ch < 0x20 ? '_' : ch); continue; }
       if ((uint8_t) ch < 0x20) { put('?'); continue; }
       if (e == ESC_JSON && (ch == '"' || ch == '\\')) put('\\');
@@ -291,7 +297,7 @@ inline bool render(const char *tpl, const Compiled &c, bool topic, const Fields 
       case LIT: w.raw(tpl + k.off, k.len); break;
       case DEVICE: w.str(f.device, esc); break;
       case MAC: w.raw(f.mac, strlen(f.mac)); break;
-      case METER: w.str(s.smid, esc); break;
+      case METER: w.str(s.smid, esc, true); break;
       case TS: w.u32(s.epoch); break;
       case ISO: { char b[21]; iso_utc(s.epoch, b); w.raw(b, 20); break; }
       case VAL:

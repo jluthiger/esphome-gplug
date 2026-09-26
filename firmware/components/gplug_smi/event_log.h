@@ -27,7 +27,7 @@ enum : uint8_t {
   EV_WIFI_LOST = 4,
   EV_METER_LOST = 5,  // detail = the diag verdict that replaced "ok" (DIAG_* as in the API)
   EV_METER_OK = 6,
-  EV_CONFIG = 7,      // detail: 1 hardware, 2 meter, 3 wifi
+  EV_CONFIG = 7,      // detail: 1 hardware, 2 meter, 3 wifi, 4 mqtt
   EV_STORAGE = 8,     // detail: 1 history append failed, 2 history unavailable at boot
   EV_BUTTON = 9,      // AP button held: Wi-Fi credentials erased
   EV_LOW_HEAP = 10,   // detail: 1 free heap, 2 largest block (gplug_mem::Low); value = that figure in kB

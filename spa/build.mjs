@@ -9,6 +9,7 @@ import { fr } from "./src/i18n/fr.js";
 import { it } from "./src/i18n/it.js";
 import { iconPng } from "./tools/icon.mjs";
 import { WIDE } from "./src/layout.js";
+import { compile, render } from "./src/live/mqtt-template.js";
 
 const watch = process.argv.includes("--watch");
 
@@ -35,6 +36,37 @@ function checkLanguageTables(tables) {
   console.log(`languages          ${Object.keys(tables).join(", ")} · ${refKeys.length} strings each`);
 }
 checkLanguageTables({ de, en, fr, it });
+
+// The MQTT card previews templates with a JS port of the firmware's renderer. A preview that
+// disagrees with what the device publishes misleads more than none, so the port has to pass the
+// same vectors as test/test_mqtt_template.cpp; the fixture is the one described in the file.
+function checkMqttVectors() {
+  const f = {
+    names: ["Ei", "Eo", "Pi", "Po", "SMid", "U1"], obis: ["1.8.0", "2.8.0", "1.7.0", "2.7.0", "96.1.0", "32.7.0"],
+    units: ["kWh", "kWh", "kW", "kW", "", "V"], prec: [3, 3, 3, 3, 0, 1],
+    string: [false, false, false, false, true, false], device: "gplug-a1b2c3", mac: "a1b2c3d4e5f6",
+  };
+  const s = { v: [1234.5, 0.25, 1.5, 0, 0, 0], have: [true, true, true, true, false, false], smid: '1234"5\\6', epoch: 1790000000 };
+  const unesc = (x) => x.replace(/\\([tn])/g, (_, c) => (c === "t" ? "\t" : "\n"));
+  const problems = [];
+  let rows = 0;
+  readFileSync("../firmware/test/mqtt_template_vectors.tsv", "utf8").split("\n").forEach((line, n) => {
+    if (!line || line.startsWith("#")) return;
+    const col = line.split("\t");
+    if (col.length !== 4) { problems.push(`line ${n + 1}: ${col.length} columns`); return; }
+    const each = col[0] === "each", topic = col[1] === "topic";
+    const c = compile(unesc(col[2]), each, topic, f);
+    const got = c.ok ? "ok:" + render(c, topic, f, s, each ? 0 : -1) : `err:${c.code}:${c.pos}`;
+    if (got !== unesc(col[3])) problems.push(`line ${n + 1}: ${col[2]}\n    want ${col[3]}\n    got  ${got}`);
+    rows++;
+  });
+  if (problems.length) {
+    console.error("MQTT template port disagrees with the firmware vectors:\n  " + problems.join("\n  "));
+    process.exit(1);
+  }
+  console.log(`mqtt vectors       ${rows} rows match the firmware`);
+}
+checkMqttVectors();
 
 const result = await build({
   entryPoints: ["src/main.js"],
