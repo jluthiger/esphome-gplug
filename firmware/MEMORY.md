@@ -144,6 +144,7 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 | Wi-Fi static RX buffers, 10 x ~1.6 kB | ~16 kB |
 | Wi-Fi dynamic RX / TX buffers, up to 32 each | on demand |
 | TCP send / receive window per socket (`CONFIG_LWIP_TCP_SND_BUF_DEFAULT` / `WND`) | 5.6 kB each |
+| lwIP socket table (`CONFIG_LWIP_MAX_SOCKETS` 19, was 12) and TCP control blocks (`CONFIG_LWIP_MAX_ACTIVE_TCP` 20, was 16), sized so the pool exceeds what the image can hold open (README "Socket pool", 2026-09-26): +224 B static, +8 B image | ~0.2 kB |
 | HAN UART RX buffer (`rx_buffer_size`) | 2 kB |
 | DLMS frame and APDU vectors, <= 1280 B each | ~3-5 kB |
 | HTTP server task stack | ~4.3 kB |

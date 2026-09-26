@@ -9,14 +9,14 @@ from pathlib import Path
 
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import esp32, uart, web_server_base
+from esphome.components import esp32, socket, uart, web_server_base
 from esphome.components.web_server_base import CONF_WEB_SERVER_BASE_ID
 from esphome.const import CONF_ID
 from esphome.core import CORE
 
 # ota.web_server: the POST /update handler the SPA's firmware card uploads to. The captive portal
 # fork auto-loads it too, but the card must not depend on that.
-AUTO_LOAD = ["web_server_base", "json", "ota.web_server"]
+AUTO_LOAD = ["web_server_base", "json", "ota.web_server", "socket"]
 DEPENDENCIES = ["uart", "wifi", "esp32", "captive_portal"]
 CODEOWNERS = ["@gplug"]
 
@@ -66,7 +66,21 @@ def _bundled(path: Path):
     return validator
 
 
-CONFIG_SCHEMA = (
+# lwIP's socket pool (CONFIG_LWIP_MAX_SOCKETS) is one table shared by every listener, UDP socket,
+# API client, the MQTT client and every HTTP session. ESPHome sizes it from what components
+# register, and without this it came out at 12: 3 listeners + 3 UDP + api 3 + captive_portal 3.
+# That is below what the image can actually hold open -- api `max_connections` 5, the esp-mqtt
+# socket (not an ESPHome `mqtt:` component, so ESPHome does not count it) and esp httpd's
+# `max_open_sockets` 7 -- so the pool filled before httpd's own LRU purge (which only runs once
+# httpd itself holds 7) could ever free anything. A browser that left Wi-Fi mid-session holds its
+# keep-alive socket forever (httpd has no idle timeout and TCP keepalive is off), and after a few
+# of those accept() failed with ENFILE on port 80, 6053 and 3232 alike: the device answered ping
+# but closed every connection right after the handshake, until power-cycled (gPlugK 2026-09-26).
+# The 7 registered here make the pool 19, i.e. large enough for everything at once, so httpd's
+# purge is what bounds HTTP sessions again. Cost is static RAM only (firmware/MEMORY.md).
+_SOCKETS_BEYOND_ESPHOME_COUNT = 7   # mqtt 1 + api (5 - 3) + httpd (7 - 3)
+
+CONFIG_SCHEMA = cv.All(
     cv.Schema(
         {
             cv.GenerateID(): cv.declare_id(GplugSmi),
@@ -88,7 +102,8 @@ CONFIG_SCHEMA = (
         }
     )
     .extend(cv.COMPONENT_SCHEMA)
-    .extend(uart.UART_DEVICE_SCHEMA)
+    .extend(uart.UART_DEVICE_SCHEMA),
+    socket.consume_sockets(_SOCKETS_BEYOND_ESPHOME_COUNT, "gplug_smi"),
 )
 
 
@@ -120,6 +135,11 @@ async def to_code(config):
         esp32.add_idf_sdkconfig_option("CONFIG_MQTT_POLL_READ_TIMEOUT_MS", 50)
         esp32.add_idf_sdkconfig_option("CONFIG_MQTT_TRANSPORT_SSL", False)
         esp32.add_idf_sdkconfig_option("CONFIG_MQTT_TRANSPORT_WEBSOCKET", False)
+        # TCP control blocks: the IDF default of 16 is now below the 19-socket pool above, and
+        # closed HTTP sessions sit in TIME_WAIT for 2 x CONFIG_LWIP_TCP_MSL on top of the open
+        # ones. lwIP does evict the oldest TIME_WAIT block when it runs out, but an empty pool
+        # drops SYNs; 20 leaves room for the pool plus a few TIME_WAITs.
+        esp32.add_idf_sdkconfig_option("CONFIG_LWIP_MAX_ACTIVE_TCP", 20)
 
     base = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])
     var = cg.new_Pvariable(config[CONF_ID], base)

@@ -696,6 +696,29 @@ is silent anyway), which at a 1 s meter cadence leaves ~900 ms of headroom. It h
 outright; neither is enabled by default (each has its own caveats, and ESPHome's UART driver may not
 pass `ESP_INTR_FLAG_IRAM` anyway).
 
+### Socket pool (`CONFIG_LWIP_MAX_SOCKETS`)
+
+lwIP keeps one fixed table of sockets for everything: the three listeners (HTTP 80, native API 6053,
+OTA 3232), the mDNS and captive-DNS UDP sockets, every native API client (`max_connections`, 5 on
+ESP32), the esp-mqtt connection and every open HTTP session (esp httpd `max_open_sockets`, 7).
+When it is full, `accept()` fails with ENFILE and lwIP closes the just-handshaken connection: the
+device answers ping and every port completes the TCP handshake, then closes within ~30 ms before
+any data -- on 80, 6053 and 3232 alike, so neither the SPA, `esphome logs` (`EOF received
+(SocketClosedAPIError)`) nor OTA get through, and only a power cycle helps. The device log shows
+`httpd_accept_conn: error in accept (23)`.
+
+ESPHome sizes the table from what components register (`socket.consume_sockets`), and until
+2026-09-26 that came to 12, less than the 19 the image can hold open: the esp-mqtt socket is not
+an ESPHome `mqtt:` component, `api` registers 3 of its 5, and HTTP sessions were only
+`captive_portal`'s 3. esp httpd purges its least recently used session only once it holds 7
+itself and has no idle timeout (TCP keepalive off), so a phone that left Wi-Fi mid-session held
+its keep-alive socket for good and the pool filled before the purge could ever run. Seen on a
+gPlugK 2026-09-26 with the SPA's 5 s and 10 s polling. `gplug_smi/__init__.py` now registers the
+missing 7 (pool 19) and raises `CONFIG_LWIP_MAX_ACTIVE_TCP` from 16 to 20 so TIME_WAIT blocks do
+not become the next wall; httpd's own purge bounds HTTP sessions again. Not yet re-verified on
+hardware under the same load. A socket count is not readable from the running image (lwIP does
+not export it), so `/api/heap` cannot show the fill level.
+
 ### Known gaps (PoC)
 
 - Firmware is 1007 kB flash / 60 kB static RAM of a 1408 kB app slot and 320 kB SRAM (890 kB before

@@ -16,6 +16,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ### Fixed
 
+- The gPlug could stop answering on every port (app, Home Assistant, OTA) after a phone or browser left the Wi-Fi in the middle of using the app, and only a power cycle brought it back. It now has room for more connections, and stale ones are cleaned up.
 - Saving the hardware or meter settings no longer loses a little memory each time; after changing the LED or button pins, the old pins no longer stay lit or active.
 - A DLMS meter sending a broken or never-ending multi-part message can no longer make the gPlug collect data without limit until memory runs out; such a message is dropped after 4 kB.
 
