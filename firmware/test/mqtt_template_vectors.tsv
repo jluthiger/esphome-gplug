@@ -1,0 +1,81 @@
+# Shared vectors for mqtt_template.h and its JS port (spa/src/live/mqtt-template.js).
+# Run by test/test_mqtt_template.cpp and by spa/build.mjs, so the setup screen's preview and the
+# device agree on syntax, errors, positions and escaping.
+#
+# Columns (tab-separated): mode (period|each), part (topic|payload), template, expected.
+# expected is ok:<rendered> or err:<code>:<pos>. In each mode, ok: is the rendering for register 0.
+# \t and \n in the template and expected columns stand for a tab and a newline.
+#
+# Fixture (defined in both runners):
+#   i name  obis      unit  prec string have  value
+#   0 Ei    1.8.0     kWh   3    no     yes   1234.5
+#   1 Eo    2.8.0     kWh   3    no     yes   0.25
+#   2 Pi    1.7.0     kW    3    no     yes   1.5
+#   3 Po    2.7.0     kW    3    no     yes   0
+#   4 SMid  96.1.0          0    yes    no
+#   5 U1    32.7.0    V     1    no     no
+#   device gplug-a1b2c3, mac a1b2c3d4e5f6, meter 1234"5\6, epoch 1790000000
+# Number values are exact in binary so C printf and JS toFixed agree.
+
+# literals and placeholders
+period	topic	gplug/{device}/state	ok:gplug/gplug-a1b2c3/state
+period	topic	x/{mac}	ok:x/a1b2c3d4e5f6
+period	payload	plain text	ok:plain text
+period	payload	{v:Pi}	ok:1.500
+period	payload	{v:1.7.0}	ok:1.500
+period	payload	{u:Ei}	ok:kWh
+period	payload	{v:U1}	ok:null
+period	payload	{ts}	ok:1790000000
+period	payload	{iso}	ok:2026-09-21T14:13:20Z
+period	payload	{meter}	ok:1234\"5\\6
+period	topic	m/{meter}	ok:m/1234"5\6
+period	payload	{"p":{v:Pi},"u":"{u:Pi}"}	ok:{"p":1.500,"u":"kW"}
+period	payload	{ "a" : 1 }	ok:{ "a" : 1 }
+period	payload	}{}	ok:}{}
+period	payload	{1}	ok:{1}
+period	payload	{values}	ok:{"Ei":1234.500,"Eo":0.250,"Pi":1.500,"Po":0.000}
+period	payload	{values_lp}	ok:Ei=1234.500,Eo=0.250,Pi=1.500,Po=0.000
+period	payload	a\nb	ok:a\nb
+
+# presets
+period	topic	gplug/{device}/state	ok:gplug/gplug-a1b2c3/state
+period	payload	{"device":"{device}","meter":"{meter}","ts":{ts},"values":{values}}	ok:{"device":"gplug-a1b2c3","meter":"1234\"5\\6","ts":1790000000,"values":{"Ei":1234.500,"Eo":0.250,"Pi":1.500,"Po":0.000}}
+each	topic	gplug/{device}/{name}	ok:gplug/gplug-a1b2c3/Ei
+each	payload	{value}	ok:1234.500
+period	payload	energy,device={device} {values_lp} {ts}000000000	ok:energy,device=gplug-a1b2c3 Ei=1234.500,Eo=0.250,Pi=1.500,Po=0.000 1790000000000000000
+
+# each mode
+each	topic	t/{obis}	ok:t/1.8.0
+each	payload	{"n":"{name}","v":{value},"u":"{unit}"}	ok:{"n":"Ei","v":1234.500,"u":"kWh"}
+
+# syntax errors
+period	payload	ab{device	err:tpl_syntax:2
+period	payload	{dev ice}	err:tpl_syntax:0
+period	payload	x{de{vice}}	err:tpl_syntax:1
+period	payload	{v:"Pi"}	err:tpl_syntax:0
+
+# unknown keys and registers
+period	payload	{foo}	err:tpl_unknown:0
+period	payload	xx{v:Nope}	err:tpl_unknown:2
+period	payload	{v:SMid}	err:tpl_unknown:0
+period	payload	{u:SMid}	ok:
+period	payload	{v:}	err:tpl_unknown:0
+period	payload	{Device}	ok:{Device}
+
+# keys in the wrong mode or part
+each	payload	{values}	err:tpl_context:0
+each	payload	{values_lp}	err:tpl_context:0
+period	payload	a{name}	err:tpl_context:1
+period	payload	{value}	err:tpl_context:0
+period	topic	{values}	err:tpl_context:0
+
+# topic rules
+period	topic	a/+/b	err:tpl_topic:2
+period	topic	a/#	err:tpl_topic:2
+period	topic	a\tb	err:tpl_topic:1
+each	topic	gplug/{device}	err:tpl_topic:0
+each	topic	gplug/{unit}	err:tpl_topic:0
+
+# empty
+period	topic		err:tpl_empty:0
+period	payload		err:tpl_empty:0
