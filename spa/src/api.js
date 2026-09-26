@@ -15,6 +15,14 @@ const DEVICE_ERRORS = {
   "history disabled": "errHistoryOff",
   "auth": "fwAuth",
   "no update": "fwRelGone",
+  // POST /api/config/mqtt field checks; template errors (tpl_*) carry field + pos and are worded by
+  // the MQTT card itself.
+  "host": "errMqttHost",
+  "port": "errMqttPort",
+  "period": "errMqttPeriod",
+  "client_id": "errMqttLong",
+  "user": "errMqttLong",
+  "password": "errMqttLong",
 };
 
 async function req(method, path, body, ms = 8000, headers = undefined) {
@@ -37,11 +45,12 @@ async function req(method, path, body, ms = 8000, headers = undefined) {
     const ct = r.headers.get("content-type") || "";
     const isJson = ct.includes("json");
     if (!r.ok) {
-      let detail = "";
-      if (isJson) { try { detail = (await r.json()).error || ""; } catch { /* not valid JSON, ignore */ } }
+      let detail = "", parsed = null;
+      if (isJson) { try { parsed = await r.json(); detail = parsed.error || ""; } catch { /* not valid JSON, ignore */ } }
       const known = DEVICE_ERRORS[detail];
-      if (known) throw new Error(S[known]);
-      throw new Error(detail ? `${S.errServer}: ${detail}` : `${S.errServer} (HTTP ${r.status})`);
+      const err = new Error(known ? S[known] : detail ? `${S.errServer}: ${detail}` : `${S.errServer} (HTTP ${r.status})`);
+      err.body = parsed;   // e.g. {error, field, pos} for a rejected MQTT template
+      throw err;
     }
     return isJson ? r.json() : r.text();
   } finally {
@@ -57,6 +66,8 @@ export const api = {
   setHardware: (cfg) => req("POST", "/api/config/hardware", cfg),
   setMeter: (cfg) => req("POST", "/api/config/meter", cfg),
   checkKey: (key) => req("POST", "/api/key/check", { key }),
+  mqttConfig: () => req("GET", "/api/config/mqtt"),
+  setMqtt: (cfg) => req("POST", "/api/config/mqtt", cfg),
   live: () => req("GET", "/api/live", null, 4000),
   ring: () => req("GET", "/api/ring", null, 4000),
   // Bulk read of the flash history; range=year scans the whole partition on the device, so it gets

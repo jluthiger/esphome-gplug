@@ -5,10 +5,13 @@ import { Wifi } from "../steps/wifi.js";
 import { FirmwareCard } from "./firmware-card.js";
 import { LogCard } from "./log-card.js";
 import { MemCard } from "./mem-card.js";
+import { MqttCard } from "./mqtt-card.js";
 import { Collapsible } from "./collapsible.js";
 
 export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
   const [showWifi, setShowWifi] = useState(false);
+  // The MQTT card's loaded config and unsaved draft: kept here because a closed card unmounts.
+  const [mqtt, setMqtt] = useState(null);
   const [wifiVal, setWifiVal] = useState({
     ssid: status?.wifi?.ssid || "",
     psk: "",
@@ -47,6 +50,7 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
         <div class="keymask"><span class="m">•••• •••• •••• •••• •••• •••• •••• ••••</span><span class="badge ${keyBadge[0]}">${keyBadge[1]}</span></div>
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       <//>`}
+    <${MqttCard} status=${status} live=${live} state=${mqtt} setState=${setMqtt} />
     <${FirmwareCard} status=${status} />
     <${MemCard} status=${status} />`;
   const prefs = html`

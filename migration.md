@@ -289,9 +289,11 @@ The device now serves its own app and keeps its own history, so it is useful on 
 server. Home Assistant is optional: if you run it, the ESPHome integration finds the device on the
 network and adopts it, and you get the values as entities as before, under new names.
 
-There is no MQTT and no Tasmota HTTP API. What replaces them is the app on the device, the CSV
-export of the 15-minute load profile under **History**, and the ESPHome native API for Home
-Assistant.
+There is no Tasmota HTTP API, and Tasmota's MQTT topics are not reproduced. What replaces them is
+the app on the device, the CSV export of the 15-minute load profile under **History**, the ESPHome
+native API for Home Assistant, and optional MQTT publishing under **Setup → MQTT** (from 0.7.0),
+where you choose the topic and message layout yourself, starting from a JSON, one-topic-per-value
+or InfluxDB template.
 
 Updates from here on need no cable: **Setup → firmware update**, or `esphome upload dev.yaml
 --device gplug-xxxxxx.local` from this repository.

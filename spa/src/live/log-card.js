@@ -21,7 +21,7 @@ const EV = { 1: "evBoot", 2: "evOta", 3: "evWifiUp", 4: "evWifiLost", 5: "evMete
 // user, so they share a string.
 const RR = { 1: "rrPoweron", 2: "rrExt", 3: "rrSw", 4: "rrPanic", 5: "rrWdt", 6: "rrWdt", 7: "rrWdt",
              9: "rrBrownout" };
-const CFG = { 1: "cfgHardware", 2: "cfgMeter", 3: "cfgWifi" };
+const CFG = { 1: "cfgHardware", 2: "cfgMeter", 3: "cfgWifi", 4: "cfgMqtt" };
 const ST = { 1: "stWrite", 2: "stUnavail" };
 // EV_METER_LOST detail, the diag verdict that replaced "ok" -- the same wording the diagnosis card
 // uses, so the log and the card agree.

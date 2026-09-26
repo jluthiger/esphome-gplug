@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Added
+
+- MQTT: *Setup → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it. Update over the air as usual: no USB reflash, settings and history are kept, Home Assistant entity IDs do not change.
+
 ### Fixed
 
 - Saving the hardware or meter settings no longer loses a little memory each time; after changing the LED or button pins, the old pins no longer stay lit or active.

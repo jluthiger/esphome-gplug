@@ -1,7 +1,7 @@
 # Flash and RAM usage
 
-Snapshot of the `dev.yaml` build from 2026-09-25 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
-4 MB flash), with the Home Assistant entities and the update-from-release components. Sizes in kB = 1024 bytes. Numbers come from the
+Snapshot of the `dev.yaml` build from 2026-09-26 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+4 MB flash), with the Home Assistant entities, the update-from-release components and MQTT. Sizes in kB = 1024 bytes. Numbers come from the
 linker map, not from a running device, except where noted.
 
 The two tables marked *generated* are the output of `tools/size_report.py`, which reads the linker
@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1200850 dram=129820 gplug_smi_obj=25176 -->
+<!-- size-baseline image=1238424 dram=130146 gplug_smi_obj=25280 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -36,13 +36,18 @@ standard ESP-IDF layout.
 | (gap) | `0x00C000` | 16 kB | padding, app slots start on a 64 kB boundary |
 | app0 | `0x010000` | 1408 kB | firmware image; `esphome run` hardcodes this offset |
 | app1 | `0x170000` | 1408 kB | OTA target, roles swap after an update |
-| nvs | `0x2D0000` | 448 kB | Wi-Fi credentials, `hw` and `meter` JSON, ESPHome preferences; mostly empty |
+| nvs | `0x2D0000` | 448 kB | Wi-Fi credentials, `hw`, `meter` and `mqtt` JSON, ESPHome preferences; mostly empty |
 | data | `0x340000` | 704 kB | 15-min history: 176 sectors x 204 records x 20 B, ~374 days |
 | (unused) | `0x3F0000` | 64 kB | |
 
 ## Flash: the app image
 
-Image 1,200,850 B = 1173 kB in a 1408 kB slot: **83.3 % full, 235 kB headroom** (2026-09-25, with
+Image 1,238,424 B = 1209 kB in a 1408 kB slot: **85.9 % full, 199 kB headroom** (2026-09-26, with
+MQTT publishing and templates (issue #14): +37.6 kB. esp-mqtt in the ESP-IDF row +13.3 kB with its
+TLS and WebSocket transports switched off in sdkconfig (+18.3 kB with them, the component's
+default), `gplug_smi` code +13.6 kB (mqtt.cpp, the template compiler and renderer, and the
+ArduinoJson it instantiates), strings +3.2 kB, and the SPA's MQTT card with its template port and
+53 strings in four languages +6.5 kB (49.2 -> 55.7 kB gzipped). 1,200,850 B = 83.3 % before, 2026-09-25, with
 install from the release (issue #12): +128 kB. Of that, ~126 kB is ESPHome's `http_request`,
 `update` and `ota: http_request` platforms with HTTPS -- mbedTLS TLS + X.509 +70 kB (the common-CA
 bundle alone 18 kB of read-only data), `esp_http_client` + `esp-tls` in the ESP-IDF row ~14 kB, the
@@ -59,23 +64,23 @@ the sampler, `/api/heap` and two more HA entities; 1,059,332 B before, with the 
 entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
 before that, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 858 kB code run from flash, 244 kB read-only data, 59 kB IRAM code and 11 kB `.data` initial values
+By section: 884 kB code run from flash, 254 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
 (those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 25.4 % |
-| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls) | 228.0 kB | 19.4 % |
-| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 206.5 kB | 17.6 % |
-| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 12.0 % |
-| String literals from all code | 91.9 kB | 7.8 % |
-| ESPHome core and components (incl. the captive_portal fork) | 84.9 kB | 7.2 % |
-| `gplug_smi` code | 55.4 kB | 4.7 % |
-| Embedded web files, gzipped except the PNG: SPA 49.2 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 59.9 kB | 5.1 % |
-| ESPHome-generated `main.cpp` setup code | 6.0 kB | 0.5 % |
-| Linker alignment padding (no owning object) | 1.6 kB | 0.1 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.7 % |
+| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.3 kB | 19.9 % |
+| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 206.5 kB | 17.1 % |
+| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.6 % |
+| String literals from all code | 95.1 kB | 7.9 % |
+| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 7.0 % |
+| `gplug_smi` code | 69.0 kB | 5.7 % |
+| Embedded web files, gzipped except the PNG: SPA 55.7 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 66.4 kB | 5.5 % |
+| ESPHome-generated `main.cpp` setup code | 6.1 kB | 0.5 % |
+| Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
 
 The platform (Wi-Fi, ESP-IDF, crypto, networking) is 74 % of the image; gPlug's own code and web
 files are about 10 %.
@@ -91,15 +96,15 @@ The C3 has 314 kB (321,296 B) of SRAM usable by the app; IRAM and DRAM share it.
 
 | Part | Size | Share of SRAM |
 |---|---|---|
-| IRAM code (interrupts, flash driver, scheduler, Wi-Fi) | 59.3 kB | 18.9 % |
-| `GplugSmi` object (`gplug_smi__gplug_smi_gplugsmi_id__pstorage`) | 24.6 kB | 7.8 % |
+| IRAM code (interrupts, flash driver, scheduler, Wi-Fi) | 59.5 kB | 19.0 % |
+| `GplugSmi` object (`gplug_smi__gplug_smi_gplugsmi_id__pstorage`) | 24.7 kB | 7.9 % |
 | Wi-Fi globals (connection manager, power management, WPA state) | 14.8 kB | 4.7 % |
-| ESP-IDF globals (scheduler lists, ISR stack, stdio, driver state) | 11.4 kB | 3.6 % |
+| ESP-IDF globals (scheduler lists, ISR stack, stdio, driver state) | 11.3 kB | 3.6 % |
 | ESPHome loop task stack (`esphome::loop_task_stack`) | 8.0 kB | 2.5 % |
 | lwIP and mDNS (DNS table, mDNS task stack) | 4.6 kB | 1.5 % |
 | Other component objects (logger, remaining ESPHome components) | 4.2 kB | 1.3 % |
-| **Static total** | **126.8 kB** | **40.4 %** |
-| **Left for the heap at boot** | **187.0 kB** | **59.6 %** |
+| **Static total** | **127.1 kB** | **40.5 %** |
+| **Left for the heap at boot** | **186.7 kB** | **59.5 %** |
 
 
 The 2026-09-12 table had a separate 0.4 kB row for the event log blob and its mutex. No static symbol
@@ -147,6 +152,9 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 | System event task stack | 2.3 kB |
 | Meter descriptor copy, only during a config save (heap on purpose, too big for the httpd stack) | ~3 kB |
 | TLS session, only during an update check or download: `MBEDTLS_SSL_IN_CONTENT_LEN` 16 kB + `OUT` 4 kB, plus handshake and certificate parsing | ~30-40 kB; after an HTTPS manifest check the minimum since boot was 106 kB with 159 kB free (gPlugK 2026-09-25), so at most ~53 kB in use at the peak, boot and Wi-Fi join included |
+| MQTT, only while enabled: esp-mqtt task stack 4 kB, in/out buffers 0.5 + 1 kB, outbox <= 4 kB (`OUTBOX_LIMIT`), `MqttRun` ~7 kB (templates compiled against a copy of the profile, 2 kB + 256 B render buffers), TCP socket | ~17 kB + one socket; not measured on a device yet |
+| `MqttRun` + `MqttSettings` during an MQTT config save (heap, validated on the httpd task) | ~8 kB |
+| `mqtt_stop` task, only while an old client is torn down after a reconnecting save: 3 kB stack, and the old client's 4 kB task + buffers until it exits (up to ~10 s) | ~9 kB |
 | `update_task` stack, only while a manifest check runs (ESPHome's `xTaskCreate(..., 8192, ...)`) | 8 kB |
 | Manifest body during a check (`content_length`, ~0.5 kB) | <1 kB |
 

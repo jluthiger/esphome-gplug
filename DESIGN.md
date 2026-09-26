@@ -50,7 +50,7 @@ optional and uses ESPHome's native API.
 - Webservice on the device: serves the SPA, the live data stream, the persisted history and the configuration API.
 - Persistence of 15-min values on flash (see *Data flow and storage*).
 - WiFi onboarding: captive portal access point. (Improv BLE dropped: 425 kB flash.)
-- Optional MQTT publishing (off by default). Home Assistant via ESPHome native API.
+- Optional MQTT publishing (off by default), topic and payload from user-edited templates. Home Assistant via ESPHome native API.
 - LED status behaviour on **all** variants: green pulse on frame received, blue blink when no data,
   red blink when no WiFi or decode/key error, short RGB light show at boot.
 
@@ -198,6 +198,8 @@ Integration
       power, energy, per-phase and diagnostic entities, not every register a profile reads; see
       [`DECISIONS.md`](DECISIONS.md).*
 - [ ] Given MQTT enabled in the SPA, when frames arrive, then values are published at the configured period.
+      *Implemented (2026-09-26, issue #14, with runtime topic/payload templates); covered by host
+      tests and the mock, not yet run against a broker on hardware.*
 
 Resources
 - [ ] Free heap after 24 h of operation with SPA open ≥ 80 kB, fragmentation < 20 % (Tasmota baseline: 73.5 kB / 29 %).
