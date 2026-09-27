@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1238424 dram=130146 gplug_smi_obj=25280 -->
+<!-- size-baseline image=1239566 dram=130386 gplug_smi_obj=25288 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -42,7 +42,10 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,238,424 B = 1209 kB in a 1408 kB slot: **85.9 % full, 199 kB headroom** (2026-09-26, with
+Image 1,239,566 B = 1211 kB in a 1408 kB slot: **86.0 % full, 197 kB headroom** (2026-09-27, with
+the socket-pool sizing, the open-socket count in the heap sample, `EV_SOCKETS` and `/api/sockets`:
++1.1 kB, of which 0.8 kB `gplug_smi` code, 0.2 kB SPA (55.7 -> 55.9 kB, the event's strings) and
+0.2 kB static RAM for the 7 extra lwIP socket slots and 4 TCP control blocks; 1,238,424 B = 85.9 % before, 2026-09-26, with
 MQTT publishing and templates (issue #14): +37.6 kB. esp-mqtt in the ESP-IDF row +13.3 kB with its
 TLS and WebSocket transports switched off in sdkconfig (+18.3 kB with them, the component's
 default), `gplug_smi` code +13.6 kB (mqtt.cpp, the template compiler and renderer, and the
@@ -64,21 +67,21 @@ the sampler, `/api/heap` and two more HA entities; 1,059,332 B before, with the 
 entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
 before that, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 884 kB code run from flash, 254 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
+By section: 885 kB code run from flash, 255 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
 (those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.7 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.6 % |
 | ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.3 kB | 19.9 % |
 | Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 206.5 kB | 17.1 % |
 | Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.6 % |
-| String literals from all code | 95.1 kB | 7.9 % |
+| String literals from all code | 95.3 kB | 7.9 % |
 | ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 7.0 % |
-| `gplug_smi` code | 69.0 kB | 5.7 % |
-| Embedded web files, gzipped except the PNG: SPA 55.7 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 66.4 kB | 5.5 % |
+| `gplug_smi` code | 69.8 kB | 5.8 % |
+| Embedded web files, gzipped except the PNG: SPA 55.9 kB, captive page 4.7 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 66.5 kB | 5.5 % |
 | ESPHome-generated `main.cpp` setup code | 6.1 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
 
@@ -101,10 +104,10 @@ The C3 has 314 kB (321,296 B) of SRAM usable by the app; IRAM and DRAM share it.
 | Wi-Fi globals (connection manager, power management, WPA state) | 14.8 kB | 4.7 % |
 | ESP-IDF globals (scheduler lists, ISR stack, stdio, driver state) | 11.3 kB | 3.6 % |
 | ESPHome loop task stack (`esphome::loop_task_stack`) | 8.0 kB | 2.5 % |
-| lwIP and mDNS (DNS table, mDNS task stack) | 4.6 kB | 1.5 % |
+| lwIP and mDNS (DNS table, mDNS task stack) | 4.8 kB | 1.5 % |
 | Other component objects (logger, remaining ESPHome components) | 4.2 kB | 1.3 % |
-| **Static total** | **127.1 kB** | **40.5 %** |
-| **Left for the heap at boot** | **186.7 kB** | **59.5 %** |
+| **Static total** | **127.3 kB** | **40.6 %** |
+| **Left for the heap at boot** | **186.4 kB** | **59.4 %** |
 
 
 The 2026-09-12 table had a separate 0.4 kB row for the event log blob and its mutex. No static symbol

@@ -375,6 +375,7 @@ by design: one setter, one call-site swap).
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, sockets_max, samples:[[up_s, free_kb, min_kb, largest_kb, sockets],…]}`, oldest first, up to 288 samples (24 h); `sockets` = open lwIP sockets of `sockets_max` (`CONFIG_LWIP_MAX_SOCKETS`). See "Heap monitoring" and "Socket pool" below |
+| GET | `/api/sockets` | lwIP's socket table right now, for finding out who fills it: `{max, sockets:[{fd, type:"tcp"\|"udp"\|"raw", listen, port, peer:"ip:port"\|""}]}` -- the local port, and for a connected TCP socket the peer; the request's own session is in the list. The TCP state is not readable through the socket API, so a dead peer looks like a live one. Not used by the SPA; the same list goes to the log when `EV_SOCKETS` fires |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |
 | GET | `/api/presets` | embedded presets (gzip) |
 | GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}, baud?, parity?: "N"\|"E", serial_flags?}`. The line parameters are the variant's (from `variants` in `presets.json`, same for all its presets) and are applied to the UART at once, so the sniffer listens before a profile exists |
@@ -728,7 +729,11 @@ missing 7 (pool 19) and raises `CONFIG_LWIP_MAX_ACTIVE_TCP` from 16 to 20 so TIM
 not become the next wall; httpd's own purge bounds HTTP sessions again. Not yet re-verified on
 hardware under the same load. Since 2026-09-27 `/api/heap` carries the open-socket count per
 sample and the event log records `EV_SOCKETS` when the table is nearly full (see "Heap monitoring"),
-so a recurrence shows what filled it.
+so a recurrence shows what filled it; `/api/sockets` lists the open ones with their peers.
+Measured on the gPlugK 2026-09-27, 15 s after an OTA boot: 14 of 19 open -- the 3 listeners, 2 mDNS
+UDP, the MQTT connection, one Home Assistant API client, **4 HTTP keep-alive sessions from a
+single browser with the SPA open**, and 3 from the machine running the probe. The steady state of
+11-12 was the whole old pool; the old build had no headroom in normal use.
 
 ### Known gaps (PoC)
 

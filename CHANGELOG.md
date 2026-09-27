@@ -16,7 +16,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ### Added
 
-- The event log now records when the gPlug is running out of network connection slots ("Connections nearly full"), the state that made it unreachable on 26/27 September, and `/api/heap` carries the count.
+- The event log now records when the gPlug is running out of network connection slots ("Connections nearly full"), the state that made it unreachable on 26/27 September, `/api/heap` carries the count and `/api/sockets` lists who holds them.
 
 ### Fixed
 

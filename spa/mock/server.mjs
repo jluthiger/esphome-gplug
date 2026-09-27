@@ -480,6 +480,18 @@ const routes = {
   "GET /api/frames": () => frames(),
   "GET /api/log": () => eventLog(),
   "GET /api/heap": () => heapTrend(),
+  // Mirrors /api/sockets: lwIP's table right now. Listeners and mDNS are always there; the rest is
+  // what clients hold -- the request's own session included. Not used by the SPA.
+  "GET /api/sockets": () => ({ max: 19, sockets: [
+    { fd: 45, type: "udp", listen: false, port: 5353, peer: "" },
+    { fd: 46, type: "udp", listen: false, port: 5353, peer: "" },
+    { fd: 47, type: "tcp", listen: true, port: 6053, peer: "" },
+    { fd: 48, type: "tcp", listen: true, port: 3232, peer: "" },
+    { fd: 49, type: "tcp", listen: true, port: 80, peer: "" },
+    { fd: 50, type: "tcp", listen: false, port: 6053, peer: "192.168.1.20:51234" },
+    { fd: 51, type: "tcp", listen: false, port: 54012, peer: "192.168.1.10:1883" },
+    { fd: 52, type: "tcp", listen: false, port: 80, peer: "192.168.1.42:60211" },
+  ] }),
   "GET /api/wifi/scan": () => new Promise((r) => setTimeout(() => r(NETS), 1200)),
   "POST /api/config/wifi": (b) => {
     state.wifi = { connected: false, ssid: b.ssid, ip: null, rssi: null, error: null };

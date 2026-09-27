@@ -17,6 +17,7 @@
 #include <esp_heap_caps.h>
 #include <fcntl.h>
 #include <lwip/opt.h>   // LWIP_SOCKET_OFFSET, CONFIG_LWIP_MAX_SOCKETS
+#include <lwip/sockets.h>
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -824,6 +825,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/history.csv") return handle_history_csv_(req);
     if (url == "/api/log") return send_json_(req, 200, json_log_());
     if (url == "/api/heap") return handle_heap_(req);
+    if (url == "/api/sockets") return send_json_(req, 200, json_sockets_());
     if (url == "/api/update") return send_json_(req, 200, json_update_());
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
@@ -1291,6 +1293,31 @@ static uint8_t socket_count_() {
   return n;
 }
 
+// One open socket as a JSON object, or 0 when the slot is free. What the socket API can tell:
+// type, whether it listens, the local port and -- for a connected TCP socket -- the peer. The
+// TCP state is not readable through it, so a session whose peer vanished looks like any other.
+static size_t socket_json_(int fd, char *buf, size_t cap) {
+  int type = 0, listen = 0;
+  socklen_t l = sizeof type;
+  if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &l) != 0) return 0;
+  l = sizeof listen;
+  getsockopt(fd, SOL_SOCKET, SO_ACCEPTCONN, &listen, &l);
+  sockaddr_in local{}, peer{};
+  l = sizeof local;
+  uint16_t port = getsockname(fd, (sockaddr *) &local, &l) == 0 ? ntohs(local.sin_port) : 0;
+  char peer_s[24] = "";
+  l = sizeof peer;
+  if (getpeername(fd, (sockaddr *) &peer, &l) == 0 && peer.sin_family == AF_INET) {
+    char ip[16];
+    inet_ntoa_r(peer.sin_addr, ip, sizeof ip);
+    snprintf(peer_s, sizeof peer_s, "%s:%u", ip, ntohs(peer.sin_port));
+  }
+  int n = snprintf(buf, cap, "{\"fd\":%d,\"type\":\"%s\",\"listen\":%s,\"port\":%u,\"peer\":\"%s\"}", fd,
+                   type == SOCK_STREAM ? "tcp" : type == SOCK_DGRAM ? "udp" : "raw", listen ? "true" : "false", port,
+                   peer_s);
+  return n > 0 && (size_t) n < cap ? (size_t) n : 0;
+}
+
 // One heap sample every 5 min into a RAM-only ring (heap_monitor.h), plus the two HA diagnostic
 // entities, a one-shot low-heap event and a one-shot near-full-socket-table event. Sampling itself is a few heap_caps calls, so the cost is
 // the mutex and, once per excursion at most, an NVS write.
@@ -1321,8 +1348,30 @@ void GplugSmi::mem_service_() {
   }
   if (sock_latch_.update((uint8_t) m.sockets, CONFIG_LWIP_MAX_SOCKETS, m.up_s)) {
     ESP_LOGW(TAG, "socket table nearly full: %u of %u open", m.sockets, CONFIG_LWIP_MAX_SOCKETS);
+    // Who holds them, for a serial console or the log stream; at most once an hour (the latch).
+    char line[96];
+    for (int fd = LWIP_SOCKET_OFFSET; fd < LWIP_SOCKET_OFFSET + CONFIG_LWIP_MAX_SOCKETS; fd++)
+      if (socket_json_(fd, line, sizeof line)) ESP_LOGW(TAG, "  %s", line);
     this->log_event_(::gplug_log::EV_SOCKETS, CONFIG_LWIP_MAX_SOCKETS, (uint8_t) m.sockets);
   }
+}
+
+// The socket table as it is right now, for finding out who fills it (the request's own session
+// is in the list). Read on the httpd task; the socket calls take lwIP's lock per call, not the
+// loop's mutex. At most 19 entries of ~80 B, so one string.
+std::string GplugSmi::json_sockets_() {
+  std::string out = "{\"max\":" + std::to_string(CONFIG_LWIP_MAX_SOCKETS) + ",\"sockets\":[";
+  out.reserve(1700);
+  char line[96];
+  bool first = true;
+  for (int fd = LWIP_SOCKET_OFFSET; fd < LWIP_SOCKET_OFFSET + CONFIG_LWIP_MAX_SOCKETS; fd++) {
+    if (!socket_json_(fd, line, sizeof line)) continue;
+    if (!first) out += ",";
+    first = false;
+    out += line;
+  }
+  out += "]}";
+  return out;
 }
 
 // Streamed in ~1 kB chunks rather than built as one string: the whole answer is 5-8 kB, and the

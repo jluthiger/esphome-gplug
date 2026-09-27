@@ -225,6 +225,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_history_(const char *range);
   std::string json_log_();
   void handle_heap_(AsyncWebServerRequest *req);
+  std::string json_sockets_();
   void mem_service_();
   // Event log (event_log.h): rare, persistent "what happened" records in NVS.
   void log_setup_();
