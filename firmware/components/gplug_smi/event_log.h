@@ -32,6 +32,7 @@ enum : uint8_t {
   EV_BUTTON = 9,      // AP button held: Wi-Fi credentials erased
   EV_LOW_HEAP = 10,   // detail: 1 free heap, 2 largest block (gplug_mem::Low); value = that figure in kB
   EV_RESTART = 11,    // a restart was asked for, logged just before it; detail: 1 from the SPA (/api/reboot)
+  EV_SOCKETS = 12,    // lwIP socket table nearly full (gplug_mem::SocketLatch); value = open sockets, detail = table size
 };
 
 // Mirrors esp_reset_reason_t, but decoupled from it: the numbers here go to flash and must not

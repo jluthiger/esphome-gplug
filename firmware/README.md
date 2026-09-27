@@ -374,7 +374,7 @@ by design: one setter, one call-site swap).
 | GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd, stack_mqtt?}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop, httpd and, once MQTT has run, esp-mqtt tasks), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present), `mqtt:{state: off\|connecting\|connected\|error, error: ""\|tcp\|refused\|auth\|tpl_unknown\|tpl_overflow, sent, dropped, skipped, last_ago}` (counters since boot; `error` state = the templates stopped compiling after a meter-profile change, see "MQTT") |
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
-| GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, samples:[[up_s, free_kb, min_kb, largest_kb],…]}`, oldest first, up to 288 samples (24 h). See "Heap monitoring" below |
+| GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, sockets_max, samples:[[up_s, free_kb, min_kb, largest_kb, sockets],…]}`, oldest first, up to 288 samples (24 h); `sockets` = open lwIP sockets of `sockets_max` (`CONFIG_LWIP_MAX_SOCKETS`). See "Heap monitoring" and "Socket pool" below |
 | GET | `/api/wifi/scan` | last scan results kept by the wifi component (no active scan trigger yet) |
 | GET | `/api/presets` | embedded presets (gzip) |
 | GET/POST | `/api/config/hardware` | `{variant, pins:{rx,red,green,blue,button}, baud?, parity?: "N"\|"E", serial_flags?}`. The line parameters are the variant's (from `variants` in `presets.json`, same for all its presets) and are applied to the UART at once, so the sniffer listens before a profile exists |
@@ -510,7 +510,8 @@ after a boot into a new image, and `EV_RESTART` (code 11, detail 1 = from the SP
 written and flushed just before the restart. Alongside that: Wi-Fi up and down with
 the RSSI, the meter going quiet and coming back (with the `diag` verdict that says why), config
 changes (code 7, detail 1 hardware / 2 meter / 3 Wi-Fi / 4 MQTT), history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
-(code 10, detail 1 = free heap / 2 = largest block, value in kB; see "Heap monitoring").
+(code 10, detail 1 = free heap / 2 = largest block, value in kB; see "Heap monitoring"), and the
+lwIP socket table nearly full (code 12, value = open sockets, detail = table size; see "Socket pool").
 
 Four decisions worth knowing:
 
@@ -623,6 +624,15 @@ rewrites the 388 B log blob, ~14 NVS entries, so the worst case fills under thre
 partition's 112 pages a day: ~45 erases per page over five years. A healthy device never logs it. `EV_BOOT` already records the free heap at
 start, which the SPA shows next to the reset reason from 2026-09-14 on (older firmware stored it too).
 
+**Open sockets** ride along in the same sample from 2026-09-27 on (`Sample::sockets`, the former
+reserved half-word, so the ring stays 12 B a sample). lwIP does not export the count, but each of its
+`CONFIG_LWIP_MAX_SOCKETS` slots has a fixed fd (`LWIP_SOCKET_OFFSET + i`) and `fcntl(F_GETFL)` on
+it fails with EBADF unless a socket is open there, so the loop scans the 19 slots once per sample.
+`EV_SOCKETS` (code 12) fires through `SocketLatch` once per excursion when 3 or fewer slots are
+free, re-arms at 6 free, and is held off an hour like the low-heap event, so the flash cost has
+the same bound. Not yet seen on hardware: added after the 2026-09-26/27 outages, whose cause the
+event log could not show.
+
 Verified on gPlugK 2026-09-14 (OTA, encrypted DLMS push, Home Assistant connected), 4 h 15 min
 across two boots (a power cut in between, logged as power-on): `/api/status` `mem`, `/api/heap`
 (chunked), and the "Free heap" / "Largest heap block" entities in Home Assistant. Free heap held at
@@ -716,8 +726,9 @@ its keep-alive socket for good and the pool filled before the purge could ever r
 gPlugK 2026-09-26 with the SPA's 5 s and 10 s polling. `gplug_smi/__init__.py` now registers the
 missing 7 (pool 19) and raises `CONFIG_LWIP_MAX_ACTIVE_TCP` from 16 to 20 so TIME_WAIT blocks do
 not become the next wall; httpd's own purge bounds HTTP sessions again. Not yet re-verified on
-hardware under the same load. A socket count is not readable from the running image (lwIP does
-not export it), so `/api/heap` cannot show the fill level.
+hardware under the same load. Since 2026-09-27 `/api/heap` carries the open-socket count per
+sample and the event log records `EV_SOCKETS` when the table is nearly full (see "Heap monitoring"),
+so a recurrence shows what filled it.
 
 ### Known gaps (PoC)
 

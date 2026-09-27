@@ -14,6 +14,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 - MQTT: *Setup → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it. Update over the air as usual: no USB reflash, settings and history are kept, Home Assistant entity IDs do not change.
 
+### Added
+
+- The event log now records when the gPlug is running out of network connection slots ("Connections nearly full"), the state that made it unreachable on 26/27 September, and `/api/heap` carries the count.
+
 ### Fixed
 
 - The gPlug could stop answering on every port (app, Home Assistant, OTA) after a phone or browser left the Wi-Fi in the middle of using the app, and only a power cycle brought it back. It now has room for more connections, and stale ones are cleaned up.

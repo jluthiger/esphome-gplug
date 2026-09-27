@@ -15,6 +15,8 @@
 #include <esp_http_server.h>
 #include <mbedtls/sha256.h>
 #include <esp_heap_caps.h>
+#include <fcntl.h>
+#include <lwip/opt.h>   // LWIP_SOCKET_OFFSET, CONFIG_LWIP_MAX_SOCKETS
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -1277,8 +1279,20 @@ void GplugSmi::log_service_() {
   if (millis() - log_flush_ms_ > 60000) this->log_flush_();
 }
 
+// lwIP does not export how many of its CONFIG_LWIP_MAX_SOCKETS slots are in use, but every slot
+// has a fixed fd (LWIP_SOCKET_OFFSET + i) and fcntl(F_GETFL) on it fails with EBADF unless a
+// socket is open there. Nineteen calls that take the socket table lock briefly; the loop pays that
+// once per sample. Counted rather than left unknown because a full table is silent otherwise: the
+// device still answers ping and closes every connection right after the handshake (2026-09-26).
+static uint8_t socket_count_() {
+  uint8_t n = 0;
+  for (int fd = LWIP_SOCKET_OFFSET; fd < LWIP_SOCKET_OFFSET + CONFIG_LWIP_MAX_SOCKETS; fd++)
+    if (fcntl(fd, F_GETFL, 0) >= 0) n++;
+  return n;
+}
+
 // One heap sample every 5 min into a RAM-only ring (heap_monitor.h), plus the two HA diagnostic
-// entities and a one-shot low-heap event. Sampling itself is a few heap_caps calls, so the cost is
+// entities, a one-shot low-heap event and a one-shot near-full-socket-table event. Sampling itself is a few heap_caps calls, so the cost is
 // the mutex and, once per excursion at most, an NVS write.
 void GplugSmi::mem_service_() {
   uint32_t now = millis();
@@ -1289,7 +1303,7 @@ void GplugSmi::mem_service_() {
   const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
   auto kb = [](size_t b) { return (uint16_t) (b / 1024 > 65535 ? 65535 : b / 1024); };
   ::gplug_mem::Sample m{now / 1000, kb(heap_caps_get_free_size(caps)), kb(heap_caps_get_minimum_free_size(caps)),
-                        kb(heap_caps_get_largest_free_block(caps)), 0};
+                        kb(heap_caps_get_largest_free_block(caps)), socket_count_()};
   {
     std::lock_guard<std::mutex> lock(mem_mutex_);
     mem_ring_.push(m);
@@ -1305,6 +1319,10 @@ void GplugSmi::mem_service_() {
     ESP_LOGW(TAG, "low heap: free %u kB, largest block %u kB", m.free_kb, m.largest_kb);
     this->log_event_(::gplug_log::EV_LOW_HEAP, low, (uint8_t) (v > 255 ? 255 : v));
   }
+  if (sock_latch_.update((uint8_t) m.sockets, CONFIG_LWIP_MAX_SOCKETS, m.up_s)) {
+    ESP_LOGW(TAG, "socket table nearly full: %u of %u open", m.sockets, CONFIG_LWIP_MAX_SOCKETS);
+    this->log_event_(::gplug_log::EV_SOCKETS, CONFIG_LWIP_MAX_SOCKETS, (uint8_t) m.sockets);
+  }
 }
 
 // Streamed in ~1 kB chunks rather than built as one string: the whole answer is 5-8 kB, and the
@@ -1315,9 +1333,10 @@ void GplugSmi::handle_heap_(AsyncWebServerRequest *req) {
   httpd_req_t *r = *req;
   httpd_resp_set_type(r, "application/json");
   std::string out = "{\"period\":" + std::to_string(MEM_PERIOD_MS / 1000) + ",\"uptime\":" +
-                    std::to_string(millis() / 1000) + ",\"samples\":[";
+                    std::to_string(millis() / 1000) + ",\"sockets_max\":" + std::to_string(CONFIG_LWIP_MAX_SOCKETS) +
+                    ",\"samples\":[";
   out.reserve(1100);
-  static constexpr size_t BATCH = 32;   // 32 x <= 30 B per sample stays inside the reserve
+  static constexpr size_t BATCH = 32;   // 32 x <= 33 B per sample stays inside the reserve
   // Resume by push sequence, not by position: a sample pushed between two batches moves a full
   // ring by one place, and uptime cannot serve as the key because it wraps after 49.7 days.
   uint32_t next = 0;
@@ -1333,7 +1352,7 @@ void GplugSmi::handle_heap_(AsyncWebServerRequest *req) {
         if (!first) out += ",";
         first = false;
         out += "[" + std::to_string(m.up_s) + "," + std::to_string(m.free_kb) + "," + std::to_string(m.min_kb) +
-               "," + std::to_string(m.largest_kb) + "]";
+               "," + std::to_string(m.largest_kb) + "," + std::to_string(m.sockets) + "]";
       }
     }
     if (httpd_resp_send_chunk(r, out.data(), out.size()) != ESP_OK) return;

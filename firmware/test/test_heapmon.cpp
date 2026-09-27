@@ -70,5 +70,19 @@ int main() {
   }
 
   printf(fails ? "%d FAILED\n" : "all ok\n", fails);
+  // --- socket latch: fires at 3 free slots, once; re-arms at 6 free; held off an hour ---
+  {
+    SocketLatch l;
+    CHECK(!l.update(10, 19, 300));      // 9 free
+    CHECK(!l.update(15, 19, 600));      // 4 free: not yet
+    CHECK(l.update(16, 19, 900));       // 3 free: fires
+    CHECK(!l.update(19, 19, 1200));     // full: no repeat
+    CHECK(!l.update(14, 19, 1500));     // 5 free: not re-armed
+    CHECK(!l.update(13, 19, 1800));     // 6 free: re-armed, quiet
+    CHECK(!l.update(17, 19, 2100));     // within the hold-off: held
+    CHECK(l.update(17, 19, 900 + LOW_HOLDOFF_S));
+    CHECK(!l.update(25, 19, 99999));    // more than max never underflows
+  }
+
   return fails ? 1 : 0;
 }

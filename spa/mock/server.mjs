@@ -272,6 +272,7 @@ function eventLog() {
     [0,        41,   1, 1, 180, 0],   // a boot before the clock synced: uptime only
   ];
   if (MOCK_HEAP === "leak") raw.push([ago(0.5), 0, 10, 1, 46, 0]);   // low heap: free 46 kB
+  if (MOCK_HEAP === "sockets") raw.push([ago(0.5), 0, 12, 19, 16, 0]);   // 16 of 19 sockets open
   if (state.restarts) {   // restarted from the SPA in this mock session, folded like the device does
     const at = Math.floor(state.t0 / 1000);
     raw.push([at - 6, 0, 11, 1, 0, state.restarts - 1], [at, 0, 1, 3, 179, 0]);
@@ -280,10 +281,11 @@ function eventLog() {
     events: raw.map(([t, up, code, detail, value, repeat]) => ({ t, up, code, detail, value, repeat })) };
 }
 
-// Mirrors /api/heap (heap_monitor.h): [uptime_s, free_kb, min_kb, largest_kb] every 5 min, oldest
-// first, up to 288 samples. The mock device has been up 26 h, so the ring is full. MOCK_HEAP=leak
+// Mirrors /api/heap (heap_monitor.h): [uptime_s, free_kb, min_kb, largest_kb, sockets] every 5 min,
+// oldest first, up to 288 samples. The mock device has been up 26 h, so the ring is full. MOCK_HEAP=leak
 // makes free heap fall ~6 kB an hour into low-heap territory (and adds an EV_LOW_HEAP to the log),
-// which is the picture the Memory card exists to show; the default is a healthy, flat heap.
+// which is the picture the Memory card exists to show; MOCK_HEAP=sockets lets the open-socket count
+// climb from 7 to 17 of 19 (plus an EV_SOCKETS); the default is a healthy, flat heap.
 const MOCK_HEAP = process.env.MOCK_HEAP || "";
 const HEAP_UP_S = 26 * 3600;
 function heapTrend() {
@@ -296,9 +298,10 @@ function heapTrend() {
     const free = MOCK_HEAP === "leak" ? Math.max(20, Math.round(190 - 6 * (h - 2)) + noise) : 176 + noise;
     const largest = MOCK_HEAP === "leak" ? Math.max(8, Math.min(64, Math.round(free / 3))) : 58 + (noise > 2 ? -6 : 0);
     min = Math.min(min, free - 6);
-    if (t > 0) samples.push([t, free, min, largest]);
+    const sockets = MOCK_HEAP === "sockets" ? Math.min(17, 7 + Math.floor(h / 2.5)) : 7 + (noise > 1 ? 1 : 0);
+    if (t > 0) samples.push([t, free, min, largest, sockets]);
   }
-  return { period: 300, uptime: up, samples };
+  return { period: 300, uptime: up, sockets_max: 19, samples };
 }
 function heapStatus() {
   const last = heapTrend().samples.at(-1);

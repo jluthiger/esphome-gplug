@@ -20,7 +20,7 @@ struct Sample {
   uint16_t free_kb;
   uint16_t min_kb;       // minimum free heap since boot, as IDF tracks it
   uint16_t largest_kb;   // largest free block: falls with fragmentation even when free does not
-  uint16_t rsvd;
+  uint16_t sockets;      // open lwIP sockets out of CONFIG_LWIP_MAX_SOCKETS (see SocketLatch)
 };
 static_assert(sizeof(Sample) == 12, "Sample is budgeted at 12 B in firmware/MEMORY.md");
 
@@ -81,6 +81,38 @@ class LowLatch {
     fired_ = true;
     last_s_ = up_s;
     return which;
+  }
+
+ private:
+  bool armed_{true};
+  bool fired_{false};
+  uint32_t last_s_{0};
+};
+
+// lwIP's socket table is the second fixed resource a device can run out of (2026-09-26: with it
+// full, every port accepted and closed at once, ping still answered, and nothing was logged). The
+// count comes from the firmware (a scan of the fd slots); this latch turns it into one event per
+// excursion, like LowLatch: fired once the headroom is down to SOCK_LOW_FREE slots, re-armed only
+// after it is back to SOCK_REARM_FREE, and at most once an hour while it stays high. The pool is
+// sized so httpd's own purge runs before this fires (gplug_smi/__init__.py), so a healthy device
+// never logs it; when it does, `value` (the count) says how far from the wall it got.
+static constexpr uint8_t SOCK_LOW_FREE = 3;
+static constexpr uint8_t SOCK_REARM_FREE = 6;
+
+class SocketLatch {
+ public:
+  bool update(uint8_t used, uint8_t max, uint32_t up_s) {
+    uint8_t free = used < max ? max - used : 0;
+    if (!armed_) {
+      if (free >= SOCK_REARM_FREE) armed_ = true;
+      return false;
+    }
+    if (free > SOCK_LOW_FREE) return false;
+    if (fired_ && up_s - last_s_ < LOW_HOLDOFF_S) return false;
+    armed_ = false;
+    fired_ = true;
+    last_s_ = up_s;
+    return true;
   }
 
  private:

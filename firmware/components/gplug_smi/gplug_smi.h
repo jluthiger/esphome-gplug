@@ -360,6 +360,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::mutex mem_mutex_;
   ::gplug_mem::Ring<MEM_RING_LEN> mem_ring_;
   ::gplug_mem::LowLatch mem_latch_;
+  ::gplug_mem::SocketLatch sock_latch_;
   uint32_t mem_sample_ms_{0};
   bool mem_sampled_{false};             // the first sample is taken at once, not 5 min after boot
   // The loop task's stack high-water mark, read in mem_service_() because only the task itself can

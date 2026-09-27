@@ -16,7 +16,7 @@ import { Collapsible } from "./collapsible.js";
 
 const EV = { 1: "evBoot", 2: "evOta", 3: "evWifiUp", 4: "evWifiLost", 5: "evMeterLost",
              6: "evMeterOk", 7: "evConfig", 8: "evStorage", 9: "evButton", 10: "evLowHeap",
-             11: "evRestart" };
+             11: "evRestart", 12: "evSockets" };
 // esp_reset_reason_t as event_log.h renumbers it; the three watchdog flavours read the same to a
 // user, so they share a string.
 const RR = { 1: "rrPoweron", 2: "rrExt", 3: "rrSw", 4: "rrPanic", 5: "rrWdt", 6: "rrWdt", 7: "rrWdt",
@@ -35,6 +35,8 @@ function detailOf(e) {
   if (e.code === 7) return S[CFG[e.detail]] || null;
   if (e.code === 8) return S[ST[e.detail]] || null;
   if (e.code === 11) return e.detail === 1 ? S.rsFromSpa : null;
+  // EV_SOCKETS: value = open lwIP sockets, detail = the table size (heap_monitor.h SocketLatch).
+  if (e.code === 12) return S.logSockets(e.value, e.detail);
   if (e.code === 3 && e.value) return `${-e.value} dBm`;
   // EV_LOW_HEAP detail: 1 free heap, 2 largest block (heap_monitor.h); value in kB, capped at 255.
   if (e.code === 10) return e.detail === 2 ? S.logLowLargest(e.value) : S.logLowFree(e.value);
@@ -97,7 +99,7 @@ function LogBody({ wide }) {
               return html`
                 <tr>
                   <td class="ev-t">${when(e)}</td>
-                  <td class="ev-n ${e.code === 1 && e.detail === 4 || e.code === 10 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</td>
+                  <td class="ev-n ${e.code === 1 && e.detail === 4 || e.code === 10 || e.code === 12 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</td>
                   <td class="ev-d">${d || ""}</td>
                   <td class="ev-r">${e.repeat > 0 ? S.logRepeat(e.repeat + 1) : ""}</td>
                 </tr>`;
@@ -110,7 +112,7 @@ function LogBody({ wide }) {
           <div class="ev">
             <div class="ev-t">${when(e)}</div>
             <div class="ev-w">
-              <span class="ev-n ${e.code === 1 && e.detail === 4 || e.code === 10 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</span>
+              <span class="ev-n ${e.code === 1 && e.detail === 4 || e.code === 10 || e.code === 12 ? "orange" : ""}">${S[EV[e.code]] || S.evUnknown}</span>
               ${d && html`<span class="ev-d">${d}</span>`}
               ${e.repeat > 0 && html`<span class="ev-r">${S.logRepeat(e.repeat + 1)}</span>`}
             </div>
