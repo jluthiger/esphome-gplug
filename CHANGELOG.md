@@ -12,11 +12,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ### Added
 
-- MQTT: *Device → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it. Update over the air as usual: no USB reflash, settings and history are kept, Home Assistant entity IDs do not change.
+- MQTT: *Device → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it.
 - MQTT: the gPlug can also report on itself — firmware, memory, Wi-Fi signal, uptime, why it last restarted and whether the meter delivers — as a JSON message on its own topic and interval, even while the meter is silent (*Device → MQTT → Send device status*, off by default). An availability topic says `online` while the gPlug is connected and `offline` once it disappears (MQTT last will); it is on as soon as MQTT is, and can be cleared.
-
-### Added
-
 - The event log now records when the gPlug is running out of network connection slots ("Connections nearly full"), the state that made it unreachable on 26/27 September, `/api/heap` carries the count and `/api/sockets` lists who holds them.
 
 ### Changed
@@ -29,6 +26,11 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - Saving the hardware or meter settings no longer loses a little memory each time; after changing the LED or button pins, the old pins no longer stay lit or active.
 - A DLMS meter sending a broken or never-ending multi-part message can no longer make the gPlug collect data without limit until memory runs out; such a message is dropped after 4 kB.
 - *History → Export load profile*: on a narrow phone the "To" date no longer sticks out past the card; the two date fields stack when they do not fit side by side.
+
+### Upgrade notes
+
+- Update over the air as usual: no USB reflash (the partition table is unchanged). Wi-Fi, meter settings, history and event log are kept; MQTT starts switched off.
+- Home Assistant entity IDs do not change.
 
 ## [0.6.0] – 2026-09-25
 
