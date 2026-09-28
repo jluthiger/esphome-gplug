@@ -1196,7 +1196,8 @@ void GplugSmi::log_setup_() {
   // is invisible once the device is back up, and the serial console nobody was attached to is the
   // only place it would otherwise have appeared.
   uint32_t heap_kb = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT) / 1024;
-  this->log_event_(::gplug_log::EV_BOOT, reset_reason_code(), (uint8_t) (heap_kb > 255 ? 255 : heap_kb));
+  boot_rr_ = reset_reason_code();
+  this->log_event_(::gplug_log::EV_BOOT, boot_rr_, (uint8_t) (heap_kb > 255 ? 255 : heap_kb));
 
   // An update is a reboot into a different image, which is exactly what the identity comparison
   // in /api/status sees -- so the log can record "updated" without hooking ESPHome's OTA at all.
@@ -1286,7 +1287,7 @@ void GplugSmi::log_service_() {
 // socket is open there. Nineteen calls that take the socket table lock briefly; the loop pays that
 // once per sample. Counted rather than left unknown because a full table is silent otherwise: the
 // device still answers ping and closes every connection right after the handshake (2026-09-26).
-static uint8_t socket_count_() {
+uint8_t socket_count_() {
   uint8_t n = 0;
   for (int fd = LWIP_SOCKET_OFFSET; fd < LWIP_SOCKET_OFFSET + CONFIG_LWIP_MAX_SOCKETS; fd++)
     if (fcntl(fd, F_GETFL, 0) >= 0) n++;

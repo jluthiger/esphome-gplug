@@ -3,7 +3,7 @@ import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
 import { Collapsible } from "./collapsible.js";
-import { compile, render, itemOk, toFields, PRESETS, TOPIC_BUF, PAYLOAD_BUF } from "./mqtt-template.js";
+import { compile, compileFixed, render, itemOk, toFields, PRESETS, TOPIC_BUF, PAYLOAD_BUF } from "./mqtt-template.js";
 
 // MQTT publishing (GET/POST /api/config/mqtt, firmware README "MQTT"): broker settings and the
 // topic/payload templates, with a preview rendered here from the page's /api/live values by a port
@@ -37,8 +37,8 @@ export function MqttCard({ status, live, state, setState }) {
 
 // A template error as one sentence: what is wrong, and where (byte offset + 1, which is the
 // character position for the ASCII templates users type).
-const tplMsg = (field, code, pos) =>
-  S.tplAt(field === "topic" ? S.mqttTopic : S.mqttPayload, S[TPL_ERR[code]] || code, pos + 1);
+const FIELD_LABEL = { topic: "mqttTopic", payload: "mqttPayload", status_topic: "mqttStatusTopic", avail_topic: "mqttAvailTopic" };
+const tplMsg = (field, code, pos) => S.tplAt(S[FIELD_LABEL[field]] || field, S[TPL_ERR[code]] || code, pos + 1);
 
 function MqttBody({ status, live, state, setState }) {
   const [st, setSt] = useState(status.mqtt);
@@ -64,6 +64,12 @@ function MqttBody({ status, live, state, setState }) {
   const each = d?.mode === "each";
   const topicC = useMemo(() => d && compile(d.topic, each, true, f), [d?.topic, each, f]);
   const payloadC = useMemo(() => d && compile(d.payload, each, false, f), [d?.payload, each, f]);
+  // Firmware without device status (0.7.0 before issue 17) sends no status fields: no section, and
+  // nothing of it in the POST.
+  const hasStatus = state?.cfg?.status_topic !== undefined;
+  const statusC = useMemo(() => d && (hasStatus ? compileFixed(d.status_topic, f) : { ok: true, tok: [] }), [d?.status_topic, f]);
+  // Empty = no availability topic, which is allowed.
+  const availC = useMemo(() => d && (d.avail_topic ? compileFixed(d.avail_topic, f) : { ok: true, tok: [] }), [d?.avail_topic, f]);
 
   if (state?.loadErr) return html`<div class="err">${state.loadErr}</div>`;
   if (!d) return html`<p class="hint">${S.loading}</p>`;
@@ -73,6 +79,10 @@ function MqttBody({ status, live, state, setState }) {
   const str = (k) => (e) => set({ [k]: e.target.value });
   const preset = PRESETS.find((p) => p.topic === d.topic && p.payload === d.payload && p.each === each);
   const tplErr = !topicC.ok ? tplMsg("topic", topicC.code, topicC.pos) : !payloadC.ok ? tplMsg("payload", payloadC.code, payloadC.pos) : "";
+  const fixedErr = !statusC.ok ? tplMsg("status_topic", statusC.code, statusC.pos)
+    : !availC.ok ? tplMsg("avail_topic", availC.code, availC.pos) : "";
+  // The fixed topics need no values, so they render with an empty snapshot.
+  const none = { v: [], have: [], smid: "", epoch: 0 };
 
   // The preview uses the values the page already polls; register order and precision come from
   // the device's `fields`, so it matches what the device renders byte for byte.
@@ -90,7 +100,9 @@ function MqttBody({ status, live, state, setState }) {
   async function save() {
     setBusy(true);
     const body = { enabled: d.enabled, host: d.host.trim(), port: d.port, client_id: d.client_id, user: d.user,
-      mode: d.mode, topic: d.topic, payload: d.payload, period: d.period, qos: d.qos, retain: d.retain };
+      mode: d.mode, topic: d.topic, payload: d.payload, period: d.period, qos: d.qos, retain: d.retain,
+      ...(hasStatus && { status: d.status, status_period: d.status_period, status_topic: d.status_topic.trim(),
+        avail_topic: d.avail_topic.trim() }) };
     // Left out = keep the stored one; the device never hands it back, so an empty field means "unchanged".
     if (d.password) body.password = d.password;
     if (d.clearPassword) body.password = "";
@@ -182,8 +194,27 @@ function MqttBody({ status, live, state, setState }) {
       ${preview ? html`<div class="hex text">${preview}</div>` : html`<p class="hint" style="margin:0">${S.mqttPreviewNone}</p>`}
       <p class="hint" style="margin:6px 0 0">${S.mqttWorst(payloadC.worst, PAYLOAD_BUF - 1)} · ${S.mqttWorstTopic(topicC.worst, TOPIC_BUF - 1)}</p>`}
 
+    ${hasStatus && html`
+      <div class="switchrow" style="padding:4px 0;margin:12px 0 6px">
+        <div><div class="t">${S.mqttStatusEnable}</div><div class="s">${S.mqttStatusHint}</div></div>
+        <button class="switch ${d.status ? "on" : ""}" role="switch" aria-checked=${!!d.status}
+          onClick=${() => set({ status: !d.status })}><span></span></button>
+      </div>
+      ${d.status && html`
+        <label>${S.mqttStatusPeriod}</label>
+        <input type="number" min="5" max="3600" value=${d.status_period} onInput=${num("status_period")} />
+        <label>${S.mqttStatusTopic}</label>
+        <input class="tpl" type="text" autocomplete="off" spellcheck="false" value=${d.status_topic} onInput=${str("status_topic")} />`}
+      <label>${S.mqttAvailTopic}</label>
+      <input class="tpl" type="text" autocomplete="off" spellcheck="false" value=${d.avail_topic} onInput=${str("avail_topic")} />
+      <p class="hint" style="margin:4px 0 0">${S.mqttAvailHint}</p>
+      ${fixedErr && html`<div class="err">${fixedErr}</div>`}
+      ${!fixedErr && d.status && state.cfg.status_sample && html`
+        <label>${S.mqttStatusPreview}</label>
+        <div class="hex text">${render(statusC, true, f, none, -1)}\n${state.cfg.status_sample}</div>`}`}
+
     ${state.err && html`<div class="err">${state.err}</div>`}
     <div class="nav">
-      <button class="primary" disabled=${busy || !!tplErr} onClick=${save}>${state.saved ? S.mqttSaved : S.mqttSave}</button>
+      <button class="primary" disabled=${busy || !!tplErr || !!fixedErr} onClick=${save}>${state.saved ? S.mqttSaved : S.mqttSave}</button>
     </div>`;
 }

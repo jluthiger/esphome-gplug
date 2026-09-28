@@ -23,6 +23,8 @@ export const PRESETS = [
   { id: "influx", each: false, topic: "gplug/{device}/influx",
     payload: "energy,device={device} {values_lp} {ts}000000000" },
 ];
+export const STATUS_TOPIC = "gplug/{device}/status";
+export const AVAIL_TOPIC = "gplug/{device}/availability";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -121,6 +123,14 @@ export function compile(text, each, topic, f) {
   if (topic && each && !itemTopic) return fail("tpl_topic", 0);
   if (worst + 1 > (topic ? TOPIC_BUF : PAYLOAD_BUF)) return fail("tpl_overflow", 0, worst);
   return { ok: true, tok, worst, usesTime, text: t };
+}
+
+// compile_fixed: the status and availability topics, {device} and {mac} only.
+export function compileFixed(text, f) {
+  const c = compile(text, false, true, f);
+  if (!c.ok) return c;
+  const bad = c.tok.find((k) => k.key !== "lit" && k.key !== "device" && k.key !== "mac");
+  return bad ? { ok: false, code: "tpl_context", pos: bad.off, worst: 0 } : c;
 }
 
 function escStr(s, e) {
