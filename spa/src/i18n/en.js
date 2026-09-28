@@ -112,7 +112,7 @@ export const en = {
   tabLive: "Live",
   tabHist: "History",
   tabStream: "Data",
-  tabSetup: "Setup",
+  tabDevice: "Device",
   screenLive: "Live",
   screenHist: "History",
   screenStream: "Data stream",

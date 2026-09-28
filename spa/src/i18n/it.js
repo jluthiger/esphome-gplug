@@ -113,7 +113,7 @@ export const it = {
   tabLive: "In diretta",
   tabHist: "Storico",
   tabStream: "Dati",
-  tabSetup: "Impostazioni",
+  tabDevice: "Dispositivo",
   screenLive: "In diretta",
   screenHist: "Storico",
   screenStream: "Flusso di dati",

@@ -7,7 +7,7 @@ export const TABS = [
   ["live", "tabLive", "50%"],
   ["hist", "tabHist", "3px"],
   ["stream", "tabStream", "999px"],
-  ["setup", "tabSetup", "6px"],
+  ["setup", "tabDevice", "6px"],
 ];
 
 export function TabBar({ tab, onChange }) {

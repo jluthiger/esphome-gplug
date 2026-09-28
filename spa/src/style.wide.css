@@ -66,10 +66,10 @@
 .s-detail .frame .body { padding: 0; }
 .s-detail .hex { min-height: 240px; max-height: calc(100vh - 290px); font-size: .8rem; }
 
-/* Setup: device on the left, preferences on the right, the event log as a table below. */
-.setupgrid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0 20px; align-items: start; }
-.setupgrid > div > .card:first-child { margin-top: 0; }
-.u-log { grid-column: 1 / -1; }
+/* Device: one column as on a phone, capped at the desktop column's width so a key/value row does
+   not stretch across the whole screen; the event log inside it is a table. */
+.devcol { max-width: 880px; }
+.devcol > .card:first-child { margin-top: 0; }
 .logtable { overflow-x: auto; margin-top: 10px; }
 .logtable table { width: 100%; border-collapse: collapse; font-size: .85rem; }
 .logtable td { padding: 8px 16px 8px 0; border-top: 1px solid var(--border); vertical-align: baseline; }

@@ -39,11 +39,10 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
   const keyBadge = live?.key_invalid ? ["err", S.keyInvalidBadge] : live?.age != null ? ["ok", S.keySet] : ["warn", S.keySet];
 
   const device = html`
-    <div class="card">
-      <div class="lbl" style="margin-bottom:12px">${S.setupConn}</div>
+    <${Collapsible} id="conn" title=${S.setupConn} open summary=${conn[0]?.[1]}>
       <div class="kv">${conn.map(([k, v]) => html`<b>${k}</b><span>${v}</span>`)}</div>
       <p style="margin:14px 0 0"><button onClick=${() => setShowWifi(true)}>${S.changeWifi}</button></p>
-    </div>
+    <//>
     ${encrypted && html`
       <${Collapsible} id="key" title=${S.setupKey} open locked=${live?.key_invalid}
         summary=${html`<span class="badge ${keyBadge[0]}">${keyBadge[1]}</span>`}>
@@ -54,15 +53,14 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
     <${FirmwareCard} status=${status} />
     <${MemCard} status=${status} />`;
   const prefs = html`
-    <div class="card">
-      <div class="lbl">${S.language}</div>
+    <${Collapsible} id="lang" title=${S.language} summary=${LANGS.find(([code]) => code === getLang())?.[1]}>
       <div class="seg" role="radiogroup">
         ${LANGS.map(([code, label]) => html`
           <button role="radio" aria-checked=${getLang() === code} class=${getLang() === code ? "active" : ""}
             lang=${code} onClick=${() => setLang(code)}>${label}</button>`)}
       </div>
       <p class="hint" style="margin:0">${S.languageHint}</p>
-    </div>
+    <//>
     <${Collapsible} id="theme" title=${S.theme} summary=${theme === "light" ? S.themeLight : S.themeDark}>
       <div class="seg" role="radiogroup">
         ${[["light", S.themeLight], ["dark", S.themeDark]].map(([t, label]) => html`
@@ -72,17 +70,13 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
       <p class="hint" style="margin:0">${S.themeHint}</p>
     <//>`;
 
-  // Connection and language stay plain cards: they are what a user comes to Setup for. The rest
-  // collapse (collapsible.js); only the key starts open, being the one a wrong setup breaks.
+  // Every card collapses (collapsible.js). Connection and key start open: the addresses are what a
+  // user most often comes here for, and the key is the one a wrong setup breaks. Language and
+  // theme start closed with the current choice as summary, being set once per browser.
   //
-  // Wide screens: device matters on the left, per-browser preferences on the right, and the event
-  // log across the full width below, where it can be a table.
-  if (wide) return html`
-    <div class="setupgrid">
-      <div class="u-dev">${device}</div>
-      <div class="u-prefs">${prefs}</div>
-      <div class="u-log"><${LogCard} wide /></div>
-    </div>`;
-
-  return html`${device}<${LogCard} />${prefs}`;
+  // One column on every width, in the same order as on a phone. The former two-column wide layout
+  // put preferences beside device matters and the log below, so the order changed with the width;
+  // the log still becomes a table on a wide screen, where it has the room.
+  const body = html`${device}<${LogCard} wide=${wide} />${prefs}`;
+  return wide ? html`<div class="devcol">${body}</div>` : body;
 }
