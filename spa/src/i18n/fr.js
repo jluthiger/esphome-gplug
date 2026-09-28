@@ -114,7 +114,7 @@ export const fr = {
   tabLive: "Direct",
   tabHist: "Historique",
   tabStream: "Données",
-  tabSetup: "Réglages",
+  tabDevice: "Appareil",
   screenLive: "Direct",
   screenHist: "Historique",
   screenStream: "Flux de données",

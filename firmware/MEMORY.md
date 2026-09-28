@@ -177,5 +177,5 @@ largest block 112 kB, httpd stack 1328 B unused (unchanged). A download over TLS
 gPlugK (0.6.0-rc.3 → 0.6.0, 2026-09-25); its heap peak and the loop task's stack mark during it are
 not measured yet (both are reset by the reboot that follows).
 Since 2026-09-14 the device keeps its own 24 h trend of free heap, minimum and largest block
-(`/api/heap`, Memory card on the Setup tab), so that reading is a screenshot rather than a polling
+(`/api/heap`, Memory card on the Device tab), so that reading is a screenshot rather than a polling
 session.

@@ -15,7 +15,7 @@ on the device itself. See [`DESIGN.md`](DESIGN.md) for goal, scope and constrain
   No tools to install: Chrome or Edge on a desktop computer and a USB cable.
 </p>
 
-Already running this firmware? Update without a cable in the device's own app, *Setup → Firmware*.
+Already running this firmware? Update without a cable in the device's own app, *Device → Firmware*.
 
 ## Layout
 
@@ -37,8 +37,8 @@ so nothing below is needed just to run the firmware:
 | Where | What | For |
 |---|---|---|
 | <https://jluthiger.github.io/esphome-gplug/> | Web installer (ESP Web Tools) | A fresh gPlug, or one still on Tasmota: flash over USB from Chrome or Edge, no tools installed |
-| | `manifest.json` + `gplug-ota.bin` | A gPlug on 0.6.0 or later updating itself: *Setup → Firmware → Check for updates*, installs after a confirmation |
-| [Latest release](https://github.com/jluthiger/esphome-gplug/releases/latest) | `gplug-<version>.ota.bin` | Updating a gPlug that already runs this firmware: *Setup → Firmware* in the device's own app |
+| | `manifest.json` + `gplug-ota.bin` | A gPlug on 0.6.0 or later updating itself: *Device → Firmware → Check for updates*, installs after a confirmation |
+| [Latest release](https://github.com/jluthiger/esphome-gplug/releases/latest) | `gplug-<version>.ota.bin` | Updating a gPlug that already runs this firmware: *Device → Firmware* in the device's own app |
 | | `gplug-<version>.factory.bin` | Full flash from `0x0` with esptool |
 
 ### Versions and branches
@@ -133,7 +133,7 @@ app instead — four tabs: **Live** (current power, 1 h chart, counters, per-pha
 (Day/Week/Month/Year from the device's own 15-min flash history, ~374 days, with a CSV export),
 **Data Stream** (the last captured raw DLMS frames, with hex export, for diagnosing a meter that
 won't decode) and **Setup** (addresses, Wi-Fi change, key status, firmware update, event log, language, light/dark). The whole
-app speaks German, French, Italian and English, switched in the Setup tab and remembered per
+app speaks German, French, Italian and English, switched in the Device tab and remembered per
 browser; a fresh phone gets whichever of the four it asks for. The wizard stays one tap away. Re-entering setup directly: hold the AP button >= 3 s.
 
 Dev loop without hardware: `cd spa && npm run dev` serves the wizard against a mock device API on
