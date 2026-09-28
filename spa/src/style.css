@@ -75,6 +75,13 @@ a { color: var(--accent2); }
 .grid2 .card, .grid3 .card { margin: 0; padding: 13px 14px; border-radius: 16px; }
 .row { display: flex; gap: 8px; align-items: center; }
 .row > * { flex: 1; }
+/* A date input's intrinsic width (text, calendar icon, padding) is wider than half a card on a
+   320 px phone, and a flex item's min-width:auto kept it from shrinking, so the second field stuck
+   out past the card. Here the fields may shrink, and wrap onto their own lines once two no longer
+   fit, instead of clipping the date. Not on .row in general: its button rows need their width. */
+.row.dates { flex-wrap: wrap; align-items: flex-end; }
+.row.dates > * { flex: 1 1 140px; min-width: 0; margin: 0; }
+.row.dates input { min-width: 0; }
 label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
 input[type=text], input[type=password], input[type=number], input[type=date], select { width: 100%; padding: 10px 12px; border-radius: 12px;
   border: 1px solid var(--border2); background: var(--deep); color: var(--fg); font-size: 1rem; }

@@ -142,7 +142,7 @@ function ExportCard({ status }) {
       <p class="hint">${count
         ? (timed ? S.csvStored(count, dateShort(qhDate(h.oldest_qh)), dateShort(qhDate(h.newest_qh))) : S.csvStoredNoTime(count))
         : S.noHistory}</p>
-      <div class="row" style="margin:12px 0">
+      <div class="row dates" style="margin:12px 0">
         <label><div class="lbl" style="margin-bottom:4px">${S.csvFrom}</div>
           <input type="date" value=${f} max=${t} onInput=${(e) => setFrom(e.target.value)} /></label>
         <label><div class="lbl" style="margin-bottom:4px">${S.csvTo}</div>
