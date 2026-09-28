@@ -9,7 +9,7 @@ import { fr } from "./src/i18n/fr.js";
 import { it } from "./src/i18n/it.js";
 import { iconPng } from "./tools/icon.mjs";
 import { WIDE } from "./src/layout.js";
-import { compile, render } from "./src/live/mqtt-template.js";
+import { compile, compileFixed, render } from "./src/live/mqtt-template.js";
 
 const watch = process.argv.includes("--watch");
 
@@ -54,8 +54,8 @@ function checkMqttVectors() {
     if (!line || line.startsWith("#")) return;
     const col = line.split("\t");
     if (col.length !== 4) { problems.push(`line ${n + 1}: ${col.length} columns`); return; }
-    const each = col[0] === "each", topic = col[1] === "topic";
-    const c = compile(unesc(col[2]), each, topic, f);
+    const each = col[0] === "each", fixed = col[0] === "fixed", topic = fixed || col[1] === "topic";
+    const c = fixed ? compileFixed(unesc(col[2]), f) : compile(unesc(col[2]), each, topic, f);
     const got = c.ok ? "ok:" + render(c, topic, f, s, each ? 0 : -1) : `err:${c.code}:${c.pos}`;
     if (got !== unesc(col[3])) problems.push(`line ${n + 1}: ${col[2]}\n    want ${col[3]}\n    got  ${got}`);
     rows++;

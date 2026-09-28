@@ -17,6 +17,11 @@
 //   - esp-mqtt's own task: its event handler only writes atomics. No mutex_, no NVS and no event-log
 //     records, so a flapping broker costs neither lock time nor flash writes.
 //
+// Device status (issue 17) rides on the same client: a fixed JSON message (mqtt_status.h) on its own
+// topic and period, sent whether or not the meter delivers, and an availability topic that is the
+// last will ("offline", retained) and gets "online" on every connect. Both topics are fixed per
+// connection, so they are rendered at save rather than per publish.
+//
 // NVS is written only when the user saves (deferred to the loop, DECISIONS.md 2026-09-14); there
 // are no periodic writes, so MQTT adds nothing to the flash-wear budget.
 #include "gplug_smi.h"
@@ -26,6 +31,9 @@
 #include "esphome/components/wifi/wifi_component.h"
 
 #include <ArduinoJson.h>
+#include <esp_app_desc.h>
+#include <esp_heap_caps.h>
+#include <lwip/opt.h>   // CONFIG_LWIP_MAX_SOCKETS
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <mqtt_client.h>
@@ -45,13 +53,40 @@ static constexpr uint64_t OUTBOX_LIMIT = 4096;
 // After a failed client init or start, wait before trying again instead of every loop pass.
 static constexpr uint32_t START_RETRY_MS = 10000;
 
+// Per client, from mqtt_start_ to its destruction: what the tear-down needs to say "offline" first.
+// The broker sends the last will only when a connection drops, not on a clean DISCONNECT, so
+// without this a save that changes the broker or turns MQTT off would leave "online" retained.
+struct MqttStopArg {
+  esp_mqtt_client_handle_t client;
+  std::atomic<uint8_t> *stopping;       // GplugSmi::mqtt_stopping_, decremented when done
+  bool online;                          // connected when stopped: worth publishing "offline"
+  uint8_t qos;
+  char topic[::gplug_mqtt::TOPIC_BUF];  // "" = no availability topic
+};
+
+// The strings a DeviceStatus points into (mqtt_status_collect_).
+struct MqttStatusBufs {
+  char app[17];
+  char ssid[wifi::SSID_BUFFER_SIZE];
+  char ip[network::IP_ADDRESS_BUFFER_SIZE];
+};
+
 // esp_mqtt_client_destroy() takes the client's lock and then waits without a timeout for the
 // esp-mqtt task to exit. That task holds the lock through a DNS lookup and TCP connect and sleeps
 // half the reconnect interval between attempts, so on the loop task a save while the broker is
 // unreachable blocked for 5-10 s -- past the 5 s task watchdog (found in review, 2026-09-26). The
 // old client is therefore torn down on a short-lived task of its own; the new one starts at once.
-static void destroy_task(void *client) {
-  esp_mqtt_client_destroy(static_cast<esp_mqtt_client_handle_t>(client));
+// Saying "offline" first belongs here for the same reason: this task waits for nobody, and the
+// blocking publish is bounded by the 2 s network timeout.
+static void stop_client(MqttStopArg *a) {
+  if (a->online && a->topic[0]) esp_mqtt_client_publish(a->client, a->topic, "offline", 7, a->qos, 1);
+  esp_mqtt_client_destroy(a->client);
+  a->stopping->fetch_sub(1);
+  delete a;
+}
+
+static void destroy_task(void *arg) {
+  stop_client(static_cast<MqttStopArg *>(arg));
   vTaskDelete(nullptr);
 }
 
@@ -61,12 +96,17 @@ static void mqtt_defaults(MqttSettings &s) {
   s.each = p.each;
   strlcpy(s.topic, p.topic, sizeof s.topic);
   strlcpy(s.payload, p.payload, sizeof s.payload);
+  strlcpy(s.status_topic, ::gplug_mqtt::STATUS_TOPIC, sizeof s.status_topic);
+  strlcpy(s.avail_topic, ::gplug_mqtt::AVAIL_TOPIC, sizeof s.avail_topic);
 }
 
 // Whether the change needs a new connection; a template, period, QoS or retain change does not.
+// The availability topic does, and with it the QoS: both are part of the last will, which the
+// broker takes at CONNECT.
 static bool conn_differs(const MqttSettings &a, const MqttSettings &b) {
   return a.enabled != b.enabled || a.port != b.port || strcmp(a.host, b.host) || strcmp(a.client_id, b.client_id) ||
-         strcmp(a.user, b.user) || strcmp(a.password, b.password);
+         strcmp(a.user, b.user) || strcmp(a.password, b.password) || strcmp(a.avail_topic, b.avail_topic) ||
+         (b.avail_topic[0] && a.qos != b.qos);
 }
 
 // ---------------------------------------------------------------- config
@@ -116,6 +156,7 @@ bool GplugSmi::mqtt_parse_(const std::string &json, MqttSettings &s, MqttErr &e)
   auto fail = [&](const char *code) { e.code = code; return false; };
   if (!doc["enabled"].isNull()) s.enabled = doc["enabled"] | false;
   if (!doc["retain"].isNull()) s.retain = doc["retain"] | false;
+  if (!doc["status"].isNull()) s.status = doc["status"] | false;
   if (!copy_str(doc["host"], s.host, sizeof s.host)) return fail("host");
   if (!copy_str(doc["client_id"], s.client_id, sizeof s.client_id)) return fail("client_id");
   if (!copy_str(doc["user"], s.user, sizeof s.user)) return fail("user");
@@ -130,6 +171,11 @@ bool GplugSmi::mqtt_parse_(const std::string &json, MqttSettings &s, MqttErr &e)
     if (p < PERIOD_MIN || p > PERIOD_MAX) return fail("period");
     s.period = (uint16_t) p;
   }
+  if (!doc["status_period"].isNull()) {
+    long p = doc["status_period"] | -1L;
+    if (p < PERIOD_MIN || p > PERIOD_MAX) return fail("status_period");
+    s.status_period = (uint16_t) p;
+  }
   if (!doc["qos"].isNull()) {
     long q = doc["qos"] | -1L;
     if (q != 0 && q != 1) return fail("qos");
@@ -143,7 +189,8 @@ bool GplugSmi::mqtt_parse_(const std::string &json, MqttSettings &s, MqttErr &e)
   }
   // Template length is a template error with a position, like the ones compile() reports.
   struct { const char *key; char *dst; size_t cap; } tpls[] = {
-      {"topic", s.topic, sizeof s.topic}, {"payload", s.payload, sizeof s.payload}};
+      {"topic", s.topic, sizeof s.topic}, {"payload", s.payload, sizeof s.payload},
+      {"status_topic", s.status_topic, sizeof s.status_topic}, {"avail_topic", s.avail_topic, sizeof s.avail_topic}};
   for (auto &t : tpls) {
     JsonVariantConst v = doc[t.key];
     if (v.isNull()) continue;
@@ -156,8 +203,9 @@ bool GplugSmi::mqtt_parse_(const std::string &json, MqttSettings &s, MqttErr &e)
   return true;
 }
 
-// Copies the current profile into r and compiles both templates against it. Runs on the httpd task
-// (POST) and the loop task (boot, after a meter save); the lock is held only for the copy.
+// Copies the current profile into r, compiles both templates against it and renders the fixed
+// topics. Runs on the httpd task (POST) and the loop task (boot, after a meter save); the lock is
+// held only for the copy.
 bool GplugSmi::mqtt_compile_(MqttRun &r, MqttErr &e) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -177,6 +225,23 @@ bool GplugSmi::mqtt_compile_(MqttRun &r, MqttErr &e) {
   ::gplug_mqtt::Fields f{r.np, r.op, r.up, r.prec, r.is_string, r.n, App.get_name().c_str(), r.mac};
   ::gplug_mqtt::Error te;
   r.ok = false;
+  // The fixed topics first: they do not depend on the profile, so a meter save that breaks the meter
+  // templates leaves them rendered and the status message keeps going.
+  struct { const char *key; const char *tpl; char *dst; bool optional; } fixed[] = {
+      {"status_topic", r.cfg.status_topic, r.status_topic, false},
+      {"avail_topic", r.cfg.avail_topic, r.avail_topic, true}};
+  for (auto &x : fixed) {
+    x.dst[0] = '\0';
+    if (x.optional && !x.tpl[0]) continue;
+    ::gplug_mqtt::Compiled c;
+    if (!::gplug_mqtt::compile_fixed(x.tpl, strlen(x.tpl), f, c, te)) {
+      e.code = te.code; e.field = x.key; e.pos = te.pos; e.worst = te.worst;
+      return false;
+    }
+    ::gplug_mqtt::Snapshot none{nullptr, nullptr, "", 0};
+    size_t len = 0;
+    ::gplug_mqtt::render(x.tpl, c, true, f, none, -1, x.dst, ::gplug_mqtt::TOPIC_BUF, len);
+  }
   if (!::gplug_mqtt::compile(r.cfg.topic, strlen(r.cfg.topic), r.cfg.each, true, f, r.topic, te)) {
     e.code = te.code; e.field = "topic"; e.pos = te.pos; e.worst = te.worst;
     return false;
@@ -208,7 +273,22 @@ std::string GplugSmi::mqtt_json_(const MqttSettings &s, bool for_nvs) {
   doc["period"] = s.period;
   doc["qos"] = s.qos;
   doc["retain"] = s.retain;
+  doc["status"] = s.status;
+  doc["status_period"] = s.status_period;
+  doc["status_topic"] = s.status_topic;
+  doc["avail_topic"] = s.avail_topic;
   if (!for_nvs) {
+    // The status message as it would go out now, rendered by the device itself: the layout is
+    // fixed, so the SPA shows this instead of porting the renderer. ~0.6 kB on the httpd task's heap.
+    ::gplug_mqtt::DeviceStatus d;
+    auto sb = std::unique_ptr<MqttStatusBufs>(new (std::nothrow) MqttStatusBufs());
+    auto buf = std::unique_ptr<char[]>(new (std::nothrow) char[::gplug_mqtt::STATUS_WORST + 1]);
+    size_t len = 0;
+    if (sb && buf) {
+      this->mqtt_status_collect_(d, *sb);
+      if (::gplug_mqtt::render_status(d, buf.get(), ::gplug_mqtt::STATUS_WORST + 1, len))
+        doc["status_sample"] = (const char *) buf.get();   // copied by ArduinoJson
+    }
     char mac[13];
     get_mac_address_into_buffer(mac);
     doc["ctx"]["device"] = App.get_name().c_str();
@@ -315,6 +395,7 @@ void GplugSmi::mqtt_event_(void *arg, const char *base, int32_t id, void *data) 
     case MQTT_EVENT_CONNECTED:
       self->mqtt_state_ = MQ_CONNECTED;
       self->mqtt_conn_err_ = MQE_NONE;
+      self->mqtt_online_due_ = true;   // the loop says "online": the broker may have sent the will
       break;
     case MQTT_EVENT_DISCONNECTED:
       self->mqtt_state_ = MQ_CONNECTING;   // esp-mqtt reconnects on its own
@@ -338,6 +419,15 @@ void GplugSmi::mqtt_event_(void *arg, const char *base, int32_t id, void *data) 
 
 void GplugSmi::mqtt_start_() {
   const MqttSettings &c = mqtt_run_->cfg;
+  auto *stop = new (std::nothrow) MqttStopArg();
+  if (stop == nullptr) {
+    ESP_LOGE(TAG, "client init failed: memory");
+    mqtt_retry_ms_ = millis();
+    return;
+  }
+  strlcpy(stop->topic, mqtt_run_->avail_topic, sizeof stop->topic);
+  stop->qos = c.qos;
+  stop->stopping = &mqtt_stopping_;
   esp_mqtt_client_config_t mc{};
   mc.broker.address.hostname = c.host;
   mc.broker.address.port = c.port;
@@ -356,13 +446,23 @@ void GplugSmi::mqtt_start_() {
   mc.buffer.out_size = 1024;
   mc.task.stack_size = 4096;
   mc.outbox.limit = OUTBOX_LIMIT;
+  if (stop->topic[0]) {
+    // Retained, so a subscriber that joins after the device went dark still learns it.
+    mc.session.last_will.topic = stop->topic;
+    mc.session.last_will.msg = "offline";
+    mc.session.last_will.msg_len = 7;
+    mc.session.last_will.qos = c.qos;
+    mc.session.last_will.retain = 1;
+  }
   // esp_mqtt_client_init() copies every string, so the settings may change underneath it.
   esp_mqtt_client_handle_t cl = esp_mqtt_client_init(&mc);
   if (cl == nullptr) {
     ESP_LOGE(TAG, "client init failed");
+    delete stop;
     mqtt_retry_ms_ = millis();
     return;
   }
+  stop->client = cl;
   esp_mqtt_client_register_event(cl, MQTT_EVENT_ANY, &GplugSmi::mqtt_event_, this);
   mqtt_conn_err_ = MQE_NONE;
   mqtt_state_ = MQ_CONNECTING;
@@ -372,21 +472,28 @@ void GplugSmi::mqtt_start_() {
     ESP_LOGE(TAG, "client start failed");
     mqtt_client_ = nullptr;
     esp_mqtt_client_destroy(cl);
+    delete stop;
     mqtt_state_ = MQ_OFF;
     mqtt_retry_ms_ = millis();
     return;
   }
+  mqtt_stop_arg_ = stop;
   ESP_LOGI(TAG, "connecting to %s:%u", c.host, c.port);
 }
 
 void GplugSmi::mqtt_stop_() {
   esp_mqtt_client_handle_t cl = mqtt_client_.exchange(nullptr);
   if (cl == nullptr) return;
+  MqttStopArg *a = mqtt_stop_arg_;
+  mqtt_stop_arg_ = nullptr;
+  a->online = mqtt_state_ == MQ_CONNECTED;
+  mqtt_stopping_++;
   // See destroy_task. If the task cannot be created, blocking here is still better than leaking a
   // running client.
-  if (xTaskCreate(destroy_task, "mqtt_stop", 3072, cl, tskIDLE_PRIORITY + 1, nullptr) != pdPASS)
-    esp_mqtt_client_destroy(cl);
+  if (xTaskCreate(destroy_task, "mqtt_stop", 3072, a, tskIDLE_PRIORITY + 1, nullptr) != pdPASS)
+    stop_client(a);
   mqtt_state_ = MQ_OFF;
+  mqtt_online_due_ = false;
   mqtt_conn_err_ = MQE_NONE;
 }
 
@@ -411,6 +518,9 @@ void GplugSmi::mqtt_service_() {
   if (mqtt_client_.load() == nullptr) {
     if (!wifi::global_wifi_component->is_connected()) return;
     if (mqtt_retry_ms_ && now - mqtt_retry_ms_ < START_RETRY_MS) return;
+    // The old client's "offline" must reach the broker before the new one says "online", or a
+    // reconnect to the same broker would leave "offline" retained (found in review, 2026-09-28).
+    if (mqtt_stopping_.load()) return;
     mqtt_retry_ms_ = 0;
     this->mqtt_start_();
     mqtt_last_ms_ = now;
@@ -434,6 +544,18 @@ void GplugSmi::mqtt_service_() {
       ESP_LOGW(TAG, "%s template no longer compiles after the profile change: %s at %u", e.field, e.code, e.pos);
       mqtt_tpl_err_ = e.code;
     }
+  }
+  // Device status before the meter: it goes out whatever the meter or its templates do.
+  if (mqtt_online_due_.exchange(false) && mqtt_state_ == MQ_CONNECTED) {
+    if (r.avail_topic[0] &&
+        esp_mqtt_client_enqueue(mqtt_client_.load(), r.avail_topic, "online", 6, r.cfg.qos, 1, true) < 0)
+      ESP_LOGW(TAG, "could not queue \"online\"");
+    // A status message right after connecting, so a subscriber sees the device's state at once.
+    mqtt_status_ms_ = now - (uint32_t) r.cfg.status_period * 1000;
+  }
+  if (r.cfg.status && r.status_topic[0] && now - mqtt_status_ms_ >= (uint32_t) r.cfg.status_period * 1000) {
+    mqtt_status_ms_ = now;
+    this->mqtt_publish_status_(r);
   }
   if (!r.ok) return;
   if (now - mqtt_last_ms_ < (uint32_t) r.cfg.period * 1000) return;
@@ -485,6 +607,75 @@ void GplugSmi::mqtt_publish_(MqttRun &r) {
   }
   for (uint8_t i = 0; i < r.n; i++)
     if (item_ok(f, snap, i)) send(i);
+}
+
+// The facts behind the status message, from the loop (publish) or the httpd task (the sample in
+// GET /api/config/mqtt); the calls are the ones json_status_ makes on the httpd task already.
+// The strings point into sb.
+void GplugSmi::mqtt_status_collect_(::gplug_mqtt::DeviceStatus &d, MqttStatusBufs &sb) {
+  uint32_t now = millis();
+  d = ::gplug_mqtt::DeviceStatus{};
+#ifdef ESPHOME_PROJECT_VERSION
+  d.fw = ESPHOME_PROJECT_VERSION;
+#else
+  d.fw = "";
+#endif
+  sb.app[0] = '\0';
+  if (const esp_app_desc_t *ad = esp_app_get_description()) {
+    static const char H[] = "0123456789abcdef";
+    for (int i = 0; i < 8; i++) {
+      sb.app[2 * i] = H[ad->app_elf_sha256[i] >> 4];
+      sb.app[2 * i + 1] = H[ad->app_elf_sha256[i] & 0xF];
+    }
+    sb.app[16] = '\0';
+  }
+  d.app = sb.app;
+  d.build = (uint32_t) App.get_build_time();
+  d.uptime = now / 1000;
+  d.reset = boot_rr_;
+  uint32_t ep = (uint32_t) ::time(nullptr);
+  d.epoch = ep > EPOCH_SANE ? ep : 0;
+  const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+  d.free = heap_caps_get_free_size(caps);
+  d.min_free = heap_caps_get_minimum_free_size(caps);
+  d.largest = heap_caps_get_largest_free_block(caps);
+  d.sockets = socket_count_();
+  d.sockets_max = CONFIG_LWIP_MAX_SOCKETS;
+  auto *w = wifi::global_wifi_component;
+  sb.ssid[0] = sb.ip[0] = '\0';
+  d.wifi = w->is_connected();
+  if (d.wifi) {
+    d.ssid = w->wifi_ssid_to(sb.ssid);
+    for (auto &a : w->wifi_sta_ip_addresses())
+      if (a.is_set()) { a.str_to(sb.ip); break; }
+    d.ip = sb.ip;
+    d.rssi = (int8_t) w->wifi_rssi();
+  }
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    d.diag = this->diag_(now);
+    d.age = last_frame_ms_ ? (int32_t) ((now - last_frame_ms_) / 1000) : -1;
+  }
+  d.sent = mqtt_sent_.load();
+  d.dropped = mqtt_dropped_.load();
+  d.skipped = mqtt_skipped_.load();
+}
+
+// The fixed status message (mqtt_status.h). Only while connected, like the meter values: a status
+// from minutes ago is no better than the next one, and "offline" is what the will is for. Counted
+// in `sent` but not in `dropped`, which keeps meaning "meter values lost", and not in `last_ago`,
+// which keeps meaning "last meter message".
+void GplugSmi::mqtt_publish_status_(MqttRun &r) {
+  if (mqtt_state_ != MQ_CONNECTED) return;
+  ::gplug_mqtt::DeviceStatus d;
+  MqttStatusBufs sb;
+  this->mqtt_status_collect_(d, sb);
+  size_t len = 0;
+  if (!::gplug_mqtt::render_status(d, r.payload_buf, sizeof r.payload_buf, len)) return;
+  if (esp_mqtt_client_enqueue(mqtt_client_.load(), r.status_topic, r.payload_buf, (int) len, r.cfg.qos,
+                              r.cfg.retain, true) < 0)
+    return;
+  mqtt_sent_++;
 }
 
 }  // namespace gplug_smi

@@ -30,10 +30,11 @@ struct Result {
 };
 
 static Result run(const char *tpl, bool each, bool topic, const Fields &f = FX, const Snapshot &s = SX,
-                  int item = 0) {
+                  int item = 0, bool fixed = false) {
   Compiled c;
   Error e;
-  if (!compile(tpl, strlen(tpl), each, topic, f, c, e)) return {false, std::string(e.code) + ":" + std::to_string(e.pos)};
+  bool ok_c = fixed ? compile_fixed(tpl, strlen(tpl), f, c, e) : compile(tpl, strlen(tpl), each, topic, f, c, e);
+  if (!ok_c) return {false, std::string(e.code) + ":" + std::to_string(e.pos)};
   char buf[PAYLOAD_BUF];
   size_t len = 0;
   bool ok = render(tpl, c, topic, f, s, each ? item : -1, buf, topic ? TOPIC_BUF : PAYLOAD_BUF, len);
@@ -75,7 +76,9 @@ static void vectors() {
     }
     if (col.size() != 4) { printf("FAIL vectors line %d: %zu columns\n", lineno, col.size()); fails++; continue; }
     std::string tpl = unescape(col[2]), want = unescape(col[3]);
-    Result r = run(tpl.c_str(), col[0] == "each", col[1] == "topic");
+    // fixed: the status and availability topics (compile_fixed), always a topic.
+    bool fixed = col[0] == "fixed";
+    Result r = run(tpl.c_str(), col[0] == "each", fixed || col[1] == "topic", FX, SX, 0, fixed);
     std::string got = r.ok ? "ok:" + r.out : "err:" + r.out;
     if (got != want) {
       printf("FAIL vectors line %d: %s\n  want %s\n  got  %s\n", lineno, col[2].c_str(), want.c_str(), got.c_str());

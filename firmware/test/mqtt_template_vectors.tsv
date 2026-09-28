@@ -2,7 +2,8 @@
 # Run by test/test_mqtt_template.cpp and by spa/build.mjs, so the setup screen's preview and the
 # device agree on syntax, errors, positions and escaping.
 #
-# Columns (tab-separated): mode (period|each), part (topic|payload), template, expected.
+# Columns (tab-separated): mode (period|each|fixed), part (topic|payload), template, expected.
+# fixed: the device-status and availability topics (compile_fixed), {device} and {mac} only.
 # expected is ok:<rendered> or err:<code>:<pos>. In each mode, ok: is the rendering for register 0.
 # \t and \n in the template and expected columns stand for a tab and a newline.
 #
@@ -79,3 +80,14 @@ each	topic	gplug/{unit}	err:tpl_topic:0
 # empty
 period	topic		err:tpl_empty:0
 period	payload		err:tpl_empty:0
+
+# fixed topics (status, availability)
+fixed	topic	gplug/{device}/status	ok:gplug/gplug-a1b2c3/status
+fixed	topic	gplug/{mac}/availability	ok:gplug/a1b2c3d4e5f6/availability
+fixed	topic	gplug/{device}/{meter}	err:tpl_context:15
+fixed	topic	gplug/{ts}	err:tpl_context:6
+fixed	topic	gplug/{v:Pi}	err:tpl_context:6
+fixed	topic	gplug/{name}	err:tpl_context:6
+fixed	topic	gplug/+/status	err:tpl_topic:6
+fixed	topic	gplug/{nope}	err:tpl_unknown:6
+fixed	topic		err:tpl_empty:0

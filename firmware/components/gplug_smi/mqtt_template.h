@@ -225,6 +225,21 @@ inline bool compile(const char *tpl, size_t len, bool each, bool topic, const Fi
   return true;
 }
 
+// A topic that stays the same for the whole connection: the device-status and availability topics
+// (issue 17). The availability topic is the MQTT last will, which the broker holds from CONNECT on,
+// so it cannot depend on anything that changes later; the status topic follows the same rule so
+// both are rendered once at save. Only {device} and {mac}; every other key is tpl_context at its
+// position. Compiled against the meter template's Fields, which it ignores apart from the device
+// name and MAC.
+inline bool compile_fixed(const char *tpl, size_t len, const Fields &f, Compiled &c, Error &err) {
+  if (!compile(tpl, len, false, true, f, c, err)) return false;
+  for (uint8_t t = 0; t < c.n; t++) {
+    uint8_t k = c.tok[t].key;
+    if (k != LIT && k != DEVICE && k != MAC) return fail_(err, "tpl_context", c.tok[t].off);
+  }
+  return true;
+}
+
 // Bounded writer: never passes cap - 1, and remembers if it would have.
 struct Out_ {
   char *p;
@@ -360,5 +375,8 @@ static constexpr Preset PRESETS[] = {
     {"each", true, "gplug/{device}/{name}", "{value}"},
     {"influx", false, "gplug/{device}/influx", "energy,device={device} {values_lp} {ts}000000000"},
 };
+// Defaults for the fixed topics; the SPA repeats them.
+static constexpr const char *STATUS_TOPIC = "gplug/{device}/status";
+static constexpr const char *AVAIL_TOPIC = "gplug/{device}/availability";
 
 }  // namespace gplug_mqtt

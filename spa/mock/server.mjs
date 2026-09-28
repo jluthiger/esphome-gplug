@@ -5,7 +5,8 @@ import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { compile, toFields, PRESETS, TOPIC_TPL_MAX, PAYLOAD_TPL_MAX } from "../src/live/mqtt-template.js";
+import { compile, compileFixed, toFields, PRESETS, TOPIC_TPL_MAX, PAYLOAD_TPL_MAX, STATUS_TOPIC, AVAIL_TOPIC }
+  from "../src/live/mqtt-template.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 8080);
@@ -404,9 +405,20 @@ function statusMeter() {
 const MOCK_MQTT = process.env.MOCK_MQTT || "";
 const mqtt = {
   cfg: { enabled: false, host: "", port: 1883, client_id: "", user: "", mode: PRESETS[0].each ? "each" : "period",
-    topic: PRESETS[0].topic, payload: PRESETS[0].payload, period: 10, qos: 0, retain: false },
+    topic: PRESETS[0].topic, payload: PRESETS[0].payload, period: 10, qos: 0, retain: false,
+    status: false, status_period: 60, status_topic: STATUS_TOPIC, avail_topic: AVAIL_TOPIC },
   password: "", since: 0,
 };
+
+// mqtt_status.h render_status, from the same mock state /api/status and /api/live report.
+function mqttStatusSample() {
+  const st = routes["GET /api/status"](), lv = live(), m = st.mem, w = st.wifi;
+  const up = Math.floor(st.uptime);
+  return JSON.stringify({ fw: st.fw, app: st.app, build: st.build, uptime: up, reset: "poweron", ts: st.time.epoch,
+    mem: { free: m.free, min_free: m.min_free, largest: m.largest }, sockets: heapTrend().samples.at(-1)[4], sockets_max: 19,
+    wifi: w.connected ? { connected: true, ssid: w.ssid, ip: w.ip, rssi: w.rssi } : { connected: false },
+    meter: { diag: lv.diag, age: lv.age }, mqtt: { sent: st.mqtt.sent, dropped: st.mqtt.dropped, skipped: st.mqtt.skipped } });
+}
 
 function mqttCtx() {
   const fields = (state.meter?.descriptor?.obis || []).map((o) => ({ name: o.name, obis: o.obis, unit: o.unit || "",
@@ -414,9 +426,15 @@ function mqttCtx() {
   return { ctx: { device: state.hostname, mac: "a1b2c3d4e5f6" }, fields };
 }
 
-// GplugSmi::mqtt_compile_: both templates against the current profile; null when both compile.
+// GplugSmi::mqtt_compile_: the fixed topics, then both templates against the current profile; null
+// when all compile.
 function mqttCompileError(cfg) {
   const f = toFields(mqttCtx());
+  for (const field of ["status_topic", "avail_topic"]) {
+    if (field === "avail_topic" && !cfg[field]) continue;
+    const c = compileFixed(cfg[field], f);
+    if (!c.ok) return { error: c.code, field, pos: c.pos };
+  }
   for (const field of ["topic", "payload"]) {
     const c = compile(cfg[field], cfg.mode === "each", field === "topic", f);
     if (!c.ok) return { error: c.code, field, pos: c.pos, ...(c.worst && { worst: c.worst }) };
@@ -449,12 +467,18 @@ function mqttPost(b) {
   }
   if (b.enabled !== undefined) next.enabled = !!b.enabled;
   if (b.retain !== undefined) next.retain = !!b.retain;
+  if (b.status !== undefined) next.status = !!b.status;
   const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
   if (b.port !== undefined) { if (!int(b.port, 1, 65535)) return bad("port"); next.port = b.port; }
   if (b.period !== undefined) { if (!int(b.period, 5, 3600)) return bad("period"); next.period = b.period; }
+  if (b.status_period !== undefined) {
+    if (!int(b.status_period, 5, 3600)) return bad("status_period");
+    next.status_period = b.status_period;
+  }
   if (b.qos !== undefined) { if (b.qos !== 0 && b.qos !== 1) return bad("qos"); next.qos = b.qos; }
   if (b.mode !== undefined) { if (b.mode !== "period" && b.mode !== "each") return bad("mode"); next.mode = b.mode; }
-  for (const [k, max] of [["topic", TOPIC_TPL_MAX], ["payload", PAYLOAD_TPL_MAX]]) {
+  for (const [k, max] of [["topic", TOPIC_TPL_MAX], ["payload", PAYLOAD_TPL_MAX], ["status_topic", TOPIC_TPL_MAX],
+    ["avail_topic", TOPIC_TPL_MAX]]) {
     if (b[k] === undefined) continue;
     const len = new TextEncoder().encode(b[k]).length;
     if (len > max) return { __status: 400, error: "tpl_too_long", field: k, pos: len };
@@ -463,7 +487,7 @@ function mqttPost(b) {
   if (next.enabled && !next.host) return bad("host");
   const tpl = mqttCompileError(next);
   if (tpl) return { __status: 400, ...tpl };
-  const reconnect = ["enabled", "host", "port", "client_id", "user"].some((k) => next[k] !== mqtt.cfg[k]) || password !== mqtt.password;
+  const reconnect = ["enabled", "host", "port", "client_id", "user", "avail_topic"].some((k) => next[k] !== mqtt.cfg[k]) || (!!next.avail_topic && next.qos !== mqtt.cfg.qos) || password !== mqtt.password;
   mqtt.cfg = next;
   mqtt.password = password;
   if (reconnect) mqtt.since = Date.now();
@@ -474,7 +498,8 @@ const routes = {
   "GET /api/status": () => ({ ...state, hardware: state.hardware || {}, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
     heap: heapStatus().free, mem: { ...heapStatus(), ...(mqtt.cfg.enabled && { stack_mqtt: 1650 }) },
     time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta(), mqtt: mqttStatus() }),
-  "GET /api/config/mqtt": () => ({ ...mqtt.cfg, password_set: !!mqtt.password, ...mqttCtx() }),
+  "GET /api/config/mqtt": () => ({ ...mqtt.cfg, password_set: !!mqtt.password, status_sample: mqttStatusSample(),
+    ...mqttCtx() }),
   "POST /api/config/mqtt": (b) => mqttPost(b),
   "GET /api/presets": () => presets,
   "GET /api/frames": () => frames(),

@@ -14,6 +14,7 @@
 #include "ha_values.h"
 #include "heap_monitor.h"
 #include "mqtt_template.h"
+#include "mqtt_status.h"
 #include "esphome/core/defines.h"
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
@@ -101,6 +102,12 @@ struct MqttSettings {
   char password[65]{};
   char topic[::gplug_mqtt::TOPIC_TPL_MAX + 1]{};
   char payload[::gplug_mqtt::PAYLOAD_TPL_MAX + 1]{};
+  // Device status (issue 17): a fixed JSON message on its own topic and period, sent whether or
+  // not the meter delivers, and the last will. Both topics take {device} and {mac} only.
+  bool status{false};
+  uint16_t status_period{60};  // s
+  char status_topic[::gplug_mqtt::TOPIC_TPL_MAX + 1]{};
+  char avail_topic[::gplug_mqtt::TOPIC_TPL_MAX + 1]{};   // empty = no last will, no online/offline
 };
 
 // What the loop task publishes from: the settings, both templates compiled against one meter
@@ -124,13 +131,22 @@ struct MqttRun {
   char mac[13];
   ::gplug_mqtt::Compiled topic, payload;
   char topic_buf[::gplug_mqtt::TOPIC_BUF];
-  char payload_buf[::gplug_mqtt::PAYLOAD_BUF];
+  char payload_buf[::gplug_mqtt::PAYLOAD_BUF];   // the status message renders here too
+  // The fixed topics, rendered once when compiled; "" = not in use.
+  char status_topic[::gplug_mqtt::TOPIC_BUF];
+  char avail_topic[::gplug_mqtt::TOPIC_BUF];
 };
+
+struct MqttStopArg;          // mqtt.cpp
+struct MqttStatusBufs;       // mqtt.cpp
+
+// Open lwIP sockets right now (gplug_smi.cpp): /api/heap samples and the MQTT status message.
+uint8_t socket_count_();
 
 // A POST or recompile failure, as the API reports it: {"error":code,"field":…,"pos":…}.
 struct MqttErr {
   const char *code{nullptr};
-  const char *field{nullptr};  // "topic" / "payload" for template errors
+  const char *field{nullptr};  // "topic" / "payload" / "status_topic" / "avail_topic" for template errors
   uint16_t pos{0};
   uint32_t worst{0};
 };
@@ -244,6 +260,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void mqtt_start_();
   void mqtt_stop_();
   void mqtt_publish_(MqttRun &r);
+  void mqtt_publish_status_(MqttRun &r);
+  void mqtt_status_collect_(::gplug_mqtt::DeviceStatus &d, MqttStatusBufs &sb);
   bool mqtt_parse_(const std::string &json, MqttSettings &s, MqttErr &e);
   bool mqtt_compile_(MqttRun &r, MqttErr &e);
   std::string mqtt_json_(const MqttSettings &s, bool for_nvs);
@@ -417,6 +435,13 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::atomic<::esp_mqtt_client *> mqtt_client_{nullptr};
   uint32_t mqtt_retry_ms_{0};                   // loop task only: last failed start, 0 = none
   uint32_t mqtt_last_ms_{0};                    // loop task only
+  uint32_t mqtt_status_ms_{0};                  // loop task only: last status message
+  // Set by the event handler on CONNECTED; the loop then publishes "online" and a status message.
+  std::atomic<bool> mqtt_online_due_{false};
+  // What mqtt_stop_ needs to say "offline" on the way out, allocated per client in mqtt_start_.
+  MqttStopArg *mqtt_stop_arg_{nullptr};         // loop task only
+  std::atomic<uint8_t> mqtt_stopping_{0};       // tear-down tasks still running; no new client until 0
+  uint8_t boot_rr_{0};                          // gplug_log::RR_* of this boot, set in log_setup_
   uint32_t desc_gen_{0};                        // under mutex_; apply_meter_json_ bumps it
   enum MqttState : uint8_t { MQ_OFF, MQ_CONNECTING, MQ_CONNECTED };
   enum MqttConnErr : uint8_t { MQE_NONE, MQE_TCP, MQE_REFUSED, MQE_AUTH };

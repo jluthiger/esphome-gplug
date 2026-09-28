@@ -382,8 +382,8 @@ by design: one setter, one call-site swap).
 | POST | `/api/key/check` | `{key}` (32 hex) → `{match: bool}`: compares against the GUEK of the running meter config, constant time; 400 `key must be 32 hex chars`, 400 `no stored key`. Only yes/no leaves the device |
 | POST | `/api/config/meter` | `{preset, key? \| keep_key?, auth_key?, descriptor:{protocol, mode, baud, rx, serial_flags?, buffer?, obis[]}}`. `keep_key: true` instead of `key` re-uses the GUEK/auth key of the stored config (400 `no stored key` if there is none); the body is rewritten with the key before it is applied and saved |
 | POST | `/api/config/wifi` | `{ssid, psk}` → `save_wifi_sta` |
-| GET | `/api/config/mqtt` | `{enabled, host, port, client_id, user, password_set, mode: period\|each, topic, payload, period, qos, retain, ctx:{device, mac}, fields:[{name, obis, unit, prec, string?}]}`. The password is never returned. `ctx` and `fields` (the running profile) let the SPA preview exactly what the device would send. Defaults until the first save: off, port 1883, period 10 s, QoS 0, the `json` preset |
-| POST | `/api/config/mqtt` | the GET shape without `password_set`/`ctx`/`fields`, plus `password`. Fields left out keep their value (the password too; `""` clears it). 400 `{error}` with `json`, `host` (empty while enabled, or > 63 B), `port`, `client_id`/`user`/`password` (> 64 B), `period` (5-3600 s), `qos` (0/1), `mode`; template errors as `{error, field: topic\|payload, pos, worst?}` (see "MQTT"). Both templates are compiled even while disabled. 503 `memory` when the ~8 kB for validation cannot be allocated (GET likewise for its 1 kB copy). Applied without a restart: a template, period, QoS or retain change from the next period, a connection change with a reconnect |
+| GET | `/api/config/mqtt` | `{enabled, host, port, client_id, user, password_set, mode: period\|each, topic, payload, period, qos, retain, status, status_period, status_topic, avail_topic, status_sample, ctx:{device, mac}, fields:[{name, obis, unit, prec, string?}]}`. The password is never returned. `ctx` and `fields` (the running profile) let the SPA preview exactly what the device would send; `status_sample` is the device-status message rendered by the device at the time of the GET (absent if its ~0.6 kB could not be allocated). Defaults until the first save: off, port 1883, period 10 s, QoS 0, the `json` preset; status off, 60 s, `gplug/{device}/status`, availability `gplug/{device}/availability` |
+| POST | `/api/config/mqtt` | the GET shape without `password_set`/`ctx`/`fields`, plus `password`. Fields left out keep their value (the password too; `""` clears it). 400 `{error}` with `json`, `host` (empty while enabled, or > 63 B), `port`, `client_id`/`user`/`password` (> 64 B), `period`/`status_period` (5-3600 s), `qos` (0/1), `mode`; template errors as `{error, field: topic\|payload\|status_topic\|avail_topic, pos, worst?}` (see "MQTT"). All templates are compiled even while disabled; `avail_topic` may be `""` (no last will). 503 `memory` when the ~8 kB for validation cannot be allocated (GET likewise for its 1 kB copy). Applied without a restart: a template, period, QoS or retain change from the next period, a connection or availability-topic change (or a QoS change while an availability topic is set: the will carries it) with a reconnect |
 | GET | `/api/update` | the last release check, a copy the loop task keeps for the httpd task (no network access): `{state: unchecked\|checking\|none\|available\|installing\|error, current, latest, newer, release_url, progress, checked_ago, error: ""\|check\|install}`; `state` is `unavailable` in a build without `update_id`. `newer` is SemVer precedence (`version_cmp.h`), not the entity's "differs". See "Install from the release" |
 | POST | `/api/update/check` | no body; `{ok:true}`, then on the loop task the `http_request` update entity fetches the manifest on its own task. A no-op while a check or install runs or within 10 s of the last check. A failed check (no Wi-Fi, no internet, bad manifest, 60 s timeout) ends in `state: error, error: check` |
 | POST | `/api/update/install` | no body; 409 `no update` unless `available` and `newer`; 401 `auth` when `ota_password` is set and the Basic header (user `admin`) is missing or wrong (checked by the handler: the route is registered without auth, and no `WWW-Authenticate` so the browser shows no dialog). Answers `{ok:true}`, then on the loop task flushes the event log and calls `perform()`: download, MD5 check, reboot |
@@ -604,7 +604,39 @@ a topic that is not valid UTF-8 makes an MQTT 3.1.1 broker close the connection.
 trust level as the GUEK in `meter`; the API never returns it). Written only when the user saves, so
 MQTT adds nothing to the flash-wear budget; kept across reboots and OTA updates.
 
-Status: host tests and the mock only (2026-09-26); the image compiles (+38 kB: 31 kB firmware, 6.5 kB SPA card). Not yet run
+**Device status and availability** (issue #17, `mqtt_status.h`). Optional, off by default: a
+second message on its own topic (`status_topic`, default `gplug/{device}/status`) and period
+(`status_period`, 5-3600 s, default 60), sent while connected whether or not the meter delivers,
+so a consumer without Home Assistant sees a leak, a weak signal or a silent meter without polling
+HTTP. A fixed JSON layout, not a template (DECISIONS.md 2026-09-28), with key names from
+`/api/status`:
+
+```
+{"fw":"0.7.0","app":"0123456789abcdef","build":1790000000,"uptime":3600,"reset":"poweron",
+ "ts":1790003600,"mem":{"free":120000,"min_free":90000,"largest":60000},"sockets":9,"sockets_max":19,
+ "wifi":{"connected":true,"ssid":"home","ip":"192.168.1.20","rssi":-61},
+ "meter":{"diag":"ok","age":2},"mqtt":{"sent":100,"dropped":1,"skipped":0}}
+```
+
+`reset` is why this boot happened (`poweron`, `ext`, `sw`, `panic`, `int_wdt`, `task_wdt`, `wdt`,
+`deepsleep`, `brownout`, `sdio`, `usb`, `jtag`, `unknown`; `sw` also covers an OTA or a config
+save); the boot time is `ts - uptime`. `ts` is `null` until SNTP has synced, `meter.age` (seconds
+since the last good frame) until a frame arrived; `meter.diag` is the `/api/live` token. No secrets:
+no GUEK, no password, not even `key_hint`. The worst case, `STATUS_WORST` (593 B), is a constant
+checked against the payload buffer at compile time, and the message renders into that buffer.
+Status messages count in `sent`, never in `dropped`, and do not move `last_ago`, which stays "last meter message".
+
+The **availability topic** (`avail_topic`, default `gplug/{device}/availability`, `""` = off) is the
+MQTT last will: the broker publishes `offline` (retained, the configured QoS) when the connection
+drops without a DISCONNECT, e.g. power loss or a crash, after 1.5 x the 60 s keep-alive. After every
+connect the device publishes `online` (retained) and a status message at once. Before a deliberate
+disconnect (MQTT switched off, broker or availability topic changed) the tear-down task publishes
+`offline` itself, because a clean DISCONNECT does not trigger the will; a reboot does not, so
+after an OTA or a config save `offline` comes from the will, up to ~90 s later. Both topics take
+only `{device}` and `{mac}` (`compile_fixed()`; anything else is `tpl_context`): the will is fixed
+at CONNECT, and both are rendered once at save.
+
+Status: host tests and the mock only (2026-09-26, device status 2026-09-28); the image compiles (+38 kB: 31 kB firmware, 6.5 kB SPA card; device status +5.2 kB). Not yet run
 against a broker on hardware.
 
 ### Heap monitoring (`heap_monitor.h`, `/api/heap`)
