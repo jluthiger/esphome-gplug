@@ -12,11 +12,15 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ### Added
 
-- MQTT: *Setup → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it. Update over the air as usual: no USB reflash, settings and history are kept, Home Assistant entity IDs do not change.
+- MQTT: *Device → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it. Update over the air as usual: no USB reflash, settings and history are kept, Home Assistant entity IDs do not change.
 
 ### Added
 
 - The event log now records when the gPlug is running out of network connection slots ("Connections nearly full"), the state that made it unreachable on 26/27 September, `/api/heap` carries the count and `/api/sockets` lists who holds them.
+
+### Changed
+
+- The *Setup* tab is now called *Device* (*Gerät*, *Appareil*, *Dispositivo*), like the title it already showed. Its connection and language cards fold like the others; the language card starts folded and shows the current language. On wide screens the tab is one column in the same order as on a phone instead of two columns.
 
 ### Fixed
 

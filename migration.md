@@ -251,7 +251,7 @@ Open the app at `http://gplug-xxxxxx.local/` and confirm:
 
 - **Live** shows current power and the two counters, and they match the meter's own display.
 - **History** fills up over the following hours. A new record is written every 15 minutes.
-- **Setup → event log** shows the restart you just caused, and nothing alarming after it.
+- **Device → event log** shows the restart you just caused, and nothing alarming after it.
 
 If there are no values, the app says why rather than leaving you guessing: a silent line, a wrong
 profile, a key that does not decrypt, or a cable problem each get their own message and a button
@@ -267,7 +267,7 @@ back to the step that fixes it.
 | "Permission denied" on Linux | Add yourself to `dialout` (or `uucp`) and log out and back in |
 | Flashing stops partway | Erase again and retry; a short or unpowered hub is a common cause |
 | No meter data after setup | Follow the message on screen. It distinguishes a dead line from a wrong profile from a wrong key |
-| Wrong profile or key entered | Setup tab, then back into the wizard. The key can be re-entered without redoing anything else |
+| Wrong profile or key entered | Device tab, then back into the wizard. The key can be re-entered without redoing anything else |
 | Device unreachable, no idea why | Hold the button for at least 3 seconds. It erases the Wi-Fi credentials and reopens **gPlug-Setup**, leaving the meter settings intact |
 
 ---
@@ -291,9 +291,9 @@ network and adopts it, and you get the values as entities as before, under new n
 
 There is no Tasmota HTTP API, and Tasmota's MQTT topics are not reproduced. What replaces them is
 the app on the device, the CSV export of the 15-minute load profile under **History**, the ESPHome
-native API for Home Assistant, and optional MQTT publishing under **Setup → MQTT** (from 0.7.0),
+native API for Home Assistant, and optional MQTT publishing under **Device → MQTT** (from 0.7.0),
 where you choose the topic and message layout yourself, starting from a JSON, one-topic-per-value
 or InfluxDB template.
 
-Updates from here on need no cable: **Setup → firmware update**, or `esphome upload dev.yaml
+Updates from here on need no cable: **Device → firmware update**, or `esphome upload dev.yaml
 --device gplug-xxxxxx.local` from this repository.

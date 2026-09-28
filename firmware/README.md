@@ -55,7 +55,7 @@ esphome upload dev.yaml --device <ip|gplug-xxxxxx.local>          # native ESPHo
 curl -F update=@.esphome/build/gplug/.pioenvs/gplug/firmware.ota.bin http://<ip>/update   # what the SPA's firmware card does (~12 s)
 ```
 
-For end users the entry point is the SPA: Setup tab → **firmware update** (`spa/src/live/firmware-card.js`).
+For end users the entry point is the SPA: Device tab → **firmware update** (`spa/src/live/firmware-card.js`).
 It checks the file's image header in the browser (ESP32-C3 app image; a `firmware.factory.bin` is
 refused, it starts with the bootloader), POSTs it to `/update` (ESPHome's `ota.web_server`, which
 `gplug_smi` auto-loads), then polls `/api/status` until a fresh uptime appears and compares its
@@ -541,7 +541,7 @@ and the blob round-trip, including rejection of a corrupt blob.
 
 ### MQTT (`mqtt_template.h`, `mqtt.cpp`, `/api/config/mqtt`)
 
-Optional and off by default. Set in *Setup → MQTT*: broker (plain TCP, no TLS yet), optional login,
+Optional and off by default. Set in *Device → MQTT*: broker (plain TCP, no TLS yet), optional login,
 and a topic and payload **template**, so each consumer gets the layout it wants (Node-RED,
 ioBroker, InfluxDB, scripts) without a new image. Only live values are published; the 15-min
 history stays on HTTP. No Home Assistant discovery: HA gets the device through the native API.
@@ -613,7 +613,7 @@ A leak shows as a trend, not as a number, so the loop samples the internal heap 
 RAM-only ring of 288 × 12 B (24 h, 3.4 kB): free, minimum free since boot, and largest free block.
 The last one falls with fragmentation while free heap holds, and a request needing a contiguous
 buffer fails on it first. Nothing is written to flash for the trend; a reboot clears it, which is
-also when a leak's damage is undone. The Setup tab's Memory card draws it (free solid, largest
+also when a leak's damage is undone. The Device tab's Memory card draws it (free solid, largest
 block dashed), and `free_heap` / `largest_block` go to Home Assistant from the same sample.
 `/api/heap` is streamed in ~1 kB chunks, not built as one 5-8 kB string, because it is most likely
 to be opened when a block that size is hard to find.
