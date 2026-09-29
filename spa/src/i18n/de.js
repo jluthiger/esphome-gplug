@@ -262,6 +262,8 @@ export const de = {
   memFree: "Frei",
   memMin: "Minimum seit Start",
   memLargest: "Grösster Block",
+  memMinShort: "Minimum",
+  memSampled: "Gemessen um",
   memStack: "Stack frei (Loop / HTTP)",
   memTrend: (d) => `Verlauf, letzte ${d}`,
   memWaiting: "Erster Messwert folgt kurz nach dem Start.",

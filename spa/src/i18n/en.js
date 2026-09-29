@@ -262,6 +262,8 @@ export const en = {
   memFree: "Free",
   memMin: "Minimum since start",
   memLargest: "Largest block",
+  memMinShort: "Minimum",
+  memSampled: "Measured at",
   memStack: "Stack free (loop / HTTP)",
   memTrend: (d) => `Trend, last ${d}`,
   memWaiting: "The first sample follows shortly after start.",

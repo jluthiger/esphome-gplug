@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Fixed
+
+- *Device → Memory*: the figures above the chart now show the same measurement the chart ends in, with the time it was taken ("Measured at"), instead of a separate reading taken at another moment that could differ by a few kB. The chart also draws the minimum since start (dotted), so a low minimum can be traced to when it happened.
+
 ## [0.7.0] – 2026-09-28
 
 ### Added
