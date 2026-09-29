@@ -27,17 +27,20 @@ function sampleAt({ samples, period = 300, uptime, at }, i) {
   return at - ago;
 }
 
-// Closed, the card shows the free heap from the page's /api/status and fetches nothing; MemBody
-// only exists (and polls) while the card is open.
+// Closed, the card fetches nothing; MemBody only exists (and polls) while the card is open. The
+// summary shows the free heap the open card last showed, so closing it does not change the number
+// (issue #20: the page-load /api/status is read during the page's first burst of requests and ran
+// 2 kB below the open card on the gPlugK). Only a card not yet opened falls back to that figure.
 export function MemCard({ status }) {
-  const free = status?.mem?.free ?? status?.heap;
+  const [shown, setShown] = useState(null);
+  const free = shown ?? toKb(status?.mem?.free ?? status?.heap);
   return html`
-    <${Collapsible} id="mem" title=${S.memTitle} summary=${free != null && S.memSummary(kb(free))}>
-      <${MemBody} status=${status} />
+    <${Collapsible} id="mem" title=${S.memTitle} summary=${free != null && S.memSummary(kbText(free))}>
+      <${MemBody} status=${status} onFree=${setShown} />
     <//>`;
 }
 
-function MemBody({ status }) {
+function MemBody({ status, onFree }) {
   const [st, setSt] = useState(status);
   const [trend, setTrend] = useState(null);
 
@@ -54,15 +57,19 @@ function MemBody({ status }) {
     return () => { stop = true; clearInterval(id); };
   }, []);
 
-  // The heap rows show the ring's newest sample, the one the chart ends in, and say when it was taken.
+  // Once the chart is drawn, the heap rows show its newest sample and say when it was taken.
   // /api/status reads the heap at its own moment, so its figure could sit kB away from the chart's
-  // last point and the card contradicted itself (issue #20). Status is the fallback until the first
-  // sample exists, and the only source for the stacks.
+  // last point and the card contradicted itself (issue #20). Before the second sample there is no
+  // chart to agree with, and the only sample is the one taken at boot, before Wi-Fi and the API
+  // clients took their share (158 kB against 141 kB five minutes later on the gPlugK), so the rows
+  // show /api/status until then. Status is also the only source for the stacks.
   const m = st?.mem;
   const samples = trend?.samples || [];
-  const last = samples.at(-1);
+  const last = samples.length >= 2 ? samples.at(-1) : null;
+  const free = last ? last[1] : toKb(m?.free ?? st?.heap);
+  useEffect(() => { if (free != null) onFree(free); }, [free]);
   const rows = [
-    [S.memFree, last ? kbText(last[1]) : kb(m?.free ?? st?.heap)],
+    [S.memFree, kbText(free)],
     [S.memMin, last ? kbText(last[2]) : kb(m?.min_free)],
     [S.memLargest, last ? kbText(last[3]) : kb(m?.largest)],
     [S.memSampled, last ? clockAt(sampleAt(trend, samples.length - 1)) : null],
