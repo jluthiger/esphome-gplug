@@ -213,6 +213,8 @@ export const en = {
   fwTitle: "Firmware and restart",
   fwEsphome: "ESPHome",
   fwBuild: "Build",
+  fwUptime: "Uptime",
+  fwUptimeDays: (d, h) => `${d} d ${h} h`,
   fwPick: "Choose firmware file",
   fwHint: "Choose a file in OTA format (firmware.ota.bin), for example from the ESPHome Device Builder: Download → OTA format.",
   fwNotImage: "Not a firmware file for the gPlug.",

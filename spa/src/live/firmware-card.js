@@ -3,6 +3,7 @@ import { html } from "../h.js";
 import { Collapsible } from "./collapsible.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
+import { dur } from "../fmt.js";
 
 // Firmware update from the phone, two ways. From the release: "Check for updates" asks the device
 // to read the release manifest on github.io (/api/update*), and a newer version is installed only
@@ -60,6 +61,25 @@ async function waitForReboot(t0, timeoutMs) {
   return null;
 }
 
+// Uptime as "3 d 4 h" once it passes a day; below that dur()'s "12 min" / "3 h 20 min". The day
+// unit differs per language (T, j, g), which is why that part goes through the strings.
+function fmtUptime(sec) {
+  if (sec < 86400) return dur(sec);
+  return S.fwUptimeDays(Math.floor(sec / 86400), Math.floor((sec % 86400) / 3600));
+}
+
+// The uptime row, carried forward from the moment the device reported it: /api/status is read once
+// per page load, and a figure frozen at that moment would be wrong by however long the page has
+// been open. It ticks once a minute, and only while the card is open (a closed card unmounts it).
+function Uptime({ up }) {
+  const [now, setNow] = useState(Date.now() / 1000);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now() / 1000), 60000);
+    return () => clearInterval(t);
+  }, []);
+  return html`<b>${S.fwUptime}</b><span>${fmtUptime(up.s + Math.max(0, now - up.at))}</span>`;
+}
+
 const fmtBuild = (t) => t ? new Date(t * 1000).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" }) : null;
 
 export function FirmwareCard({ status }) {
@@ -77,6 +97,9 @@ export function FirmwareCard({ status }) {
   const msgText = (m) => (m && S[m] !== undefined ? S[m] : m);
   const [build, setBuild] = useState(status?.build);
   const [fw, setFw] = useState(status?.fw);
+  // Replaced by the fresh /api/status that ends every reboot wait, so a restart shows up here too.
+  const [up, setUp] = useState(status?.uptime != null ? { s: status.uptime, at: status.at || Date.now() / 1000 } : null);
+  const seen = (s) => setUp({ s: s.uptime, at: Date.now() / 1000 });
   const confirmTimer = useRef(null);
   // The device's release check (GET /api/update), or null while unknown or on a firmware without it.
   const [rel, setRel] = useState(null);
@@ -158,7 +181,7 @@ export function FirmwareCard({ status }) {
     const s = await waitForReboot(t0, REL_TIMEOUT_MS);
     if (!alive.current) return;
     if (!s) { setPhase("failed"); setMsg("fwNoReturn"); return; }
-    setBuild(s.build); setFw(s.fw); setRel(null);
+    setBuild(s.build); setFw(s.fw); setRel(null); seen(s);
     // The version is what was asked for; the image hash catches a rollback to the old image.
     if (target && s.fw) setPhase(s.fw === target ? "done" : "same");
     else setPhase(beforeApp && s.app === beforeApp ? "same" : "done");
@@ -196,7 +219,7 @@ export function FirmwareCard({ status }) {
     setPhase("reboot");
     const s = await waitForReboot(Date.now(), REBOOT_TIMEOUT_MS);
     if (!s) { setPhase("failed"); setMsg("fwNoReturn"); return; }
-    setBuild(s.build);
+    setBuild(s.build); seen(s);
     // Identify the image that came back up. The ELF hash is exact, so it is asked first and both
     // ways round: matching the uploaded file proves success, matching what ran before proves the
     // device fell back. Only a firmware too old to report `app` at all (or one rolled back to such
@@ -227,7 +250,7 @@ export function FirmwareCard({ status }) {
       setMsg(e.message);
     }
     const s = await waitForReboot(t0, RESTART_TIMEOUT_MS);
-    if (s) { setBuild(s.build); setPhase("back"); setMsg(""); }
+    if (s) { setBuild(s.build); seen(s); setPhase("back"); setMsg(""); }
     else setPhase("lost");
   }
 
@@ -248,6 +271,7 @@ export function FirmwareCard({ status }) {
         ${fw && html`<b>${S.fwVersion}</b><span>${fw}</span>`}
         ${status?.version && html`<b>${S.fwEsphome}</b><span>${status.version}</span>`}
         ${build ? html`<b>${S.fwBuild}</b><span>${fmtBuild(build)}</span>` : null}
+        ${up && html`<${Uptime} up=${up} />`}
       </div>
       <input ref=${input} type="file" accept=".bin,application/octet-stream" hidden onChange=${pick} />
 

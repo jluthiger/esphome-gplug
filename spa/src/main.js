@@ -56,7 +56,9 @@ function App() {
     setErr(null);
     try {
       const [st, d] = await Promise.all([api.status(), api.presets()]);
-      setStatus(st); setData(d);
+      // `at` stamps when the device said this, so a figure that keeps moving on the device (the
+      // firmware card's uptime) can be carried forward instead of read as it was at page load.
+      setStatus({ ...st, at: Date.now() / 1000 }); setData(d);
       // Pre-select what the device already knows
       if (st.hardware?.variant && !hw) setHw({ ...st.hardware });
       if (st.meter?.preset) setMeter((m) => ({ ...m, preset: st.meter.preset }));

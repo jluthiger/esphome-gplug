@@ -215,6 +215,8 @@ export const fr = {
   fwTitle: "Micrologiciel et redémarrage",
   fwEsphome: "ESPHome",
   fwBuild: "Build",
+  fwUptime: "Temps de marche",
+  fwUptimeDays: (d, h) => `${d} j ${h} h`,
   fwPick: "Choisir le fichier du micrologiciel",
   fwHint: "Choisissez un fichier au format OTA (firmware.ota.bin), par exemple depuis l'ESPHome Device Builder : Download → format OTA.",
   fwNotImage: "Ce n'est pas un fichier de micrologiciel pour le gPlug.",

@@ -12,6 +12,7 @@
 #include <ArduinoJson.h>
 #include <esp_app_desc.h>
 #include <esp_system.h>
+#include <esp_timer.h>
 #include <esp_http_server.h>
 #include <mbedtls/sha256.h>
 #include <esp_heap_caps.h>
@@ -949,7 +950,9 @@ std::string GplugSmi::json_status_() {
 #endif
   s += ",\"hostname\":\"";
   json_escape(s, App.get_name().c_str());
-  s += "\",\"uptime\":" + std::to_string(millis() / 1000);
+  // From the 64-bit esp_timer, not millis(): millis() is 32-bit and wraps after 49.7 days, and the
+  // firmware card shows this figure as the device's uptime.
+  s += "\",\"uptime\":" + std::to_string((uint32_t) (esp_timer_get_time() / 1000000));
   // build: lets the SPA's firmware card tell the new image from the old one after an OTA reboot
   // (version is the ESPHome release and usually doesn't change between our builds).
   s += ",\"build\":" + std::to_string((uint32_t) App.get_build_time());
