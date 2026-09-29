@@ -10,11 +10,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
-### Fixed
-
-- *Device → Memory*: the figures above the chart now show the same measurement the chart ends in, with the time it was taken ("Measured at"), instead of a separate reading taken at another moment that could differ by a few kB. The chart also draws the minimum since start (dotted), so a low minimum can be traced to when it happened.
-
-## [0.7.0] – 2026-09-28
+## [0.7.0] – 2026-09-29
 
 ### Added
 
@@ -32,6 +28,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - Saving the hardware or meter settings no longer loses a little memory each time; after changing the LED or button pins, the old pins no longer stay lit or active.
 - A DLMS meter sending a broken or never-ending multi-part message can no longer make the gPlug collect data without limit until memory runs out; such a message is dropped after 4 kB.
 - *History → Export load profile*: on a narrow phone the "To" date no longer sticks out past the card; the two date fields stack when they do not fit side by side.
+- *Device → Memory*: the figures above the chart now show the same measurement the chart ends in, with the time it was taken ("Measured at"), instead of a separate reading taken at another moment that could differ by a few kB. The chart also draws the minimum since start (dotted), so a low minimum can be traced to when it happened.
 
 ### Upgrade notes
 
