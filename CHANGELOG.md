@@ -10,14 +10,6 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
-### Added
-
-- *Device → Firmware and restart* shows how long the gPlug has been running since its last restart.
-
-### Fixed
-
-- The uptime the gPlug reports (to the web page and in the MQTT device status) no longer starts again at zero after 49.7 days of running.
-
 ## [0.7.0] – 2026-09-29
 
 ### Added
@@ -25,6 +17,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - MQTT: *Device → MQTT* sends the meter values to an MQTT broker, e.g. for Node-RED, ioBroker or InfluxDB. You choose the topic and message layout yourself, starting from a template (one JSON message, one topic per value, or InfluxDB line protocol), with a preview of what will be sent using the current values. Changes apply without a restart. Off by default; Home Assistant keeps using the ESPHome connection and does not need it.
 - MQTT: the gPlug can also report on itself — firmware, memory, Wi-Fi signal, uptime, why it last restarted and whether the meter delivers — as a JSON message on its own topic and interval, even while the meter is silent (*Device → MQTT → Send device status*, off by default). An availability topic says `online` while the gPlug is connected and `offline` once it disappears (MQTT last will); it is on as soon as MQTT is, and can be cleared.
 - The event log now records when the gPlug is running out of network connection slots ("Connections nearly full"), the state that made it unreachable on 26/27 September, `/api/heap` carries the count and `/api/sockets` lists who holds them.
+- *Device → Firmware and restart* shows how long the gPlug has been running since its last restart.
 
 ### Changed
 
@@ -37,6 +30,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - A DLMS meter sending a broken or never-ending multi-part message can no longer make the gPlug collect data without limit until memory runs out; such a message is dropped after 4 kB.
 - *History → Export load profile*: on a narrow phone the "To" date no longer sticks out past the card; the two date fields stack when they do not fit side by side.
 - *Device → Memory*: the figures above the chart now show the same measurement the chart ends in, with the time it was taken ("Measured at"), instead of a separate reading taken at another moment that could differ by a few kB. The chart also draws the minimum since start (dotted), so a low minimum can be traced to when it happened. Folded, the card keeps showing the figure it last showed.
+- The uptime the gPlug reports (to the web page and in the MQTT device status) no longer starts again at zero after 49.7 days of running.
 
 ### Upgrade notes
 
