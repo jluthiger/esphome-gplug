@@ -646,7 +646,20 @@ RAM-only ring of 288 × 12 B (24 h, 3.4 kB): free, minimum free since boot, and 
 The last one falls with fragmentation while free heap holds, and a request needing a contiguous
 buffer fails on it first. Nothing is written to flash for the trend; a reboot clears it, which is
 also when a leak's damage is undone. The Device tab's Memory card draws it (free solid, largest
-block dashed), and `free_heap` / `largest_block` go to Home Assistant from the same sample.
+block dashed, minimum since boot dotted) and shows the newest sample's figures above the chart,
+and `free_heap` / `largest_block` go to Home Assistant from the same sample.
+
+**Units and sources** (issue #20). "kB" is 1024 B everywhere on the device (ring, HA entities,
+event log, SPA), truncated, never rounded. `/api/status` `mem` and the MQTT status `mem` are bytes
+and are read at request / publish time on their own task, so they differ from the 5-min sample by
+whatever the heap did in between. The Memory card therefore shows the sample, not `/api/status`,
+once one exists. Measured on the gPlugK 2026-09-29 (curl, one request at a time): `/api/status`
+alone read 144 692-144 728 B over 40 calls, i.e. 141 kB, the same as the ring sample and the MQTT
+status, so serving the request itself costs nothing visible. With `/api/heap` in parallel, as the
+card does it, 16 of 20 calls read the same and 4 read 0.4-2.1 kB lower. The 138 kB the SPA had
+shown a few minutes earlier was not reproduced; a browser holds several keep-alive sessions and
+polls other routes, which curl does not, so it was most likely a short dip that the 5-min sample
+missed.
 `/api/heap` is streamed in ~1 kB chunks, not built as one 5-8 kB string, because it is most likely
 to be opened when a block that size is hard to find.
 

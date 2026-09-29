@@ -263,6 +263,8 @@ export const it = {
   memFree: "Libera",
   memMin: "Minimo dall'avvio",
   memLargest: "Blocco più grande",
+  memMinShort: "Minimo",
+  memSampled: "Misurato alle",
   memStack: "Stack libero (loop / HTTP)",
   memTrend: (d) => `Andamento, ultime ${d}`,
   memWaiting: "La prima misura segue poco dopo l'avvio.",

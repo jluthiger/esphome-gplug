@@ -140,6 +140,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .chart .head { fill: var(--accent2); }
 .chart .line.mem { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
 .chart .line.mem2 { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.chart .line.mem3 { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 1 3; stroke-linecap: round; }
 /* Chart readouts (scrub.js). The line keeps its height when empty so a starting scrub does not move
    the chart under the finger; pan-y leaves vertical swipes to the page and horizontal ones to the chart. */
 .readout { min-height: 1.05rem; line-height: 1.05rem; margin-top: 10px; font-size: .72rem; font-weight: 600;

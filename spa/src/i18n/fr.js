@@ -264,6 +264,8 @@ export const fr = {
   memFree: "Libre",
   memMin: "Minimum depuis le démarrage",
   memLargest: "Plus grand bloc",
+  memMinShort: "Minimum",
+  memSampled: "Mesuré à",
   memStack: "Pile libre (boucle / HTTP)",
   memTrend: (d) => `Évolution, dernières ${d}`,
   memWaiting: "La première mesure suit peu après le démarrage.",
