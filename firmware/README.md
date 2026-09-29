@@ -652,8 +652,11 @@ and `free_heap` / `largest_block` go to Home Assistant from the same sample.
 **Units and sources** (issue #20). "kB" is 1024 B everywhere on the device (ring, HA entities,
 event log, SPA), truncated, never rounded. `/api/status` `mem` and the MQTT status `mem` are bytes
 and are read at request / publish time on their own task, so they differ from the 5-min sample by
-whatever the heap did in between. The Memory card therefore shows the sample, not `/api/status`,
-once one exists. Measured on the gPlugK 2026-09-29 (curl, one request at a time): `/api/status`
+whatever the heap did in between. The Memory card therefore shows the newest sample, not
+`/api/status`, once the chart has two to draw; the first sample is taken at boot, before Wi-Fi and
+the API clients, and read 158 kB against 141 kB five minutes later (gPlugK 0.7.0-rc.2). Closed, the
+card keeps the figure it last showed; only a card not yet opened shows the page-load `/api/status`,
+which is read during the page's first burst of requests and was seen 2 kB low. Measured on the gPlugK 2026-09-29 (curl, one request at a time): `/api/status`
 alone read 144 692-144 728 B over 40 calls, i.e. 141 kB, the same as the ring sample and the MQTT
 status, so serving the request itself costs nothing visible. With `/api/heap` in parallel, as the
 card does it, 16 of 20 calls read the same and 4 read 0.4-2.1 kB lower. The 138 kB the SPA had
