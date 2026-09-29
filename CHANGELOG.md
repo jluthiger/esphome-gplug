@@ -10,6 +10,14 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Added
+
+- *Device → Firmware and restart* shows how long the gPlug has been running since its last restart.
+
+### Fixed
+
+- The uptime the gPlug reports (to the web page and in the MQTT device status) no longer starts again at zero after 49.7 days of running.
+
 ## [0.7.0] – 2026-09-29
 
 ### Added

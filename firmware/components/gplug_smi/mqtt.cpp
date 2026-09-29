@@ -33,6 +33,7 @@
 #include <ArduinoJson.h>
 #include <esp_app_desc.h>
 #include <esp_heap_caps.h>
+#include <esp_timer.h>
 #include <lwip/opt.h>   // CONFIG_LWIP_MAX_SOCKETS
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -631,7 +632,7 @@ void GplugSmi::mqtt_status_collect_(::gplug_mqtt::DeviceStatus &d, MqttStatusBuf
   }
   d.app = sb.app;
   d.build = (uint32_t) App.get_build_time();
-  d.uptime = now / 1000;
+  d.uptime = (uint32_t) (esp_timer_get_time() / 1000000);   // `now` is millis() and wraps after 49.7 days
   d.reset = boot_rr_;
   uint32_t ep = (uint32_t) ::time(nullptr);
   d.epoch = ep > EPOCH_SANE ? ep : 0;
