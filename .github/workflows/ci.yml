@@ -1,0 +1,124 @@
+# Checks every pull request and every push to main: the same chain as the local /verify, minus the
+# screenshots. The job names are the required status checks of the `protect-main` ruleset, so
+# renaming a job means updating the ruleset too (Settings -> Rules -> Rulesets), or merges wait on a
+# check that never reports.
+#
+# Left out on purpose: the manual's screenshots (~12 min, docs.yml takes them for vX.Y.0 editions),
+# and the capture-based host tests, which read real meter frames and a device key that never leave
+# the developer's machine (firmware/test/captures/ is gitignored).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a PR makes the running check moot; on main every commit keeps its own run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Same pin as release.yml, so a green PR compiles with what a release would use.
+  ESPHOME_VERSION: "2026.6.5"
+
+permissions:
+  contents: read
+
+jobs:
+  spa:
+    name: SPA bundle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: spa/package-lock.json
+
+      # npm run build also runs the i18n key check. The stale-bundle comparison is the one
+      # release.yml does; catching it here means a release tag never fails on it.
+      - name: Build the SPA and compare with the committed bundle
+        working-directory: spa
+        run: |
+          set -eu
+          npm ci
+          npm run build
+          BUNDLED=firmware/components/gplug_smi/spa.html.gz
+          built=$(gzip -dc "../$BUNDLED" | sha256sum | cut -d' ' -f1)
+          committed=$(git show "HEAD:$BUNDLED" | gzip -dc | sha256sum | cut -d' ' -f1)
+          if [ "$built" != "$committed" ]; then
+            echo "::error::$BUNDLED is stale -- run 'cd spa && npm run build' and commit it"
+            exit 1
+          fi
+          size=$(stat -c %s "../$BUNDLED")
+          echo "spa.html.gz: $size bytes"
+          if [ "$size" -gt 65536 ]; then
+            echo "::error::spa.html.gz is $size bytes, over the 64 kB budget"
+            exit 1
+          fi
+
+  host-tests:
+    name: Host tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run the host C++ tests
+        run: firmware/test/run.sh
+
+  manual:
+    name: User manual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      # Without --strict: screenshots are not taken here, and a missing one is only a warning. Unknown
+      # string keys, missing translations and uncovered screens still fail the build.
+      - name: Build the manual
+        working-directory: docs
+        run: npm ci && npm run build
+
+  firmware:
+    name: Firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install ESPHome
+        run: pip install "esphome==${ESPHOME_VERSION}"
+
+      # Same key as release.yml: the toolchain is ~1 GB and a PR almost never changes it.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.platformio
+            ~/.espressif
+            firmware/.esphome
+          key: esphome-${{ env.ESPHOME_VERSION }}-${{ hashFiles('firmware/*.yaml') }}
+          restore-keys: esphome-${{ env.ESPHOME_VERSION }}-
+
+      - name: Validate the config
+        working-directory: firmware
+        run: esphome config dev.yaml > /dev/null
+
+      - name: Compile the firmware
+        working-directory: firmware
+        run: esphome compile dev.yaml
+
+      # Fails when the image moved > 1 kB or static RAM > 0.5 kB from the baseline in MEMORY.md,
+      # so the budget file is updated in the change that moved it rather than some time later.
+      - name: Check the size baseline
+        working-directory: firmware
+        run: python3 tools/size_report.py --check

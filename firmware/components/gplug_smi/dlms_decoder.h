@@ -5,6 +5,7 @@
 #pragma once
 #include "aes_gcm.h"
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <vector>
 

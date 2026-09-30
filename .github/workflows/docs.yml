@@ -2,7 +2,7 @@
 # GitHub Pages next to the web installer (.github/publish-pages.sh). Runs only for major and minor
 # releases: tag vX.Y.0 -> docs/X.Y/ and docs/latest/. Patch releases and release candidates change no
 # user-visible behaviour worth a new edition, and the screenshot run takes ~12 min, so pushes and
-# pull requests are left to the local check (cd docs && npm run build, part of /verify).
+# pull requests only build it without screenshots (ci.yml).
 # A manual run builds without publishing.
 name: User manual
 
