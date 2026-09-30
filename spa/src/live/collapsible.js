@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { html } from "../h.js";
 
-// A card whose title row opens and closes it (the Device-tab cards, History's export card). The open/closed choice is per browser
+// A card whose title row opens and closes it (the Device-tab cards, History's export and register cards). The open/closed choice is per browser
 // (localStorage, like language and theme), never on the device.
 //
 // A closed card does not render its body at all, so a body that fetches on mount (event log,

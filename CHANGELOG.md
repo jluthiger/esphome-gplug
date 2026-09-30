@@ -14,6 +14,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 - *History → Day* now shows the energy of each quarter hour (import up, export down) with import, export and sum totals, like Week, Month and Year, instead of the average power with max/mean/min.
 - History: the "Export load profile" card starts closed and shows the stored date range on its title row; tap it to open. The browser remembers whether it was left open.
+- History is more compact: the import/export/sum totals sit inside the chart card, and the register list starts closed with the number of registers on its title row, so the chart and its figures fit on one phone screen. On wide screens the panels of both columns are evenly spaced and the range picker spans the chart's width.
 
 ## [0.7.0] – 2026-09-29
 

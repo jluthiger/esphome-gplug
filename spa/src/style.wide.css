@@ -48,11 +48,19 @@
 .d-phases { grid-column: span 6; }
 .d-phases .card { height: 100%; box-sizing: border-box; }
 
-/* History: chart and figures take the width, export and registers sit beside them. */
-.histgrid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(280px, 30%, 360px); gap: 20px; align-items: start; }
-.h-main > .seg:first-child { margin-top: 0; }
+/* History: chart and figures take the width, export and registers sit beside them.
+   Both columns are stacks with the grid's own gap between every panel, like the Live dash: the
+   cards' phone margins (12 px) beside a 20 px column gap made the spacing differ by direction. The
+   range picker spans its column so its right edge lines up with the chart card below it. */
+.histgrid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(320px, 32%, 400px); gap: 16px; align-items: start; }
+.h-main, .h-side { display: flex; flex-direction: column; gap: 16px; }
+.h-main > *, .h-side > * { margin: 0; }
+/* The picker is as tall as a folded card beside it (52 px: the .coll row plus the card border), so
+   the tops of both columns form one row. */
+.h-main > .seg { max-width: none; height: 52px; box-sizing: border-box; }
+/* A folded card's title stays on one line; the summary beside it is what gives way (ellipsis). */
+.h-side .coll .lbl { white-space: nowrap; }
 .h-side { position: sticky; top: 26px; }
-.h-side > .card:first-child { margin-top: 0; }
 .histgrid .hist { height: 260px; }
 
 /* Data Stream: master/detail. */
