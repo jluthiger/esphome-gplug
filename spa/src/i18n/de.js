@@ -3,7 +3,7 @@
 // to build otherwise (see checkLanguageTables there), so a forgotten string cannot reach a device.
 export const de = {
   brand: "IoT-Adapter",
-  title: "gPlug Einrichtung",
+  title: "METER Einrichtung",
   next: "Weiter",
   back: "Zurück",
   skip: "Überspringen",
@@ -237,7 +237,7 @@ export const de = {
   fwRejected: "Das Gerät hat die Datei abgelehnt.",
   fwNoReturn: "Gerät meldet sich nicht zurück. In ein paar Minuten die Seite neu laden.",
   fwConnLost: "Verbindung während der Übertragung abgebrochen.",
-  fwVersion: "gPlug",
+  fwVersion: "METER",
   fwRelCheck: "Nach Updates suchen",
   fwRelChecking: "Suche nach Updates…",
   fwRelHint: "Fragt die Release-Seite auf github.io ab. Das Gerät sucht nie von selbst.",

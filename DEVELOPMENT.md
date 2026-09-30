@@ -1,4 +1,4 @@
-# gPlug ESPHome firmware – development
+# METER – development
 
 For people building, changing or releasing the firmware. Users start at [`README.md`](README.md).
 

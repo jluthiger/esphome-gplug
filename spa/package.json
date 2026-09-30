@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "gPlug setup wizard SPA (Preact + htm), bundled into a single gzipped index.html for the ESPHome firmware",
+  "description": "METER setup wizard SPA (Preact + htm), bundled into a single gzipped index.html for the ESPHome firmware",
   "scripts": {
     "build": "node build.mjs",
     "dev": "node mock/server.mjs",

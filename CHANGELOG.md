@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+
+- The firmware is now called **METER** (Monitoring Energy Through Every Reading): the app title, the home-screen shortcut, the web installer and the user manual use the new name. "gPlug" still names the adapter hardware. The device address (`gplug-xxxxxx.local`), the setup network `gPlug-Setup`, MQTT topics and Home Assistant entities are unchanged.
+
 ## [0.8.0] – 2026-09-30
 
 ### Added

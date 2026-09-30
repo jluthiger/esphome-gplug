@@ -182,7 +182,7 @@ jobs:
           flags=""
           [ "${{ steps.version.outputs.prerelease }}" = "true" ] && flags="--prerelease"
           gh release create "${GITHUB_REF_NAME}" $flags \
-            --title "gPlug ${VERSION}" \
+            --title "METER ${VERSION}" \
             --notes-file notes.md \
             "out/gplug-${VERSION}.ota.bin" \
             "out/gplug-${VERSION}.factory.bin"

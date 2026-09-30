@@ -8,7 +8,7 @@ import { TABS } from "./tabbar.js";
 export function Rail({ tab, onChange, now, wifi }) {
   return html`
     <nav class="rail">
-      <div class="rail-brand">gPlug<span>${S.brand}</span></div>
+      <div class="rail-brand">METER<span>${S.brand}</span></div>
       <div class="rail-tabs">
         ${TABS.map(([id, key, r]) => html`
           <button class="rail-tab ${tab === id ? "active" : ""}" aria-current=${tab === id ? "page" : undefined} onClick=${() => onChange(id)}>

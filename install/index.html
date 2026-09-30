@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Install gPlug firmware</title>
-<meta name="description" content="Flash the gPlug ESPHome firmware onto a gPlug smart-meter adapter straight from the browser." />
+<title>Install METER firmware</title>
+<meta name="description" content="Flash METER, the ESPHome firmware, onto a gPlug smart-meter adapter straight from the browser." />
 <style>
   :root { color-scheme: light dark; --bg:#fff; --fg:#15181d; --muted:#5b6470; --line:#e3e6ea; --card:#f7f8fa; --warn:#8a5a00; --warnbg:#fff5e0; }
   @media (prefers-color-scheme: dark) {
@@ -29,8 +29,8 @@
 </head>
 <body>
 <main>
-  <h1>Install gPlug firmware</h1>
-  <p class="sub">ESPHome firmware for <a href="https://gplug.ch/">gPlug</a> smart-meter adapters — flashed
+  <h1>Install METER firmware</h1>
+  <p class="sub">METER — Monitoring Energy Through Every Reading. ESPHome firmware for <a href="https://gplug.ch/">gPlug</a> smart-meter adapters — flashed
   from this page over USB, no tools to install. <span id="ver" class="muted"></span></p>
 
   <div class="card warn" id="tasmota">
@@ -42,7 +42,7 @@
   <div class="card">
     <p><strong>Plug the gPlug into this computer with a USB cable</strong>, then:</p>
     <esp-web-install-button manifest="manifest.json">
-      <button slot="activate">Install gPlug firmware</button>
+      <button slot="activate">Install METER firmware</button>
       <span slot="unsupported" id="unsupported-msg">
         This browser cannot talk to USB devices. Use Chrome or Edge on a desktop computer —
         phones and Safari are not supported for flashing.

@@ -15,7 +15,7 @@ account, no subscription – the app runs on the gPlug itself.
 
 <p align="center">
   <a href="https://jluthiger.github.io/esphome-gplug/">
-    <img alt="Install gPlug firmware in your browser" src="install/install-button.svg" width="440">
+    <img alt="Install METER firmware in your browser" src="install/install-button.svg" width="440">
   </a>
   <br>
   Chrome or Edge on a computer and a USB cable – nothing else to install.
@@ -55,7 +55,7 @@ software with their own profiles, but have not been tried on a real device yet �
 
 1. **Install.** Connect the gPlug to your computer with a USB cable, open the
    [web installer](https://jluthiger.github.io/esphome-gplug/) in Chrome or Edge and press
-   *Install gPlug firmware*.
+   *Install METER firmware*.
 2. **Connect it to your Wi-Fi.** Plug the gPlug into your meter. On your phone, join the network
    `gPlug-Setup`; a page opens where you choose your home Wi-Fi. Note the address it shows,
    `http://gplug-xxxxxx.local/`.

@@ -217,13 +217,13 @@ function page(lang, file, title, main, chapterId) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>${esc(title)} · gPlug</title>
+<title>${esc(title)} · METER</title>
 <link rel="stylesheet" href="../assets/docs.css">
 <script src="../assets/docs.js" defer></script>
 </head>
 <body>
 <header>
-  <a class="brand" href="index.html">gPlug <span>${esc(T.manual)}</span></a>
+  <a class="brand" href="index.html">METER <span>${esc(T.manual)}</span></a>
   <nav class="switch" aria-label="${esc(T.language)}">${langs}</nav>
   <label class="ver" hidden>${esc(T.version)} <select></select></label>
 </header>
@@ -279,7 +279,7 @@ for (const lang of LANGS) {
 // The edition's entry point sends the reader to their browser's language, German otherwise.
 writeFileSync(join(out, "index.html"), `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>gPlug</title>
+<title>METER</title>
 <script>
 var l = "de", t = navigator.languages || [navigator.language || ""];
 for (var i = 0; i < t.length; i++) { var c = String(t[i]).slice(0, 2).toLowerCase(); if (${JSON.stringify(LANGS)}.indexOf(c) >= 0) { l = c; break; } }

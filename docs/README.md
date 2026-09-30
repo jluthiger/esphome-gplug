@@ -1,6 +1,6 @@
-# gPlug user manual
+# METER user manual
 
-The manual for gPlug owners, generated from user stories: one story per task a user performs, in
+The manual for METER, the firmware on gPlug adapters, generated from user stories: one story per task a user performs, in
 German, English, French and Italian. Published on GitHub Pages under
 <https://jluthiger.github.io/esphome-gplug/docs/>, one edition per major or minor release (`X.Y/`, and
 `latest/`), built by `.github/workflows/docs.yml` on a `vX.Y.0` tag. Nothing builds it in CI before

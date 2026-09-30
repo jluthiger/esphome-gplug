@@ -1,4 +1,4 @@
-# gPlug ESPHome firmware
+# METER firmware (gPlug ESPHome)
 
 Status: **PoC**. One image for gPlugD / D-E / K / M (ESP32-C3, 4 MB). Pins and meter descriptor are
 runtime data written by the SPA setup wizard and stored in NVS.

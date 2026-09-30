@@ -1,6 +1,6 @@
 {
-  "name": "gPlug",
-  "short_name": "gPlug",
+  "name": "METER",
+  "short_name": "METER",
   "start_url": "/#live",
   "scope": "/",
   "display": "standalone",
