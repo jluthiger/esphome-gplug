@@ -2,7 +2,7 @@
 
 Your smart meter records every kilowatt-hour you draw from the grid and every one your solar panels
 feed back. This free firmware for [gPlug](https://gplug.ch/) adapters puts those numbers on your
-phone: live, as a year of history, and as a file you can check your bill against. No cloud, no
+phone and computer: live, as a year of history, and as a file you can check your bill against. No cloud, no
 account, no subscription – the app runs on the gPlug itself.
 
 <p align="center">
