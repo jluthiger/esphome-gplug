@@ -1,5 +1,5 @@
 # Builds a release image and publishes it two ways:
-#   * GitHub Release assets -- gplug-<version>.ota.bin (upload in the app's Setup tab) and
+#   * GitHub Release assets -- gplug-<version>.ota.bin (upload in the app's Device tab) and
 #     gplug-<version>.factory.bin (esptool, full flash from 0x0).
 #   * GitHub Pages -- install/ plus the factory image and an ESP Web Tools manifest, so a fresh
 #     gPlug can be flashed from Chrome over USB without installing anything. Pages serves the
@@ -119,7 +119,7 @@ jobs:
           set -eu
           BUILD=firmware/.esphome/build/gplug/.pioenvs/gplug
           mkdir -p out/install
-          # App image: what the Setup tab's firmware card accepts over HTTP.
+          # App image: what the Device tab's firmware card accepts over HTTP.
           cp "$BUILD/firmware.ota.bin"     "out/gplug-${VERSION}.ota.bin"
           # Full image incl. bootloader + partition table: esptool / ESP Web Tools, written at 0x0.
           cp "$BUILD/firmware.factory.bin" "out/gplug-${VERSION}.factory.bin"
@@ -171,12 +171,12 @@ jobs:
           [migration.md](https://github.com/${{ github.repository }}/blob/main/migration.md) first if a meter
           key is still stored in Tasmota — copying it out is the one step that cannot be undone.
 
-          **Already running this firmware** — open the device's app, *Setup → Firmware*, pick
+          **Already running this firmware** — open the device's app, *Device → Firmware and restart*, pick
           \`gplug-${VERSION}.ota.bin\` and install. No tooling needed.
 
           | Asset | For |
           |---|---|
-          | \`gplug-${VERSION}.ota.bin\` | Update over the air from the device's own app (Setup tab) |
+          | \`gplug-${VERSION}.ota.bin\` | Update over the air from the device's own app (Device tab) |
           | \`gplug-${VERSION}.factory.bin\` | Full flash from \`0x0\` with esptool or the web installer |
           EOF
           flags=""
