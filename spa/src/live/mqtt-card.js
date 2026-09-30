@@ -134,7 +134,7 @@ function MqttBody({ status, live, state, setState }) {
     <div class="row">
       <div style="flex:3"><label>${S.mqttHost}</label>
         <input type="text" autocomplete="off" spellcheck="false" value=${d.host} onInput=${str("host")} /></div>
-      <div><label>${S.mqttPort}</label>
+      <div class="port"><label>${S.mqttPort}</label>
         <input type="number" min="1" max="65535" value=${d.port} onInput=${num("port")} /></div>
     </div>
     <div class="row">

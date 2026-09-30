@@ -10,6 +10,16 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+
+- Phone layout: all panels share the same side margin and inner padding, so their edges and contents line up on every screen. The Wi-Fi setup page (captive portal) now uses the same width as the app instead of sizing its card to its text, with full-width input fields.
+- Drop-down fields (e.g. *MQTT → QoS*) show their arrow inset from the right edge, in the same style as the arrows of the collapsible cards, instead of the browser's arrow pressed against the border.
+
+### Fixed
+
+- The *Data* and *Device* screens no longer scroll sideways on narrow phones while the gPlug waits for meter data; the status pill moves under the title.
+- *Device → MQTT*: the port field was too narrow on a 320 px phone and cut off "1883".
+
 ## [0.7.0] – 2026-09-30
 
 ### Added
