@@ -1,0 +1,22 @@
+{
+  "name": "gPlug",
+  "version": "0.7.0",
+  "home_assistant_domain": "esphome",
+  "funding_url": "https://gplug.ch/",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "improv": false,
+      "parts": [
+        { "path": "gplug-factory.bin", "offset": 0 }
+      ],
+      "ota": {
+        "path": "gplug-ota.bin",
+        "md5": "f7c9402b87861c6d5b5a6835db10d15d",
+        "release_url": "https://github.com/jluthiger/esphome-gplug/releases/tag/v0.7.0"
+      }
+    }
+  ]
+}
