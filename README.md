@@ -1,4 +1,4 @@
-# gPlug – see what your smart meter knows
+# METER — Monitoring Energy Through Every Reading
 
 Your smart meter records every kilowatt-hour you draw from the grid and every one your solar panels
 feed back. This free firmware for [gPlug](https://gplug.ch/) adapters puts those numbers on your
