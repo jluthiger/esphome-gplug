@@ -156,6 +156,7 @@ export const en = {
   csvOrder: "“From” must be before “To”.",
   csvStored: (n, from, to) => `${n} intervals stored, ${from} to ${to}.`,
   csvStoredNoTime: (n) => `${n} intervals stored, still without a time (clock never synchronised).`,
+  csvSumNoTime: (n) => `${n} intervals`,
 
   // Data stream
   streamRaw: "Raw · encrypted",

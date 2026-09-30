@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
 import { api } from "../api.js";
-import { num, bucketLabel, bucketWhen, dateShort, qhDate, QH_EPOCH } from "../fmt.js";
+import { num, bucketLabel, bucketWhen, dateShort, dateRange, qhDate, QH_EPOCH } from "../fmt.js";
+import { Collapsible } from "./collapsible.js";
 import { useBox } from "../box.js";
 import { useScrub, Readout } from "../scrub.js";
 // Every range here comes from the flash history (/api/history), fetched once per range and kept,
@@ -110,6 +111,9 @@ function histBars(hist, range) {
 // native resolution, as a CSV the user takes to their grid operator or ZEV/LEG settlement. A date
 // range picks quarter-hour indices (local midnight to local midnight, end exclusive); the "all"
 // link drops the window, which is the only way to get records that never got a timestamp.
+//
+// Most visits only look at the charts, so the card starts closed. The chosen dates live here, above
+// the Collapsible, so they survive closing it (a closed Collapsible unmounts its body).
 const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const qhOfDate = (iso) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -129,10 +133,11 @@ function ExportCard({ status }) {
   const t = to ?? newest ?? isoDate(new Date());
   const ordered = f <= t;
   const download = () => { window.location.assign(api.historyCsvUrl(qhOfDate(f), qhOfDate(dayAfter(t)))); };
+  const summary = !count ? S.noData
+    : timed ? dateRange(qhDate(h.oldest_qh), qhDate(h.newest_qh)) : S.csvSumNoTime(count);
 
   return html`
-    <div class="card">
-      <div class="t">${S.csvTitle}</div>
+    <${Collapsible} id="csv" title=${S.csvTitle} summary=${summary}>
       <p class="hint">${S.csvHint}</p>
       <p class="hint">${count
         ? (timed ? S.csvStored(count, dateShort(qhDate(h.oldest_qh)), dateShort(qhDate(h.newest_qh))) : S.csvStoredNoTime(count))
@@ -148,7 +153,7 @@ function ExportCard({ status }) {
       <button class="primary" style="width:100%" disabled=${!count || !ordered || !timed} onClick=${download}>${S.csvDownload}</button>
       ${count > 0 && html`<p class="hint" style="margin-top:10px;text-align:center">
         <a href=${api.historyCsvUrl()}>${S.csvAll}</a></p>`}
-    </div>`;
+    <//>`;
 }
 
 function axisLabels(bars) {

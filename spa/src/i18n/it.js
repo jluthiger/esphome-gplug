@@ -157,6 +157,7 @@ export const it = {
   csvOrder: "«Dal» dev'essere precedente ad «Al».",
   csvStored: (n, from, to) => `${n} intervalli salvati, dal ${from} al ${to}.`,
   csvStoredNoTime: (n) => `${n} intervalli salvati, ancora senza orario (nessuna sincronizzazione oraria).`,
+  csvSumNoTime: (n) => `${n} intervalli`,
 
   // Flusso di dati
   streamRaw: "Grezzo · cifrato",

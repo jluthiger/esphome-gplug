@@ -13,6 +13,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 ### Changed
 
 - *History → Day* now shows the energy of each quarter hour (import up, export down) with import, export and sum totals, like Week, Month and Year, instead of the average power with max/mean/min.
+- History: the "Export load profile" card starts closed and shows the stored date range on its title row; tap it to open. The browser remembers whether it was left open.
 
 ## [0.7.0] – 2026-09-29
 

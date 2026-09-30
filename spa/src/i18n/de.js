@@ -156,6 +156,7 @@ export const de = {
   csvOrder: "„Von“ muss vor „Bis“ liegen.",
   csvStored: (n, from, to) => `${n} Intervalle gespeichert, ${from} bis ${to}.`,
   csvStoredNoTime: (n) => `${n} Intervalle gespeichert, noch ohne Uhrzeit (keine Zeitsynchronisierung).`,
+  csvSumNoTime: (n) => `${n} Intervalle`,
 
   // Datenstrom
   streamRaw: "Roh · verschlüsselt",
