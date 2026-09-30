@@ -63,16 +63,19 @@ export function HistTab({ live, day, status, presets, wide }) {
         <div class="axis">
           ${axisLabels(bars).map((l) => html`<span>${l}</span>`)}
         </div>`}
-    </div>
-    ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
-    ${vals.length >= 2 && html`<${EnergyStats} bars=${bars} />`}`;
+      ${vals.length >= 2 && html`<${EnergyStats} bars=${bars} />`}
+      ${estimated && html`<p class="hint" style="margin:8px 0 0">${S.timeEstimated}</p>`}
+    </div>`;
+  // Closed by default like the export card: the list is one row per OBIS value, several phone
+  // screens on a three-phase meter, and the Live tab already shows the figures most people want.
   const registers = regs.length > 0 && html`
-    <div class="card">
-      <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
+    <${Collapsible} id="regs" title=${S.registers} summary=${S.points(regs.length)}>
+      <div style="margin-top:4px">
       ${regs.map((o) => html`
         <div class="reg"><span class="o">${o.obis.replace(/^\d-\d:/, "")}</span><span class="n">${o.name}</span>
           <span class="v">${num(values[o.name], o.unit === "kWh" || o.unit === "kVArh" ? 3 : o.unit === "W" ? 0 : 2)}</span><span class="u">${o.unit || ""}</span></div>`)}
-    </div>`;
+      </div>
+    <//>`;
 
   // Wide screens: the chart and its figures take the width, the export and the register list sit
   // in a column beside them instead of below the fold.
@@ -168,16 +171,18 @@ function EnergyStats({ bars }) {
   const imp = known.reduce((a, b) => a + Math.max(0, b.v), 0) / 1000;
   const exp = known.reduce((a, b) => a + Math.max(0, -b.v), 0) / 1000;
   return html`
-    <div class="grid3">
-      <${Stat} k=${S.statImport} v=${num(imp, 1)} u="kWh" dir="imp" />
-      <${Stat} k=${S.statExport} v=${num(exp, 1)} u="kWh" dir="exp" />
-      <${Stat} k=${S.statSum} v=${num(imp - exp, 1)} u="kWh" />
+    <div class="hsum">
+      <${Stat} k=${S.statImport} v=${num(imp, 1)} dir="imp" />
+      <${Stat} k=${S.statExport} v=${num(exp, 1)} dir="exp" />
+      <${Stat} k=${S.statSum} v=${num(imp - exp, 1)} />
     </div>`;
 }
 
-function Stat({ k, v, u, dir }) {
-  return html`<div class="card stat"><div class="lbl">${k}</div>
-    <div class="v ${dir || ""}" style="font-size:1.1rem">${v}</div><div class="u ${dir || ""}">${u}</div></div>`;
+// The totals sit in the chart card as one line under the axis rather than as three tiles of their
+// own: the tiles cost a card's padding and margins for three numbers, about 90 px on a phone.
+function Stat({ k, v, dir }) {
+  return html`<div class="stat"><div class="lbl">${k}</div>
+    <div class="v ${dir || ""}">${v} <span class="u ${dir || ""}">kWh</span></div></div>`;
 }
 
 function Bars({ bars, range }) {
