@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { html } from "../h.js";
 
-// A Device-tab card whose title row opens and closes it. The open/closed choice is per browser
+// A card whose title row opens and closes it (the Device-tab cards, History's export card). The open/closed choice is per browser
 // (localStorage, like language and theme), never on the device.
 //
 // A closed card does not render its body at all, so a body that fetches on mount (event log,
@@ -12,7 +12,8 @@ import { html } from "../h.js";
 // `locked` holds the card open with the toggle disabled: while a firmware upload runs, or while
 // the meter key is invalid. It is not stored, so the user's own choice comes back afterwards.
 
-// Named after the tab's old name ("Setup"); kept so stored choices survive the rename.
+// Named after the Device tab's old name ("Setup"); kept so stored choices survive the rename. Cards
+// on other tabs share it: ids are unique across tabs, and one key is one read per card.
 const KEY = "gplug.setupOpen";
 
 function load() {

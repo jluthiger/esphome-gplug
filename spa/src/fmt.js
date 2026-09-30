@@ -44,6 +44,12 @@ export function dateShort(d) {
   return fmt("d", { year: "numeric", month: "short", day: "numeric" }).format(d);
 }
 
+// A date range short enough for a collapsed card's title row at phone width ("12.08. – 30.09.26"):
+// numeric with a two-digit year, and formatRange drops what both ends share.
+export function dateRange(a, b) {
+  return fmt("d", { year: "2-digit", month: "numeric", day: "numeric" }).formatRange(a, b);
+}
+
 // "45 s", "12 min", "3 h 20 min" -- for event-log entries written before the clock synced, where
 // uptime is all the device knows. The unit abbreviations are the same in all four languages.
 export function dur(sec) {

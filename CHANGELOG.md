@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+
+- History: the "Export load profile" card starts closed and shows the stored date range on its title row; tap it to open. The browser remembers whether it was left open.
+
 ## [0.7.0] – 2026-09-29
 
 ### Added

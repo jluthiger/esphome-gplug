@@ -162,6 +162,7 @@ export const fr = {
   csvOrder: "« Du » doit précéder « Au ».",
   csvStored: (n, from, to) => `${n} intervalles enregistrés, du ${from} au ${to}.`,
   csvStoredNoTime: (n) => `${n} intervalles enregistrés, encore sans heure (pas de synchronisation horaire).`,
+  csvSumNoTime: (n) => `${n} intervalles`,
 
   // Flux de données
   streamRaw: "Brut · chiffré",
