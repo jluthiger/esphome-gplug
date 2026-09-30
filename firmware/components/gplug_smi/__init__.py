@@ -140,6 +140,16 @@ async def to_code(config):
         # ones. lwIP does evict the oldest TIME_WAIT block when it runs out, but an empty pool
         # drops SYNs; 20 leaves room for the pool plus a few TIME_WAITs.
         esp32.add_idf_sdkconfig_option("CONFIG_LWIP_MAX_ACTIVE_TCP", 20)
+        # The update check's TLS session was the ~60 kB heap peak behind issue #35 (gPlugK
+        # 2026-09-30: minimum since boot 117 -> 83 kB during one check). With static buffers
+        # mbedTLS holds its 16 kB in + 4 kB out buffers for the whole session and keeps the
+        # parsed CA bundle entry and peer chain until it closes; dynamic buffers allocate each
+        # only while a record is in flight and free the config data after the handshake. esp-tls
+        # builds a fresh ssl config for every connection and the device has no client key, so
+        # nothing needs the freed data again.
+        esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_BUFFER", True)
+        esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA", True)
+        esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT", True)
 
     base = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])
     var = cg.new_Pvariable(config[CONF_ID], base)

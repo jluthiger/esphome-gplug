@@ -12,7 +12,7 @@ it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by han
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
 
-<!-- size-baseline image=1246132 dram=130510 gplug_smi_obj=25304 -->
+<!-- size-baseline image=1249850 dram=130510 gplug_smi_obj=25304 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -42,8 +42,12 @@ standard ESP-IDF layout.
 
 ## Flash: the app image
 
-Image 1,246,132 B = 1217 kB in a 1408 kB slot: **86.4 % full, 191 kB headroom** (2026-09-30, with
-consistent panel widths on phones (issue #31): +1.4 kB, all embedded web files. The SPA grew
+Image 1,249,850 B = 1221 kB in a 1408 kB slot: **86.7 % full, 187 kB headroom** (2026-09-30, with
+mbedTLS dynamic buffers and the MPI lock created at boot (issue #35): +3.6 kB, of which 3.0 kB
+mbedTLS (the per-record buffer paths and freeing the config data after the handshake), 0.3 kB
+SPA already on `main` since the last snapshot, 0.2 kB strings and 0.1 kB `gplug_smi` code; static
+RAM unchanged. The heap effect is under "RAM: heap at runtime". 1,246,132 B = 86.4 % before,
+2026-09-30, with consistent panel widths on phones (issue #31): +1.4 kB, all embedded web files. The SPA grew
 57.8 -> 58.2 kB with this change (panel tokens, the MQTT port width, the wrapping status pill) and
 had already grown ~0.8 kB since the last snapshot with the collapsible History cards (issues #26,
 #27); the captive page 4.7 -> 4.9 kB. No code or RAM change. 1,244,756 B = 86.3 % before, 2026-09-28, with
@@ -75,21 +79,21 @@ the sampler, `/api/heap` and two more HA entities; 1,059,332 B before, with the 
 entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
 before that, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 888 kB code run from flash, 258 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
+By section: 891 kB code run from flash, 258 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
 (those two are stored in flash *and* occupy RAM).
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.5 % |
-| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.8 kB | 19.9 % |
-| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 206.5 kB | 17.0 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.4 % |
+| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.9 kB | 19.8 % |
+| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 209.5 kB | 17.2 % |
 | Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.5 % |
-| String literals from all code | 95.7 kB | 7.9 % |
-| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 7.0 % |
-| `gplug_smi` code | 72.8 kB | 6.0 % |
-| Embedded web files, gzipped except the PNG: SPA 58.2 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 69.0 kB | 5.7 % |
+| String literals from all code | 95.9 kB | 7.9 % |
+| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 6.9 % |
+| `gplug_smi` code | 72.9 kB | 6.0 % |
+| Embedded web files, gzipped except the PNG: SPA 58.5 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 69.3 kB | 5.7 % |
 | ESPHome-generated `main.cpp` setup code | 6.1 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
 
@@ -163,7 +167,7 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 | lwIP TCP/IP task stack | 3 kB |
 | System event task stack | 2.3 kB |
 | Meter descriptor copy, only during a config save (heap on purpose, too big for the httpd stack) | ~3 kB |
-| TLS session, only during an update check or download: `MBEDTLS_SSL_IN_CONTENT_LEN` 16 kB + `OUT` 4 kB, plus handshake and certificate parsing | ~30-40 kB; after an HTTPS manifest check the minimum since boot was 106 kB with 159 kB free (gPlugK 2026-09-25), so at most ~53 kB in use at the peak, boot and Wi-Fi join included |
+| TLS session, only during an update check or download: `MBEDTLS_SSL_IN_CONTENT_LEN` 16 kB + `OUT` 4 kB, allocated per record with `CONFIG_MBEDTLS_DYNAMIC_BUFFER` (config data freed after the handshake), plus handshake, certificate parsing and the 8 kB `update_task` stack below | whole check ~44 kB at the peak with dynamic buffers, ~62 kB with static ones (gPlugK 2026-09-30, see below) |
 | MQTT, only while enabled: esp-mqtt task stack 4 kB, in/out buffers 0.5 + 1 kB, outbox <= 4 kB (`OUTBOX_LIMIT`), `MqttRun` ~7.5 kB (templates compiled against a copy of the profile, 2 kB + 256 B render buffers, the two rendered fixed topics 2 x 256 B; the status message renders into the payload buffer), `MqttStopArg` 0.3 kB, TCP socket | ~17.5 kB + one socket; not measured on a device yet |
 | `mqtt_stop` task, only while a client is torn down: 3 kB stack, now also for the blocking "offline" publish (bounded by the 2 s network timeout) | 3 kB, transient |
 | `MqttRun` + `MqttSettings` during an MQTT config save (heap, validated on the httpd task) | ~8.5 kB |
@@ -180,6 +184,15 @@ During an update check over TLS (gPlugK 2026-09-25): 159 kB free, minimum since 
 largest block 112 kB, httpd stack 1328 B unused (unchanged). A download over TLS worked on the
 gPlugK (0.6.0-rc.3 → 0.6.0, 2026-09-25); its heap peak and the loop task's stack mark during it are
 not measured yet (both are reset by the reboot that follows).
+Update check, issue #35 (gPlugK 2026-09-30, one check ~5 min after boot, ~145 kB free before):
+with static mbedTLS buffers the minimum since boot fell 117 -> 83 kB, ~62 kB in use at the peak;
+with dynamic buffers 127 -> 101 kB (~44 kB), and three checks in a row kept it at 99-101 kB. The
+first check also created ESP-IDF's MPI accelerator lock (an 88 B mutex, never freed) 12-28 kB
+into the 116 kB heap region that holds the largest free block, which then read 100-104 kB instead
+of 112 kB for the rest of the boot. `gplug_smi` now takes that lock once in `setup()`; after three
+checks the largest block stays at 112 kB. "Largest block" is `tlsf_fit_size()`, rounded down to
+TLSF's size class (4 kB steps between 64 and 128 kB), and 112 kB is that region's whole free
+space, so it cannot read higher.
 Since 2026-09-14 the device keeps its own 24 h trend of free heap, minimum and largest block
 (`/api/heap`, Memory card on the Device tab), so that reading is a screenshot rather than a polling
 session.

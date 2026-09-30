@@ -103,7 +103,9 @@ second explicit tap, download and flash the image itself. It is ESPHome's own
   Images are not signed (PoC; `DECISIONS.md`).
 - **Cost**: +126 kB flash for esp_http_client, mbedTLS TLS/X.509 and the common-CA bundle, +0.8 kB
   static RAM (2026-09-25). The TLS session allocates its buffers (16 kB in + 4 kB out) only
-  during a check or download; peak heap during both still to be measured on hardware.
+  while a record is in flight (`CONFIG_MBEDTLS_DYNAMIC_BUFFER`, +3.4 kB flash, 2026-09-30). A
+  check takes ~44 kB at its peak (gPlugK 2026-09-30, minimum since boot 127 -> 101 kB; ~62 kB
+  with static buffers); the download's peak is not measured yet. See "Heap monitoring".
 
 **Known gap: Home Assistant can offer a downgrade.** The entity itself calls any version that
 differs from the running one "available", and HA's Install flashes it without asking `gplug_smi`.
@@ -690,6 +692,23 @@ minimum since boot fell by ~10 kB per half hour for the first ~2 h of each boot 
 159 -> 121 kB) and then stayed: some transient allocation peaks deeper for a while, not traced yet.
 `stack_httpd` read 784-804 B unused, 1328 B once the URL buffer moved off that stack (see the 2026-09-14 entry in `DECISIONS.md`). The low-heap event, its latch and the
 chart's rendering are covered by `test/test_heapmon.cpp` and the mock (`MOCK_HEAP=leak`) only.
+
+**What moves the minimum and the largest block** (issue #35, gPlugK 2026-09-30, 0.7.0 and
+0.8.0-dev builds, HA API and MQTT connected). The step reported on 0.7.0-rc.6 (minimum 121 -> 81 kB,
+largest block 112 -> 84 kB for good) was an update check. Timed against `/api/status` every 2 s:
+six parallel SPA loads lowered the minimum by 2.5 kB, the CSV export and every other GET by
+nothing measurable, one check by 34 kB. Two causes, both fixed:
+- The TLS session: with mbedTLS dynamic buffers the check's peak fell from ~62 kB to ~44 kB, the
+  minimum after three checks is 99-101 kB instead of 83 kB.
+- The first check created ESP-IDF's MPI accelerator lock (88 B, never freed) 12-28 kB into the
+  116 kB heap region that holds the largest free block, found with a temporary heap-walk build.
+  `setup()` now creates it at boot; after three checks the largest block reads 112 kB.
+
+"Largest block" is `heap_caps_get_largest_free_block()`, which reports TLSF's size class
+(`tlsf_fit_size()`: 4 kB steps between 64 and 128 kB), not the exact block. 112 kB is the whole
+free space of that region, the most it can read, so fragmentation computed as 1 - largest/free
+sits at ~21 % on a healthy device with ~144 kB free. The 24 h run against the `DESIGN.md` target
+(>= 80 kB free, < 20 % fragmented) is still to be done.
 
 **Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
 `esphome run`. To clear it, erase that region — take the offset from the boot log
