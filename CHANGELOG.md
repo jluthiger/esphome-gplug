@@ -10,6 +10,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+
+- *History → Day* now shows the energy of each quarter hour (import up, export down) with import, export and sum totals, like Week, Month and Year, instead of the average power with max/mean/min.
+
 ## [0.7.0] – 2026-09-29
 
 ### Added
