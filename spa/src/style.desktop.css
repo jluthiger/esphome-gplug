@@ -7,11 +7,11 @@
    On its own this layer shapes 800-1023 px only; from 1024 px style.wide.css and the components'
    wide render paths build a layout of their own on top of it. */
 
-#app { max-width: 880px; padding: 16px 24px 48px; }
+#app { max-width: 880px; padding: 16px var(--gutter) 48px; }
 /* No bar pinned over the bottom edge any more, so the live screen needs no space kept clear for
    it -- and the tab bar, last in the DOM because a phone wants it under the thumb, is pulled to
    the top where a pointer expects it. */
-#app.live { display: flex; flex-direction: column; padding: 0 24px 48px; }
+#app.live { display: flex; flex-direction: column; padding: 0 var(--gutter) 48px; }
 .tabbar { order: -1; }
 
 .tabbar { position: static; background: transparent; border-top: 0; border-bottom: 1px solid var(--border);
@@ -28,8 +28,7 @@
 /* Cards fill the width instead of stretching: two stats become four across, the wizard's
    preset lists stop being one tall stack. */
 .grid2, .grid3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-.card { padding: 18px 22px; }
-.coll { width: calc(100% + 44px); margin: -18px -22px; padding: 18px 22px; }
+:root { --gutter: 24px; --pad-x: 22px; --pad-y: 18px; }
 
 .big .v { font-size: 3.8rem; }
 .big .u { font-size: 1.25rem; }

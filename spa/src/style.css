@@ -15,6 +15,10 @@
   --pill: #243019; --ink: #12160e; --switch-off: #39442c; --err-bg: #2b1c12; --err-border: #5a3a24;
   --ok-bg: #2f6b3a; --ok-fg: #e6ffe9;
   color-scheme: dark;
+  /* Panel geometry, shared by every card-like surface so their edges and their content line up
+     from screen to screen: --gutter is the page's side inset, --pad-x/--pad-y a card's padding.
+     The desktop layer only changes these values. captive.html keeps its own copy of the numbers. */
+  --gutter: 16px; --pad-x: 18px; --pad-y: 16px; --radius: 20px;
 }
 :root[data-theme=light] {
   --bg: #f2f4ec; --panel: #ffffff; --panel2: #e8ede0; --deep: #f8faf4; --nav: #ffffff;
@@ -31,8 +35,8 @@
 html, body { margin: 0; background: var(--bg); color: var(--fg);
   font: 15px/1.4 var(--font); }
 button, input, select, textarea { font-family: inherit; }
-#app { max-width: 480px; margin: 0 auto; padding: 12px 16px 40px; }
-#app.live { padding: 0 16px calc(84px + env(safe-area-inset-bottom)); }
+#app { max-width: 480px; margin: 0 auto; padding: 12px var(--gutter) 40px; }
+#app.live { padding: 0 var(--gutter) calc(84px + env(safe-area-inset-bottom)); }
 /* The live screen's rail + content wrappers (live/index.js) only lay anything out on wide screens
    (style.wide.css); here they step aside and their children behave as children of #app. */
 .shell, .main { display: contents; }
@@ -53,16 +57,16 @@ a { color: var(--accent2); }
 .lbl.exp { color: var(--export2); }
 .between { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
 
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 16px 18px; margin: 12px 0; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--pad-y) var(--pad-x); margin: 12px 0; }
 .card.sel { outline: 2px solid var(--accent); }
 .card.click { cursor: pointer; }
 .card .t { font-weight: 600; }
 .card .s { color: var(--muted); font-size: .85rem; }
 /* Collapsible card title (live/collapsible.js): the whole title row is the button, stretched over the
    card's padding so the target is the full width and at least 48 px tall. */
-.coll { display: flex; align-items: center; gap: 10px; width: calc(100% + 36px); min-height: 48px; margin: -16px -18px;
-  padding: 16px 18px; border: 0; border-radius: 20px; background: transparent; color: inherit; text-align: left; }
-.coll[aria-expanded=true] { margin-bottom: 0; padding-bottom: 12px; border-radius: 20px 20px 0 0; }
+.coll { display: flex; align-items: center; gap: 10px; width: calc(100% + 2 * var(--pad-x)); min-height: 48px;
+  margin: calc(-1 * var(--pad-y)) calc(-1 * var(--pad-x)); padding: var(--pad-y) var(--pad-x); border: 0; border-radius: var(--radius); background: transparent; color: inherit; text-align: left; }
+.coll[aria-expanded=true] { margin-bottom: 0; padding-bottom: 12px; border-radius: var(--radius) var(--radius) 0 0; }
 .coll .lbl { flex: 1; }
 .coll:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .coll:disabled { opacity: 1; }
@@ -82,6 +86,9 @@ a { color: var(--accent2); }
 .row.dates { flex-wrap: wrap; align-items: flex-end; }
 .row.dates > * { flex: 1 1 140px; min-width: 0; margin: 0; }
 .row.dates input { min-width: 0; }
+/* MQTT port: a quarter of the broker row was 57 px on a 320 px phone and cut "1883" to "188".
+   Five digits plus the number spinner need a fixed width; the host field takes the rest. */
+.row > .port { flex: 0 0 88px; }
 label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
 input[type=text], input[type=password], input[type=number], input[type=date], select { width: 100%; padding: 10px 12px; border-radius: 12px;
   border: 1px solid var(--border2); background: var(--deep); color: var(--fg); font-size: 1rem; }
@@ -119,7 +126,9 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .statusbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 4px 4px;
   font-size: .75rem; font-weight: 600; color: var(--sub); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
 .statusbar .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 8px; animation: pulse 2s infinite; }
-.screenhead { display: flex; justify-content: space-between; align-items: flex-end; padding: 8px 4px 12px; gap: 10px; }
+/* flex-wrap: the status pill does not wrap its text, and "Warte auf Daten vom Zähler…" next to a
+   title is wider than a 320 px phone, so the page scrolled sideways. The pill drops under the title. */
+.screenhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; padding: 8px 4px 12px; gap: 10px; }
 .screenhead .title { font-size: 1.55rem; font-weight: 700; line-height: 1; letter-spacing: -.01em; color: var(--fg); }
 .screenhead .sub { font-size: .75rem; color: var(--sub); margin-top: 6px; }
 
@@ -191,7 +200,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .reg .v { font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .reg .u { font-size: .75rem; color: var(--muted2); width: 40px; text-align: right; }
 
-.switchrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: 18px; }
+.switchrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px var(--pad-x); border-radius: var(--radius); }
 .switchrow .t { font-size: .82rem; font-weight: 600; }
 .switchrow .s { font-size: .72rem; color: var(--muted2); margin-top: 2px; }
 .switch { border: 0; cursor: pointer; width: 52px; height: 30px; border-radius: 999px; padding: 3px; display: flex;
@@ -201,19 +210,19 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 
 .frame { padding: 0; margin: 8px 0; border-radius: 16px; overflow: hidden; }
 .frame .head { display: flex; align-items: center; }
-.frame .chk { border: 0; background: transparent; padding: 12px 4px 12px 14px; display: flex; align-items: center; border-radius: 0; }
+.frame .chk { border: 0; background: transparent; padding: 12px 4px 12px var(--pad-x); display: flex; align-items: center; border-radius: 0; }
 .frame .chk i { width: 19px; height: 19px; border-radius: 6px; border: 2px solid var(--zero); display: flex; align-items: center;
   justify-content: center; font-size: .7rem; font-weight: 700; color: var(--ink); font-style: normal; }
 .frame .chk.on i { background: var(--accent); border-color: var(--accent); }
 .frame .open { flex: 1; border: 0; border-radius: 0; background: transparent; display: flex; align-items: center; gap: 10px;
-  padding: 12px 14px 12px 8px; text-align: left; font-weight: 400; }
+  padding: 12px var(--pad-x) 12px 8px; text-align: left; font-weight: 400; }
 .frame .open .sq { width: 8px; height: 8px; border-radius: 2px; background: var(--green); flex: none; }
 .frame .open .sq.bad { background: var(--orange); }
 .frame .open .ts { font-size: .78rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent2); }
 .frame .open .meta { flex: 1; font-size: .72rem; color: var(--muted); }
 .frame .open .crc { font-size: .72rem; font-weight: 600; color: var(--green); }
 .frame .open .crc.bad { color: var(--orange); }
-.frame .body { padding: 0 14px 14px; }
+.frame .body { padding: 0 var(--pad-x) 14px; }
 .hex { background: var(--deep); border: 1px solid var(--track); border-radius: 10px; padding: 11px 12px;
   font: .7rem/1.75 var(--font-raw); color: var(--green); white-space: pre-wrap; word-break: break-all;
   max-height: 150px; overflow: auto; }
