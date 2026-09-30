@@ -13,6 +13,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 ### Changed
 
 - Phone layout: all panels share the same side margin and inner padding, so their edges and contents line up on every screen. The Wi-Fi setup page (captive portal) now uses the same width as the app instead of sizing its card to its text, with full-width input fields.
+- Drop-down fields (e.g. *MQTT → QoS*) show their arrow inset from the right edge, in the same style as the arrows of the collapsible cards, instead of the browser's arrow pressed against the border.
 
 ### Fixed
 
