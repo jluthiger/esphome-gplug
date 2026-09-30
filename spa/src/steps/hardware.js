@@ -36,7 +36,7 @@ export function Hardware({ variants, value, onChange, onNext, onBack }) {
           <input type="number" min="0" max="21" inputmode="numeric"
             value=${value.pins[k] ?? ""} placeholder=${S.none}
             onInput=${(e) => setPin(k, e.target.value)} />`)}
-        <p class="hint">ESP32-C3: GPIO 0–21. Leer = nicht vorhanden.</p>
+        <p class="hint">${S.pinHint}</p>
       </details>`}
     <div class="nav">
       <button onClick=${onBack}>${S.back}</button>

@@ -18,12 +18,13 @@ export const de = {
   errHistoryOff: "Das Gerät speichert keine Historie (Speicherbereich nicht verfügbar).",
 
   welcome: "Willkommen",
-  welcomeText: "Dieser Assistent richtet Ihren gPlug in vier Schritten ein: Gerät, Smart Meter, WLAN, Abschluss.",
+  welcomeText: "Dieser Assistent richtet Ihren gPlug in drei Schritten ein: Gerät, Smart Meter, Abschluss.",
   version: "Firmware",
 
   hardware: "Gerät",
   hardwareText: "Welchen gPlug haben Sie? Die Bezeichnung steht auf dem Gehäuse.",
   pins: "Pin-Belegung (nur bei Bedarf ändern)",
+  pinHint: "ESP32-C3: GPIO 0–21. Leer = nicht vorhanden.",
   pinRx: "HAN RX",
   pinRed: "LED rot",
   pinGreen: "LED grün",
@@ -59,6 +60,8 @@ export const de = {
   wifi: "WLAN",
   wifiText: "Verbinden Sie den gPlug mit Ihrem Heimnetz. Danach ist er unter der unten angezeigten Adresse erreichbar.",
   ssid: "Netzwerk",
+  connect: "Verbinden",
+  signal: "Signal",
   password: "Passwort",
   scan: "Netzwerke suchen",
   manual: "Netzwerk manuell eingeben",

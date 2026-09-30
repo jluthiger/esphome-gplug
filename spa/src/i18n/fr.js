@@ -20,12 +20,13 @@ export const fr = {
   errHistoryOff: "L'appareil n'enregistre aucun historique (zone de mémoire indisponible).",
 
   welcome: "Bienvenue",
-  welcomeText: "Cet assistant configure votre gPlug en quatre étapes : appareil, Smart Meter, Wi-Fi, fin.",
+  welcomeText: "Cet assistant configure votre gPlug en trois étapes : appareil, Smart Meter, fin.",
   version: "Micrologiciel",
 
   hardware: "Appareil",
   hardwareText: "Quel gPlug possédez-vous ? La désignation figure sur le boîtier.",
   pins: "Affectation des broches (à modifier seulement si nécessaire)",
+  pinHint: "ESP32-C3 : GPIO 0–21. Vide = absent.",
   pinRx: "HAN RX",
   pinRed: "LED rouge",
   pinGreen: "LED verte",
@@ -61,6 +62,8 @@ export const fr = {
   wifi: "Wi-Fi",
   wifiText: "Connectez le gPlug à votre réseau domestique. Il sera ensuite accessible à l'adresse indiquée ci-dessous.",
   ssid: "Réseau",
+  connect: "Connecter",
+  signal: "Signal",
   password: "Mot de passe",
   scan: "Rechercher des réseaux",
   manual: "Saisir le réseau manuellement",

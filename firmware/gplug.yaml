@@ -20,7 +20,7 @@ substitutions:
   # release manifest by the update check, and shown in an ESPHome Device Builder.
   # On main it is the next release with -dev, so a development build never passes for a release;
   # a release commit sets it to the tag's version, together with the component `ref` below
-  # (.github/release-check.sh, README.md "Cutting a release").
+  # (.github/release-check.sh, DEVELOPMENT.md "Cutting a release").
   version: "0.8.0-dev"
 
 esphome:

@@ -5,7 +5,7 @@
 // development build (0.7.0-dev) would be offered the older 0.6.0 as an "update", and so would a
 // device someone flashed with a newer rc by hand. The firmware card offers an install only when the
 // manifest's version is strictly newer by SemVer 2.0 precedence, which is what our tags follow
-// (README.md "Versions and branches"): 0.6.0-rc.1 < 0.6.0 < 0.7.0-dev < 0.7.0.
+// (DEVELOPMENT.md "Versions and branches"): 0.6.0-rc.1 < 0.6.0 < 0.7.0-dev < 0.7.0.
 //
 // Header-only, no ESPHome or IDF dependency, tested in test/test_version_cmp.cpp.
 #pragma once

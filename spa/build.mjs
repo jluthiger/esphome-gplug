@@ -8,6 +8,7 @@ import { en } from "./src/i18n/en.js";
 import { fr } from "./src/i18n/fr.js";
 import { it } from "./src/i18n/it.js";
 import { iconPng } from "./tools/icon.mjs";
+import { checkLanguageTables } from "./tools/i18n-check.mjs";
 import { WIDE } from "./src/layout.js";
 import { compile, compileFixed, render } from "./src/live/mqtt-template.js";
 
@@ -17,25 +18,14 @@ const watch = process.argv.includes("--watch");
 // in i18n/index.js falls back to German rather than showing "undefined"), and a key whose value is
 // a function in one language but a string in another throws at render time. Both are cheap to
 // catch here and expensive to notice on a device, so the build refuses them.
-function checkLanguageTables(tables) {
-  const [refName, ref] = Object.entries(tables)[0];
-  const refKeys = Object.keys(ref);
-  const problems = [];
-  for (const [name, t] of Object.entries(tables).slice(1)) {
-    for (const k of refKeys) {
-      if (!(k in t)) problems.push(`${name}: missing key "${k}"`);
-      else if (typeof t[k] !== typeof ref[k]) problems.push(`${name}: "${k}" is ${typeof t[k]}, ${refName} has ${typeof ref[k]}`);
-      else if (typeof t[k] === "function" && t[k].length !== ref[k].length) problems.push(`${name}: "${k}" takes ${t[k].length} arguments, ${refName} passes ${ref[k].length}`);
-    }
-    for (const k of Object.keys(t)) if (!(k in ref)) problems.push(`${name}: unknown key "${k}" (not in ${refName})`);
-  }
+{
+  const problems = checkLanguageTables({ de, en, fr, it });
   if (problems.length) {
     console.error("Language tables do not match:\n  " + problems.join("\n  "));
     process.exit(1);
   }
-  console.log(`languages          ${Object.keys(tables).join(", ")} · ${refKeys.length} strings each`);
+  console.log(`languages          de, en, fr, it · ${Object.keys(de).length} strings each`);
 }
-checkLanguageTables({ de, en, fr, it });
 
 // The MQTT card previews templates with a JS port of the firmware's renderer. A preview that
 // disagrees with what the device publishes misleads more than none, so the port has to pass the

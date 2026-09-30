@@ -65,9 +65,9 @@ export function Wifi({ value, onChange, onNext, onBack }) {
     ${state === "ok" && result && html`<div class="card">
       <span class="badge ok">${S.connected}</span>
       <div class="kv" style="margin-top:8px">
-        <b>SSID</b><span>${result.ssid}</span>
-        <b>IP</b><span class="num">${result.ip}</span>
-        <b>RSSI</b><span>${result.rssi} dBm</span>
+        <b>${S.ssid}</b><span>${result.ssid}</span>
+        <b>${S.ip}</b><span class="num">${result.ip}</span>
+        <b>${S.signal}</b><span>${result.rssi} dBm</span>
       </div>
       <p><button onClick=${() => { onChange({ ...value, result: null }); setState("idle"); scan(); }}>${S.changeWifi}</button></p>
     </div>`}
@@ -76,7 +76,7 @@ export function Wifi({ value, onChange, onNext, onBack }) {
       <button onClick=${onBack}>${S.back}</button>
       ${state === "ok"
         ? html`<button class="primary" onClick=${onNext}>${S.next}</button>`
-        : html`<button class="primary" disabled=${!canConnect} onClick=${connect}>Verbinden</button>`}
+        : html`<button class="primary" disabled=${!canConnect} onClick=${connect}>${S.connect}</button>`}
     </div>
     ${state !== "ok" && html`<p style="text-align:center">
       <button onClick=${onNext} style="background:none;color:var(--muted);font-weight:400">${S.skip}</button></p>`}`;
