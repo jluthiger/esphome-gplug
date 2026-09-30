@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.8.0] – 2026-09-30
+
 ### Added
 
 - A user manual in German, French, Italian and English, one chapter each for first setup, everyday use, device settings and troubleshooting, with screenshots of the app in each language: <https://jluthiger.github.io/esphome-gplug/docs/>.
@@ -18,6 +20,11 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 - The pin hint in the setup assistant and the labels and *Connect* button of the Wi-Fi page (*Device → Change Wi-Fi*) were German in every language; they now follow the chosen language. The welcome page no longer promises a Wi-Fi step the assistant does not have.
 - *Check for updates* needs about 18 kB less memory while it runs, and no longer leaves the largest free memory block smaller for the rest of the day (the Memory card showed it dropping from 112 kB to 84–104 kB after a check).
+
+### Upgrade notes
+
+- Update over the air as usual: no USB reflash (the partition table is unchanged). Wi-Fi, meter settings, history, event log and MQTT settings are kept.
+- Home Assistant entity IDs do not change.
 
 ## [0.7.0] – 2026-09-30
 
