@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de" data-page="daily.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Im Alltag · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>Benutzerhandbuch</span></a>
+  <nav class="switch" aria-label="Sprache"><b lang="de">Deutsch</b><a lang="en" hreflang="en" class="lang" href="../en/daily.html">English</a><a lang="fr" hreflang="fr" class="lang" href="../fr/daily.html">Français</a><a lang="it" hreflang="it" class="lang" href="../it/daily.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Inhalt"><details><summary>Inhalt</summary><ol><li><a href="setup.html">Ersteinrichtung</a><ol><li><a href="setup.html#setup-wifi">Den gPlug mit dem WLAN verbinden</a></li><li><a href="setup.html#setup-device">Den Assistenten starten und das Gerät wählen</a></li><li><a href="setup.html#setup-meter">Das Zählerprofil bestätigen und den Schlüssel eingeben</a></li><li><a href="setup.html#setup-check">Die Einrichtungsprüfung verstehen</a></li><li><a href="setup.html#setup-port-closed">Weitermachen, obwohl die Kundenschnittstelle noch nicht freigeschaltet ist</a></li></ol></li><li class="cur"><a href="daily.html">Im Alltag</a><ol><li><a href="daily.html#daily-live">Aktuelle Leistung und Zählerstände ablesen</a></li><li><a href="daily.html#daily-history">Energie pro Tag, Woche, Monat und Jahr ansehen</a></li><li><a href="daily.html#daily-csv">Den Lastgang als CSV exportieren</a></li><li><a href="daily.html#daily-stream">Empfangene Rohdaten ansehen, kopieren und speichern</a></li></ol></li><li><a href="device.html">Geräteeinstellungen</a><ol><li><a href="device.html#device-connection">Adresse und Verbindung des gPlug nachsehen</a></li><li><a href="device.html#device-wifi">Das WLAN wechseln</a></li><li><a href="device.html#device-key">Den gespeicherten Schlüssel prüfen oder ersetzen</a></li><li><a href="device.html#device-mqtt">Messwerte per MQTT senden</a></li><li><a href="device.html#device-firmware">Die Firmware aktualisieren</a></li><li><a href="device.html#device-restart">Den gPlug neu starten</a></li><li><a href="device.html#device-log-memory">Ereignisprotokoll und Speicher ansehen</a></li><li><a href="device.html#device-language-theme">Sprache und Darstellung ändern</a></li><li><a href="device.html#device-rerun-setup">Den Einrichtungsassistenten erneut öffnen</a></li><li><a href="device.html#device-reset-wifi">Den gPlug in den Einrichtungsmodus zurücksetzen</a></li></ol></li><li><a href="trouble.html">Wenn etwas nicht stimmt</a><ol><li><a href="trouble.html#trouble-waiting">„Warte auf erste Daten“ bleibt stehen</a></li><li><a href="trouble.html#trouble-silent">„Keine Signale vom Zähler“</a></li><li><a href="trouble.html#trouble-garbled">„Daten nicht lesbar“</a></li><li><a href="trouble.html#trouble-protocol">„Profil passt nicht zum Zähler“</a></li><li><a href="trouble.html#trouble-no-match">„Keine passenden Werte“</a></li><li><a href="trouble.html#trouble-key">„Schlüssel passt nicht“</a></li></ol></li></ol></details></nav>
+<main><h1>Im Alltag</h1><article id="daily-live"><h2><a href="#daily-live">Aktuelle Leistung und Zählerstände ablesen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich auf einen Blick sehen, wie viel Strom ich gerade beziehe oder
+einspeise, damit ich meinen Verbrauch verstehe.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Öffnen Sie die Adresse des gPlug. Die App startet im Tab <span class="ui">Live</span>.</li>
+<li>Oben steht die <span class="ui">Wirkleistung 1.7.0 / 2.7.0</span> in kW mit der Richtung: <span class="ui">Bezug aus dem Netz</span> oder
+<span class="ui">Einspeisung ins Netz</span>.</li>
+<li>Die Grafik darunter zeigt die letzte Stunde (<span class="ui">−60 min</span> bis <span class="ui">jetzt</span>). Tippen oder fahren Sie
+über die Grafik, um einen Zeitpunkt abzulesen.</li>
+<li>Die Karten <span class="ui">Bezug 1.8.0</span> und <span class="ui">Einspeisung 2.8.0</span> zeigen die Zählerstände in kWh, wie sie der
+Zähler anzeigt.</li>
+<li>Bei dreiphasigen Profilen zeigt <span class="ui">Phasen · 21/41/61.7.0</span> Leistung, Spannung und Strom pro Phase.
+<figure><img src="img/live.png" alt="Live-Ansicht mit Leistung, Zählerständen und Phasen" loading="lazy"><figcaption>Live-Ansicht mit Leistung, Zählerständen und Phasen</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Oben rechts steht <span class="ui">Daten aktuell</span>; die Werte erneuern sich alle paar Sekunden.</li>
+<li>Die Zählerstände stimmen mit der Anzeige am Zähler überein.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Nach einem Neustart des gPlug stammt der Teil der Grafik vor dem Neustart aus dem Gerätespeicher
+(ein Mittelwert je 15 Minuten).</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026. Auf echter Hardware geprüft: gPlugK 2026-09-14.</p></article><article id="daily-history"><h2><a href="#daily-history">Energie pro Tag, Woche, Monat und Jahr ansehen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich sehen, wie viel Energie ich über einen Tag, eine Woche, einen
+Monat oder ein Jahr bezogen und eingespeist habe, damit ich Zeiträume vergleichen kann.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Tippen Sie unten auf <span class="ui">Verlauf</span>.</li>
+<li>Wählen Sie oben den Zeitraum: <span class="ui">Tag</span>, <span class="ui">Woche</span>, <span class="ui">Monat</span> oder
+<span class="ui">Jahr</span>.</li>
+<li>Die Grafik <span class="ui">Energie je Intervall</span> zeigt Bezug nach oben und Einspeisung nach unten. Darunter
+stehen die Summen <span class="ui">Bezug</span>, <span class="ui">Einspeisung</span> und <span class="ui">Summe</span>.
+<figure><img src="img/history.png" alt="Verlauf eines Tages mit Summen" loading="lazy"><figcaption>Verlauf eines Tages mit Summen</figcaption></figure></li>
+<li>Tippen Sie auf <span class="ui">Register (aktuell)</span>, um alle aktuellen Werte des Zählers mit ihrem OBIS-Code zu sehen.
+<figure><img src="img/history-regs.png" alt="Liste der aktuellen Register" loading="lazy"><figcaption>Liste der aktuellen Register</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Jeder Zeitraum zeigt eine Grafik und die drei Summen.</li>
+<li><span class="ui">Summe</span> ist Bezug minus Einspeisung.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Der gPlug speichert alle 15 Minuten einen Wert. Er hält etwa ein Jahr und behält ihn auch bei
+einem Neustart oder Firmware-Update.</li>
+<li><span class="ui">Zeitstempel geschätzt (vor der Uhrzeit-Synchronisierung aufgezeichnet).</span> erscheint, wenn Werte aufgezeichnet wurden, bevor der gPlug die Uhrzeit aus dem
+Internet hatte.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="daily-csv"><h2><a href="#daily-csv">Den Lastgang als CSV exportieren</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich die gespeicherten 15-Minuten-Werte als Datei herunterladen, damit
+ich die Stromrechnung prüfen oder in einem Zusammenschluss zum Eigenverbrauch abrechnen kann.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Tippen Sie auf <span class="ui">Verlauf</span> und öffnen Sie die Karte <span class="ui">Lastgang exportieren</span>. Die Zeile zeigt schon
+geschlossen, welcher Zeitraum gespeichert ist.</li>
+<li>Wählen Sie <span class="ui">Von</span> und <span class="ui">Bis</span>.</li>
+<li>Tippen Sie auf <span class="ui">CSV herunterladen</span>.
+<figure><img src="img/history-csv.png" alt="Lastgang exportieren" loading="lazy"><figcaption>Lastgang exportieren</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Der Browser speichert eine CSV-Datei mit Zählerständen, Energie und Leistung je 15 Minuten,
+getrennt durch Semikolon.</li>
+<li>Liegt <span class="ui">Von</span> nach <span class="ui">Bis</span>, erscheint <span class="ui">„Von“ muss vor „Bis“ liegen.</span> und es wird nichts heruntergeladen.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li><span class="ui">Alles exportieren, auch Intervalle ohne Zeitstempel</span> nimmt auch Intervalle ohne Zeitstempel mit.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="daily-stream"><h2><a href="#daily-stream">Empfangene Rohdaten ansehen, kopieren und speichern</a></h2><section class="story"><h3>Worum es geht</h3><p>Als technisch interessierter Besitzer eines gPlug möchte ich die Daten sehen, die der Zähler
+tatsächlich sendet, damit ich bei einem Problem zeigen kann, was ankommt.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Tippen Sie unten auf <span class="ui">Daten</span>. Sie sehen die letzten Frames mit Uhrzeit und
+<span class="ui">CRC OK</span> oder <span class="ui">CRC FAIL</span>.</li>
+<li>Oben wählen Sie die Ansicht: bei verschlüsselten Zählern <span class="ui">Roh · verschlüsselt</span> oder
+<span class="ui">Entschlüsselt</span>, bei DSMR-Zählern <span class="ui">Hex</span> oder <span class="ui">Klartext</span>.</li>
+<li>Mit dem Schalter <span class="ui">Live-Mitschnitt läuft</span> halten Sie die Anzeige an, um in Ruhe zu lesen; der gPlug zeichnet
+weiter auf.</li>
+<li>Tippen Sie auf einen Frame, um ihn zu öffnen; dort gibt es <span class="ui">Kopieren</span> und <span class="ui">Frame als .txt</span>.</li>
+<li>Markieren Sie Frames oder tippen Sie auf <span class="ui">Alle auswählen</span> und laden Sie sie in der Karte
+<span class="ui">Auswahl exportieren</span> herunter.
+<figure><img src="img/stream.png" alt="Datenstrom mit den letzten Frames" loading="lazy"><figcaption>Datenstrom mit den letzten Frames</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Ein kopierter oder gespeicherter Frame enthält die Bytes als Hex-Text mit Zeitstempel und CRC.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li><span class="ui">Schlüssel wird nie mitexportiert.</span></li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><nav class="pn"><a href="setup.html">← Ersteinrichtung</a><a href="device.html">Geräteeinstellungen →</a></nav></main>
+</div>
+</body>
+</html>

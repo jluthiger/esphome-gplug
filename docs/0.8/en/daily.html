@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en" data-page="daily.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Everyday use · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>User manual</span></a>
+  <nav class="switch" aria-label="Language"><a lang="de" hreflang="de" class="lang" href="../de/daily.html">Deutsch</a><b lang="en">English</b><a lang="fr" hreflang="fr" class="lang" href="../fr/daily.html">Français</a><a lang="it" hreflang="it" class="lang" href="../it/daily.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><details><summary>Contents</summary><ol><li><a href="setup.html">First setup</a><ol><li><a href="setup.html#setup-wifi">Connect the gPlug to your Wi-Fi</a></li><li><a href="setup.html#setup-device">Start the assistant and choose the device</a></li><li><a href="setup.html#setup-meter">Confirm the meter profile and enter the key</a></li><li><a href="setup.html#setup-check">Understand the setup check</a></li><li><a href="setup.html#setup-port-closed">Continue although the customer interface is not enabled yet</a></li></ol></li><li class="cur"><a href="daily.html">Everyday use</a><ol><li><a href="daily.html#daily-live">Read the current power and the meter readings</a></li><li><a href="daily.html#daily-history">View energy per day, week, month and year</a></li><li><a href="daily.html#daily-csv">Export the load profile as CSV</a></li><li><a href="daily.html#daily-stream">View, copy and save the received raw data</a></li></ol></li><li><a href="device.html">Device settings</a><ol><li><a href="device.html#device-connection">Look up the gPlug's address and connection</a></li><li><a href="device.html#device-wifi">Change the Wi-Fi</a></li><li><a href="device.html#device-key">Check or replace the stored key</a></li><li><a href="device.html#device-mqtt">Send meter values over MQTT</a></li><li><a href="device.html#device-firmware">Update the firmware</a></li><li><a href="device.html#device-restart">Restart the gPlug</a></li><li><a href="device.html#device-log-memory">View the event log and memory</a></li><li><a href="device.html#device-language-theme">Change the language and appearance</a></li><li><a href="device.html#device-rerun-setup">Open the setup assistant again</a></li><li><a href="device.html#device-reset-wifi">Put the gPlug back into setup mode</a></li></ol></li><li><a href="trouble.html">When something is wrong</a><ol><li><a href="trouble.html#trouble-waiting">“Waiting for the first data” does not go away</a></li><li><a href="trouble.html#trouble-silent">“No signals from the meter”</a></li><li><a href="trouble.html#trouble-garbled">“Data unreadable”</a></li><li><a href="trouble.html#trouble-protocol">“Profile does not match the meter”</a></li><li><a href="trouble.html#trouble-no-match">“No matching values”</a></li><li><a href="trouble.html#trouble-key">“Key does not fit”</a></li></ol></li></ol></details></nav>
+<main><h1>Everyday use</h1><article id="daily-live"><h2><a href="#daily-live">Read the current power and the meter readings</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to see at a glance how much electricity I am drawing or feeding in
+right now, so that I understand my consumption.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Open the gPlug&#39;s address. The app starts on the <span class="ui">Live</span> tab.</li>
+<li>At the top is the <span class="ui">Active power 1.7.0 / 2.7.0</span> in kW with its direction: <span class="ui">Import from the grid</span> or
+<span class="ui">Export to the grid</span>.</li>
+<li>The chart below shows the last hour (<span class="ui">−60 min</span> to <span class="ui">now</span>). Tap or hover over the chart to
+read a point in time.</li>
+<li>The <span class="ui">Import 1.8.0</span> and <span class="ui">Export 2.8.0</span> cards show the meter readings in kWh, as the meter
+displays them.</li>
+<li>With three-phase profiles, <span class="ui">Phases · 21/41/61.7.0</span> shows power, voltage and current per phase.
+<figure><img src="img/live.png" alt="Live view with power, meter readings and phases" loading="lazy"><figcaption>Live view with power, meter readings and phases</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li><span class="ui">Data current</span> is shown at the top right; the values update every few seconds.</li>
+<li>The meter readings match the meter&#39;s display.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>After the gPlug restarts, the part of the chart before the restart comes from the device&#39;s storage
+(one average per 15 minutes).</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-14.</p></article><article id="daily-history"><h2><a href="#daily-history">View energy per day, week, month and year</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to see how much energy I imported and exported over a day, a week, a
+month or a year, so that I can compare periods.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Tap <span class="ui">History</span> at the bottom.</li>
+<li>Choose the period at the top: <span class="ui">Day</span>, <span class="ui">Week</span>, <span class="ui">Month</span> or
+<span class="ui">Year</span>.</li>
+<li>The <span class="ui">Energy per interval</span> chart shows import upwards and export downwards. Below it are the
+totals <span class="ui">Import</span>, <span class="ui">Export</span> and <span class="ui">Total</span>.
+<figure><img src="img/history.png" alt="History of one day with totals" loading="lazy"><figcaption>History of one day with totals</figcaption></figure></li>
+<li>Tap <span class="ui">Registers (current)</span> to see all current values of the meter with their OBIS codes.
+<figure><img src="img/history-regs.png" alt="List of the current registers" loading="lazy"><figcaption>List of the current registers</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>Every period shows a chart and the three totals.</li>
+<li><span class="ui">Total</span> is import minus export.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>The gPlug stores one value every 15 minutes. It keeps about a year and keeps it across restarts and
+firmware updates.</li>
+<li><span class="ui">Timestamps estimated (recorded before the clock was synchronised).</span> appears when values were recorded before the gPlug had the time from the
+internet.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="daily-csv"><h2><a href="#daily-csv">Export the load profile as CSV</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to download the stored 15-minute values as a file, so that I can check
+my electricity bill or settle within a self-consumption group.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Tap <span class="ui">History</span> and open the <span class="ui">Export load profile</span> card. Even closed, its row shows which period is
+stored.</li>
+<li>Choose <span class="ui">From</span> and <span class="ui">To</span>.</li>
+<li>Tap <span class="ui">Download CSV</span>.
+<figure><img src="img/history-csv.png" alt="Export load profile" loading="lazy"><figcaption>Export load profile</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The browser saves a CSV file with meter readings, energy and power per 15 minutes, separated by
+semicolons.</li>
+<li>If <span class="ui">From</span> is after <span class="ui">To</span>, <span class="ui">“From” must be before “To”.</span> appears and nothing is downloaded.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li><span class="ui">Export everything, including intervals without a timestamp</span> also includes intervals without a timestamp.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="daily-stream"><h2><a href="#daily-stream">View, copy and save the received raw data</a></h2><section class="story"><h3>What it is about</h3><p>As a technically minded owner of a gPlug I want to see the data the meter actually sends, so that I
+can show what arrives when there is a problem.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Tap <span class="ui">Data</span> at the bottom. You see the last frames with their time and <span class="ui">CRC OK</span> or
+<span class="ui">CRC FAIL</span>.</li>
+<li>Choose the view at the top: for encrypted meters <span class="ui">Raw · encrypted</span> or <span class="ui">Decrypted</span>, for DSMR
+meters <span class="ui">Hex</span> or <span class="ui">Plain text</span>.</li>
+<li>The <span class="ui">Live capture running</span> switch freezes the view so you can read in peace; the gPlug keeps recording.</li>
+<li>Tap a frame to open it; it offers <span class="ui">Copy</span> and <span class="ui">Frame as .txt</span>.</li>
+<li>Tick frames or tap <span class="ui">Select all</span> and download them in the <span class="ui">Export selection</span> card.
+<figure><img src="img/stream.png" alt="Data stream with the last frames" loading="lazy"><figcaption>Data stream with the last frames</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>A copied or saved frame contains the bytes as hex text with timestamp and CRC.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li><span class="ui">The key is never exported.</span></li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><nav class="pn"><a href="setup.html">← First setup</a><a href="device.html">Device settings →</a></nav></main>
+</div>
+</body>
+</html>

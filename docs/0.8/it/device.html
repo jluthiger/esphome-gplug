@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="it" data-page="device.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Impostazioni del dispositivo · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>Manuale d'uso</span></a>
+  <nav class="switch" aria-label="Lingua"><a lang="de" hreflang="de" class="lang" href="../de/device.html">Deutsch</a><a lang="en" hreflang="en" class="lang" href="../en/device.html">English</a><a lang="fr" hreflang="fr" class="lang" href="../fr/device.html">Français</a><b lang="it">Italiano</b></nav>
+  <label class="ver" hidden>Versione <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Indice"><details><summary>Indice</summary><ol><li><a href="setup.html">Prima configurazione</a><ol><li><a href="setup.html#setup-wifi">Collegare il gPlug al Wi-Fi</a></li><li><a href="setup.html#setup-device">Avviare la procedura e scegliere il dispositivo</a></li><li><a href="setup.html#setup-meter">Confermare il profilo del contatore e inserire la chiave</a></li><li><a href="setup.html#setup-check">Capire la verifica della configurazione</a></li><li><a href="setup.html#setup-port-closed">Proseguire anche se l'interfaccia cliente non è ancora attivata</a></li></ol></li><li><a href="daily.html">Nell'uso quotidiano</a><ol><li><a href="daily.html#daily-live">Leggere la potenza attuale e le letture del contatore</a></li><li><a href="daily.html#daily-history">Vedere l'energia per giorno, settimana, mese e anno</a></li><li><a href="daily.html#daily-csv">Esportare la curva di carico in CSV</a></li><li><a href="daily.html#daily-stream">Vedere, copiare e salvare i dati grezzi ricevuti</a></li></ol></li><li class="cur"><a href="device.html">Impostazioni del dispositivo</a><ol><li><a href="device.html#device-connection">Consultare l'indirizzo e la connessione del gPlug</a></li><li><a href="device.html#device-wifi">Cambiare il Wi-Fi</a></li><li><a href="device.html#device-key">Verificare o sostituire la chiave salvata</a></li><li><a href="device.html#device-mqtt">Inviare i valori misurati via MQTT</a></li><li><a href="device.html#device-firmware">Aggiornare il firmware</a></li><li><a href="device.html#device-restart">Riavviare il gPlug</a></li><li><a href="device.html#device-log-memory">Consultare il registro eventi e la memoria</a></li><li><a href="device.html#device-language-theme">Cambiare lingua e aspetto</a></li><li><a href="device.html#device-rerun-setup">Riaprire la procedura di configurazione</a></li><li><a href="device.html#device-reset-wifi">Riportare il gPlug in modalità di configurazione</a></li></ol></li><li><a href="trouble.html">Quando qualcosa non va</a><ol><li><a href="trouble.html#trouble-waiting">«In attesa dei primi dati» non scompare</a></li><li><a href="trouble.html#trouble-silent">«Nessun segnale dal contatore»</a></li><li><a href="trouble.html#trouble-garbled">«Dati illeggibili»</a></li><li><a href="trouble.html#trouble-protocol">«Il profilo non corrisponde al contatore»</a></li><li><a href="trouble.html#trouble-no-match">«Nessun valore corrispondente»</a></li><li><a href="trouble.html#trouble-key">«La chiave non è corretta»</a></li></ol></li></ol></details></nav>
+<main><h1>Impostazioni del dispositivo</h1><article id="device-connection"><h2><a href="#device-connection">Consultare l'indirizzo e la connessione del gPlug</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio sapere a quale indirizzo è raggiungibile e quanto è buona la sua
+ricezione Wi-Fi, per ritrovarlo e scegliergli una buona posizione.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Toccate <span class="ui">Dispositivo</span> in basso. La scheda <span class="ui">Connessione</span> è aperta.</li>
+<li>Mostra <span class="ui">Host</span> (l&#39;indirizzo con <code>.local</code>), <span class="ui">IP</span>, il <span class="ui">Wi-Fi</span> con l&#39;intensità del
+segnale e il <span class="ui">Profilo</span> scelto.
+<figure><img src="img/device.png" alt="Scheda Dispositivo con connessione e chiave" loading="lazy"><figcaption>Scheda Dispositivo con connessione e chiave</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>L&#39;indirizzo mostrato apre l&#39;app anche su un altro dispositivo nello stesso Wi-Fi.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>L&#39;intensità del segnale è indicata in dBm: −50 è molto buona, sotto −80 la connessione diventa
+inaffidabile.</li>
+<li>Ogni scheda della sezione <span class="ui">Dispositivo</span> si apre e si chiude toccandone il titolo; il browser se
+lo ricorda.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-wifi"><h2><a href="#device-wifi">Cambiare il Wi-Fi</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio spostarlo su un&#39;altra rete Wi-Fi, per esempio dopo aver cambiato
+router, senza configurarlo di nuovo.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Toccate <span class="ui">Dispositivo</span> e, nella scheda <span class="ui">Connessione</span>, <span class="ui">Cambiare Wi-Fi</span>.</li>
+<li>Vedete la connessione attuale. Toccate di nuovo <span class="ui">Cambiare Wi-Fi</span>; il gPlug cerca le reti nelle
+vicinanze.
+<figure><img src="img/device-wifi-scan.png" alt="Reti trovate" loading="lazy"><figcaption>Reti trovate</figcaption></figure></li>
+<li>Toccate la nuova rete, inserite la <span class="ui">Password</span> e toccate <span class="ui">Connetti</span>. Se la rete è
+nascosta, scegliete <span class="ui">Inserire la rete manualmente</span>.</li>
+<li>Dopo <span class="ui">Connessione…</span> appare <span class="ui">Connesso</span> con rete, IP e segnale.
+<figure><img src="img/device-wifi-ok.png" alt="Collegato alla nuova rete" loading="lazy"><figcaption>Collegato alla nuova rete</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li><span class="ui">Connesso</span> mostra la nuova rete.</li>
+<li>Con una password errata appare <span class="ui">Connessione non riuscita. Verificare la password.</span> e il gPlug resta raggiungibile.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>Se la nuova rete non è quella del vostro telefono, collegate poi il telefono a quella rete e
+riaprite l&#39;indirizzo.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-key"><h2><a href="#device-key">Verificare o sostituire la chiave salvata</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug con contatore cifrato voglio verificare se la chiave salvata corrisponde
+a quella della lettera del mio gestore di rete, e sostituirla se necessario, senza mai vederla in
+chiaro.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Nella sezione <span class="ui">Dispositivo</span> la scheda <span class="ui">Chiave (GUEK)</span> mostra se la chiave è <span class="ui">valida</span> o
+<span class="ui">non valida</span>.
+<figure><img src="img/device-key.png" alt="Scheda Chiave" loading="lazy"><figcaption>Scheda Chiave</figcaption></figure></li>
+<li>Per confrontarla, aprite <code>#setup/meter</code> (l&#39;indirizzo del gPlug seguito da <code>#setup/meter</code>).
+<span class="ui">Usare la chiave salvata</span> è attivo e mostra un identificativo della chiave salvata.</li>
+<li>Aprite <span class="ui">Confronta con la lettera del gestore di rete</span>, inserite la chiave della lettera e toccate <span class="ui">Verifica</span>.
+<figure><img src="img/wizard-meter-keep.png" alt="Confrontare la chiave salvata con la lettera" loading="lazy"><figcaption>Confrontare la chiave salvata con la lettera</figcaption></figure></li>
+<li>Per sostituire la chiave, disattivate <span class="ui">Usare la chiave salvata</span>, inserite la nuova sotto <span class="ui">Chiave (GUEK)</span> e toccate
+<span class="ui">Avanti</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Il confronto mostra <span class="ui">Corrisponde alla chiave salvata.</span> o <span class="ui">Non corrisponde. Disattivi l'interruttore e inserisca la chiave della lettera.</span>.</li>
+<li>Dopo la sostituzione, la verifica della configurazione mostra <span class="ui">Dati ricevuti</span>.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li><span class="ui">Salvata solo sul dispositivo. Mai visualizzata in chiaro né esportata.</span></li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026. Verificato su hardware reale: gPlugK 2026-09-25.</p></article><article id="device-mqtt"><h2><a href="#device-mqtt">Inviare i valori misurati via MQTT</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug con una mia domotica (Node-RED, ioBroker, InfluxDB) voglio inviare i
+valori misurati al mio broker MQTT, nel formato che il mio sistema si aspetta.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Nella sezione <span class="ui">Dispositivo</span> aprite la scheda <span class="ui">MQTT</span> e attivate <span class="ui">Attiva MQTT</span>.</li>
+<li>Inserite <span class="ui">Broker (nome o IP)</span> e <span class="ui">Porta</span>, se necessario <span class="ui">Utente (facoltativo)</span> e <span class="ui">Password (facoltativa)</span>,
+e <span class="ui">Intervallo (secondi)</span>.</li>
+<li>Scegliete un modello sotto <span class="ui">Modello</span>: <span class="ui">JSON, un messaggio</span>, <span class="ui">Un topic per valore</span> o
+<span class="ui">InfluxDB line protocol</span>. Per esigenze particolari modificate voi stessi <span class="ui">Topic</span> e
+<span class="ui">Messaggio</span>; <span class="ui">Segnaposto</span> elenca i segnaposto.</li>
+<li><span class="ui">Anteprima con i valori attuali</span> mostra esattamente cosa verrebbe inviato.
+<figure><img src="img/device-mqtt.png" alt="Impostazioni MQTT con anteprima" loading="lazy"><figcaption>Impostazioni MQTT con anteprima</figcaption></figure></li>
+<li>Facoltativo: <span class="ui">Invia lo stato del dispositivo</span> invia in più memoria, firmware, Wi-Fi e diagnosi del gPlug su
+un topic proprio; il <span class="ui">Topic di disponibilità</span> segnala <code>online</code> e <code>offline</code>.</li>
+<li>Toccate <span class="ui">Salva</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Dopo <span class="ui">Salvato</span> il titolo della scheda mostra <span class="ui">connesso</span> e sul broker arrivano
+messaggi.</li>
+<li>Un errore in un modello appare sotto il campo con posizione e motivo, per esempio
+«<span class="ui">Topic, carattere 12: segnaposto o registro sconosciuto</span>», e <span class="ui">Salva</span> resta
+bloccato finché non è corretto.</li>
+<li>Se il gPlug non raggiunge il broker, il titolo della scheda ne indica il motivo, per esempio
+<span class="ui">Broker non raggiungibile</span> o <span class="ui">Accesso rifiutato</span>.</li>
+<li>Se dopo un cambio di profilo del contatore un modello non va più bene, il titolo mostra
+<span class="ui">in pausa</span> finché non adattate il modello.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>Home Assistant non ha bisogno di MQTT; si collega direttamente al gPlug.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-firmware"><h2><a href="#device-firmware">Aggiornare il firmware</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio installare un nuovo firmware senza collegare un cavo, affinché il
+mio dispositivo riceva correzioni e nuove funzioni.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Nella sezione <span class="ui">Dispositivo</span> aprite la scheda <span class="ui">Firmware e riavvio</span>. Mostra la versione installata.</li>
+<li>Toccate <span class="ui">Cerca aggiornamenti</span>. Se esiste una versione più recente, appare una riga come
+<span class="ui">Aggiornamento disponibile: 0.6.0 → 0.7.0</span> con il link <span class="ui">Novità</span>.
+<figure><img src="img/device-fw.png" alt="È disponibile un aggiornamento" loading="lazy"><figcaption>È disponibile un aggiornamento</figcaption></figure></li>
+<li>Toccate <span class="ui">Installa 0.7.0</span> e confermate con <span class="ui">Installa ora</span>.
+<figure><img src="img/device-fw-confirm.png" alt="Confermare l'installazione" loading="lazy"><figcaption>Confermare l'installazione</figcaption></figure></li>
+<li>Il gPlug scarica da solo il firmware e si riavvia. Lasciatelo alimentato.
+<figure><img src="img/device-fw-done.png" alt="Firmware aggiornato" loading="lazy"><figcaption>Firmware aggiornato</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>La scheda mostra <span class="ui">Firmware aggiornato</span> e la nuova versione.</li>
+<li>Impostazioni e storico restano; si perde solo il quarto d&#39;ora in corso.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>Il gPlug non cerca mai aggiornamenti da solo, solo quando toccate <span class="ui">Cerca aggiornamenti</span>.</li>
+<li>Per installare un file dal computer usate <span class="ui">Scegliere il file del firmware</span> e <span class="ui">Installare</span>. Prendete il file in
+formato OTA (<code>.ota.bin</code>).</li>
+<li>Se è impostata una password OTA, la scheda chiede la <span class="ui">Password OTA</span>.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026. Verificato su hardware reale: gPlugK 2026-09-25.</p></article><article id="device-restart"><h2><a href="#device-restart">Riavviare il gPlug</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio riavviarlo dall&#39;app senza staccare la spina.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Nella sezione <span class="ui">Dispositivo</span> aprite la scheda <span class="ui">Firmware e riavvio</span>.</li>
+<li>Toccate <span class="ui">Riavvia dispositivo</span> e confermate con <span class="ui">Riavviare davvero?</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Dopo pochi secondi la scheda segnala <span class="ui">Il dispositivo è di nuovo attivo</span>; il <span class="ui">Tempo di attività</span> riparte da zero.</li>
+<li>Il registro eventi annota il riavvio.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li><span class="ui">I dati in tempo reale si interrompono per poco, i valori al minuto dell'ultima ora e l'andamento della memoria sulle 24 h ripartono da zero.</span></li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-log-memory"><h2><a href="#device-log-memory">Consultare il registro eventi e la memoria</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio vedere cosa è successo sul dispositivo – per esempio perché si è
+riavviato – per segnalare un problema o capirlo da solo.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Nella sezione <span class="ui">Dispositivo</span> aprite la scheda <span class="ui">Registro eventi</span>. Elenca gli ultimi eventi con l&#39;ora,
+per esempio <span class="ui">Riavvio</span>, <span class="ui">Wi-Fi perso</span> o <span class="ui">Nessun dato dal contatore</span>.
+<figure><img src="img/device-log.png" alt="Registro eventi" loading="lazy"><figcaption>Registro eventi</figcaption></figure></li>
+<li>Con <span class="ui">Copiare il registro</span> o <span class="ui">Salvare come file</span> potete trasmettere il registro.</li>
+<li>La scheda <span class="ui">Memoria</span> mostra <span class="ui">Libera</span>, <span class="ui">Minimo dall'avvio</span> e <span class="ui">Blocco più grande</span>, oltre
+all&#39;andamento delle ultime 24 ore.
+<figure><img src="img/device-mem.png" alt="Memoria" loading="lazy"><figcaption>Memoria</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Il registro resta dopo un riavvio e indica il motivo di ogni riavvio.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li><span class="ui">Una linea che scende di continuo per giorni indica una perdita di memoria. Un riavvio azzera l'andamento.</span></li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-language-theme"><h2><a href="#device-language-theme">Cambiare lingua e aspetto</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come utente dell&#39;app voglio scegliere la lingua e un aspetto chiaro o scuro, per leggerla
+comodamente.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Nella sezione <span class="ui">Dispositivo</span> aprite la scheda <span class="ui">Lingua</span> e toccate Deutsch, Français,
+Italiano o English.
+<figure><img src="img/device-lang.png" alt="Scegliere la lingua" loading="lazy"><figcaption>Scegliere la lingua</figcaption></figure></li>
+<li>Aprite la scheda <span class="ui">Aspetto</span> e scegliete <span class="ui">Chiaro</span> o <span class="ui">Scuro</span>.
+<figure><img src="img/device-theme.png" alt="Scegliere l'aspetto" loading="lazy"><figcaption>Scegliere l'aspetto</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>L&#39;app cambia subito, senza ricaricare.</li>
+<li>La scelta vale per questo browser; un altro telefono mantiene la propria.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-rerun-setup"><h2><a href="#device-rerun-setup">Riaprire la procedura di configurazione</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio cambiare in seguito il modello o il profilo del contatore, per
+esempio dopo la sostituzione del contatore, senza configurare tutto da capo.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Aggiungete all&#39;indirizzo del gPlug una delle seguenti parti e apritelo:<ul>
+<li><code>#setup</code> – tutta la procedura da <span class="ui">Benvenuti</span></li>
+<li><code>#setup/hardware</code> – direttamente al passo <span class="ui">Dispositivo</span></li>
+<li><code>#setup/meter</code> – direttamente al passo <span class="ui">Smart Meter</span></li>
+<li><code>#setup/key</code> – al passo <span class="ui">Smart Meter</span>, con il campo della chiave vuoto</li>
+</ul>
+</li>
+<li>Modificate ciò che serve e proseguite con <span class="ui">Avanti</span> fino a <span class="ui">Fine</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>La verifica della configurazione mostra <span class="ui">Dati ricevuti</span>; lo storico resta.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>I pulsanti della scheda <span class="ui">Verificare la configurazione</span> portano esattamente a questi indirizzi.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="device-reset-wifi"><h2><a href="#device-reset-wifi">Riportare il gPlug in modalità di configurazione</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug che non raggiunge più il suo Wi-Fi (nuovo router, password cambiata)
+voglio riportarlo in modalità di configurazione per poterlo ricollegare.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Tenete premuto il pulsante del gPlug per almeno 3 secondi.</li>
+<li>Il gPlug dimentica i dati di accesso Wi-Fi, si riavvia e apre di nuovo la rete <code>gPlug-Setup</code>; la
+spia lampeggia in blu.</li>
+<li>Collegatelo come nella prima configurazione e toccate <span class="ui">Salvare</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Il gPlug è raggiungibile nel nuovo Wi-Fi.</li>
+<li>Modello, profilo del contatore, chiave e storico restano; non serve ripetere la procedura.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026. Verificato su hardware reale: gPlugK 2026-09-10.</p></article><nav class="pn"><a href="daily.html">← Nell'uso quotidiano</a><a href="trouble.html">Quando qualcosa non va →</a></nav></main>
+</div>
+</body>
+</html>

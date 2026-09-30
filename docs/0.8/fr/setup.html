@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr" data-page="setup.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Première mise en service · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>Manuel d'utilisation</span></a>
+  <nav class="switch" aria-label="Langue"><a lang="de" hreflang="de" class="lang" href="../de/setup.html">Deutsch</a><a lang="en" hreflang="en" class="lang" href="../en/setup.html">English</a><b lang="fr">Français</b><a lang="it" hreflang="it" class="lang" href="../it/setup.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Sommaire"><details><summary>Sommaire</summary><ol><li class="cur"><a href="setup.html">Première mise en service</a><ol><li><a href="setup.html#setup-wifi">Connecter le gPlug au Wi-Fi</a></li><li><a href="setup.html#setup-device">Lancer l'assistant et choisir l'appareil</a></li><li><a href="setup.html#setup-meter">Confirmer le profil du compteur et saisir la clé</a></li><li><a href="setup.html#setup-check">Comprendre le contrôle de la configuration</a></li><li><a href="setup.html#setup-port-closed">Continuer alors que l'interface client n'est pas encore activée</a></li></ol></li><li><a href="daily.html">Au quotidien</a><ol><li><a href="daily.html#daily-live">Lire la puissance actuelle et les index</a></li><li><a href="daily.html#daily-history">Voir l'énergie par jour, semaine, mois et année</a></li><li><a href="daily.html#daily-csv">Exporter la courbe de charge en CSV</a></li><li><a href="daily.html#daily-stream">Voir, copier et enregistrer les données brutes reçues</a></li></ol></li><li><a href="device.html">Réglages de l'appareil</a><ol><li><a href="device.html#device-connection">Consulter l'adresse et la connexion du gPlug</a></li><li><a href="device.html#device-wifi">Changer de Wi-Fi</a></li><li><a href="device.html#device-key">Vérifier ou remplacer la clé enregistrée</a></li><li><a href="device.html#device-mqtt">Envoyer les mesures par MQTT</a></li><li><a href="device.html#device-firmware">Mettre à jour le micrologiciel</a></li><li><a href="device.html#device-restart">Redémarrer le gPlug</a></li><li><a href="device.html#device-log-memory">Consulter le journal des événements et la mémoire</a></li><li><a href="device.html#device-language-theme">Changer la langue et l'apparence</a></li><li><a href="device.html#device-rerun-setup">Rouvrir l'assistant de configuration</a></li><li><a href="device.html#device-reset-wifi">Remettre le gPlug en mode configuration</a></li></ol></li><li><a href="trouble.html">Quand quelque chose ne va pas</a><ol><li><a href="trouble.html#trouble-waiting">« En attente des premières données » ne disparaît pas</a></li><li><a href="trouble.html#trouble-silent">« Aucun signal du compteur »</a></li><li><a href="trouble.html#trouble-garbled">« Données illisibles »</a></li><li><a href="trouble.html#trouble-protocol">« Le profil ne correspond pas au compteur »</a></li><li><a href="trouble.html#trouble-no-match">« Aucune valeur correspondante »</a></li><li><a href="trouble.html#trouble-key">« La clé ne convient pas »</a></li></ol></li></ol></details></nav>
+<main><h1>Première mise en service</h1><article id="setup-wifi"><h2><a href="#setup-wifi">Connecter le gPlug au Wi-Fi</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que nouveau propriétaire d&#39;un gPlug, je veux le connecter à mon Wi-Fi domestique afin de
+pouvoir ouvrir son application dans un navigateur.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>Branchez le gPlug sur l&#39;interface client du compteur. Tant qu&#39;il ne connaît aucun Wi-Fi, il ouvre
+son propre réseau nommé <code>gPlug-Setup</code>.</li>
+<li>Connectez votre téléphone à <code>gPlug-Setup</code>. Le téléphone ouvre la page de configuration de
+lui-même ; sinon, ouvrez <code>http://192.168.4.1/</code> dans le navigateur.</li>
+<li>Touchez votre réseau domestique dans la liste et saisissez son mot de passe sous <span class="ui">Paramètres Wi-Fi</span>.
+<figure><img src="img/captive.png" alt="Page de configuration avec les réseaux trouvés" loading="lazy"><figcaption>Page de configuration avec les réseaux trouvés</figcaption></figure></li>
+<li>Notez l&#39;adresse sous <span class="ui">Ensuite accessible sur le Wi-Fi domestique à</span> – ou touchez <span class="ui">Copier</span>. Elle a la forme
+<code>http://gplug-xxxxxx.local/</code>.</li>
+<li>Touchez <span class="ui">Enregistrer</span>. Faites maintenant une capture d&#39;écran : la page se ferme dès que le téléphone
+revient sur votre Wi-Fi domestique.
+<figure><img src="img/captive-saved.png" alt="Après l'enregistrement : la future adresse du gPlug" loading="lazy"><figcaption>Après l'enregistrement : la future adresse du gPlug</figcaption></figure></li>
+<li>Reconnectez le téléphone à votre Wi-Fi domestique et ouvrez l&#39;adresse notée.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>L&#39;adresse notée affiche l&#39;assistant de configuration du gPlug.</li>
+<li>Le réseau <code>gPlug-Setup</code> disparaît peu après.</li>
+</ul>
+</section><section class="notes"><h3>Remarques</h3><ul>
+<li>La page de configuration suit la langue du téléphone.</li>
+<li>Si l&#39;adresse ne s&#39;ouvre pas, cherchez le gPlug dans la liste des appareils de votre routeur sous
+son nom <code>gplug-xxxxxx</code> et ouvrez son adresse IP.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026. Vérifié sur du matériel réel : gPlugK 2026-09-16 (Android).</p></article><article id="setup-device"><h2><a href="#setup-device">Lancer l'assistant et choisir l'appareil</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug fraîchement connecté, je veux indiquer quel modèle je possède afin
+qu&#39;il communique correctement avec l&#39;interface client de mon compteur.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>Ouvrez l&#39;adresse du gPlug. La première fois, l&#39;assistant s&#39;ouvre sur <span class="ui">Bienvenue</span>. Il affiche
+la version du micrologiciel et le nom de l&#39;appareil. Touchez <span class="ui">Suivant</span>.
+<figure><img src="img/wizard-welcome.png" alt="Page d'accueil de l'assistant" loading="lazy"><figcaption>Page d'accueil de l'assistant</figcaption></figure></li>
+<li>Sous <span class="ui">Appareil</span>, choisissez votre modèle, par exemple gPlugK. La désignation figure sur le
+boîtier.
+<figure><img src="img/wizard-hardware.png" alt="Choix du modèle" loading="lazy"><figcaption>Choix du modèle</figcaption></figure></li>
+<li><span class="ui">Affectation des broches (à modifier seulement si nécessaire)</span> ne sert que si vous avez modifié le gPlug vous-même. Sinon, laissez les valeurs
+proposées.</li>
+<li>Touchez <span class="ui">Suivant</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>L&#39;assistant passe à l&#39;étape <span class="ui">Smart Meter</span>.</li>
+<li>Le modèle choisi est enregistré, même si vous quittez l&#39;assistant maintenant.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="setup-meter"><h2><a href="#setup-meter">Confirmer le profil du compteur et saisir la clé</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug, je veux choisir le bon profil de compteur et enregistrer la clé de
+mon gestionnaire de réseau afin que le gPlug puisse lire les valeurs de mon compteur.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>À l&#39;étape <span class="ui">Smart Meter</span>, le gPlug écoute d&#39;abord ce que votre compteur envoie. Après quelques
+secondes, la carte <span class="ui">Détection du compteur</span> affiche <span class="ui">Compteur détecté</span> et le protocole reconnu.</li>
+<li>Si un seul profil convient, il est déjà sélectionné. Si plusieurs conviennent, choisissez le
+profil de votre gestionnaire de réseau. <span class="ui">Choisir un autre profil</span> affiche d&#39;autres profils.</li>
+<li>Si le compteur envoie des données chiffrées, saisissez la clé (GUEK) sous <span class="ui">Clé (GUEK)</span> :
+32 caractères parmi 0–9 et A–F, comme dans la lettre de votre gestionnaire de réseau.
+<figure><img src="img/wizard-meter.png" alt="Compteur reconnu, profil proposé et champ de la clé" loading="lazy"><figcaption>Compteur reconnu, profil proposé et champ de la clé</figcaption></figure></li>
+<li><span class="ui">Valeurs</span> indique les valeurs que le profil lit.</li>
+<li>Touchez <span class="ui">Suivant</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li><span class="ui">Suivant</span> ne devient actif qu&#39;une fois un profil choisi et la clé valide.</li>
+<li>L&#39;assistant passe à <span class="ui">Fin</span> et y vérifie la liaison avec le compteur.</li>
+</ul>
+</section><section class="notes"><h3>Remarques</h3><ul>
+<li>La clé est enregistrée uniquement sur le gPlug et n&#39;est plus jamais affichée.</li>
+<li>Si aucun signal n&#39;arrive après une demi-minute, vérifiez le câble. Certains gestionnaires de
+réseau doivent d&#39;abord activer l&#39;interface client.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026. Vérifié sur du matériel réel : gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Comprendre le contrôle de la configuration</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug, je veux voir à la fin de la configuration si le compteur est
+vraiment lu, afin de corriger une erreur tant que je suis encore dans l&#39;assistant.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>À l&#39;étape <span class="ui">Fin</span>, la carte <span class="ui">Liaison avec le compteur</span> affiche d&#39;abord <span class="ui">En attente des premières données du compteur…</span>. Selon le
+compteur, cela prend jusqu&#39;à une minute.
+<figure><img src="img/wizard-done-waiting.png" alt="Le contrôle attend les premières données" loading="lazy"><figcaption>Le contrôle attend les premières données</figcaption></figure></li>
+<li>Dès que des données arrivent, <span class="ui">Données reçues</span> s&#39;affiche avec le numéro du compteur, la puissance
+actuelle et le nombre de valeurs. Touchez <span class="ui">Ouvrir la vue en direct</span>.
+<figure><img src="img/wizard-done-ok.png" alt="Données reçues" loading="lazy"><figcaption>Données reçues</figcaption></figure></li>
+<li>Si aucune donnée exploitable n&#39;arrive, la carte <span class="ui">Vérifier la configuration</span> apparaît à la place, avec une
+explication et un bouton qui vous ramène directement à la bonne étape, par exemple
+<span class="ui">Changer le profil du compteur</span>. La signification de chaque message est expliquée au chapitre <em>Quand quelque chose
+ne va pas</em>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Après <span class="ui">Ouvrir la vue en direct</span>, vous voyez la vue en direct avec <span class="ui">Données à jour</span>.</li>
+<li>Après un bouton de la carte <span class="ui">Vérifier la configuration</span>, vous êtes à la bonne étape de l&#39;assistant ; vos autres
+réglages sont conservés.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="setup-port-closed"><h2><a href="#setup-port-closed">Continuer alors que l'interface client n'est pas encore activée</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug dont le gestionnaire de réseau n&#39;a pas encore activé l&#39;interface
+client, je veux terminer quand même la configuration afin que le gPlug lise dès que le compteur
+envoie.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>À l&#39;étape <span class="ui">Fin</span>, <span class="ui">Aucun signal du compteur</span> apparaît après une minute.</li>
+<li>Si vous êtes sûr que le modèle et le câble sont corrects, touchez <span class="ui">Continuer quand même vers la vue en direct</span>.
+<figure><img src="img/diag-silent.png" alt="Aucun signal du compteur, avec le chemin vers la vue en direct" loading="lazy"><figcaption>Aucun signal du compteur, avec le chemin vers la vue en direct</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>La vue en direct s&#39;ouvre et affiche la même carte <span class="ui">Vérifier la configuration</span> jusqu&#39;à l&#39;arrivée de données.
+<figure><img src="img/live-diag.png" alt="Vue en direct tant que le compteur reste muet" loading="lazy"><figcaption>Vue en direct tant que le compteur reste muet</figcaption></figure></li>
+<li>Dès que le gestionnaire de réseau active l&#39;interface, les valeurs apparaissent sans autre action.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><nav class="pn"><span></span><a href="daily.html">Au quotidien →</a></nav></main>
+</div>
+</body>
+</html>

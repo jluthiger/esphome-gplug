@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="de" data-page="device.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Geräteeinstellungen · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>Benutzerhandbuch</span></a>
+  <nav class="switch" aria-label="Sprache"><b lang="de">Deutsch</b><a lang="en" hreflang="en" class="lang" href="../en/device.html">English</a><a lang="fr" hreflang="fr" class="lang" href="../fr/device.html">Français</a><a lang="it" hreflang="it" class="lang" href="../it/device.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Inhalt"><details><summary>Inhalt</summary><ol><li><a href="setup.html">Ersteinrichtung</a><ol><li><a href="setup.html#setup-wifi">Den gPlug mit dem WLAN verbinden</a></li><li><a href="setup.html#setup-device">Den Assistenten starten und das Gerät wählen</a></li><li><a href="setup.html#setup-meter">Das Zählerprofil bestätigen und den Schlüssel eingeben</a></li><li><a href="setup.html#setup-check">Die Einrichtungsprüfung verstehen</a></li><li><a href="setup.html#setup-port-closed">Weitermachen, obwohl die Kundenschnittstelle noch nicht freigeschaltet ist</a></li></ol></li><li><a href="daily.html">Im Alltag</a><ol><li><a href="daily.html#daily-live">Aktuelle Leistung und Zählerstände ablesen</a></li><li><a href="daily.html#daily-history">Energie pro Tag, Woche, Monat und Jahr ansehen</a></li><li><a href="daily.html#daily-csv">Den Lastgang als CSV exportieren</a></li><li><a href="daily.html#daily-stream">Empfangene Rohdaten ansehen, kopieren und speichern</a></li></ol></li><li class="cur"><a href="device.html">Geräteeinstellungen</a><ol><li><a href="device.html#device-connection">Adresse und Verbindung des gPlug nachsehen</a></li><li><a href="device.html#device-wifi">Das WLAN wechseln</a></li><li><a href="device.html#device-key">Den gespeicherten Schlüssel prüfen oder ersetzen</a></li><li><a href="device.html#device-mqtt">Messwerte per MQTT senden</a></li><li><a href="device.html#device-firmware">Die Firmware aktualisieren</a></li><li><a href="device.html#device-restart">Den gPlug neu starten</a></li><li><a href="device.html#device-log-memory">Ereignisprotokoll und Speicher ansehen</a></li><li><a href="device.html#device-language-theme">Sprache und Darstellung ändern</a></li><li><a href="device.html#device-rerun-setup">Den Einrichtungsassistenten erneut öffnen</a></li><li><a href="device.html#device-reset-wifi">Den gPlug in den Einrichtungsmodus zurücksetzen</a></li></ol></li><li><a href="trouble.html">Wenn etwas nicht stimmt</a><ol><li><a href="trouble.html#trouble-waiting">„Warte auf erste Daten“ bleibt stehen</a></li><li><a href="trouble.html#trouble-silent">„Keine Signale vom Zähler“</a></li><li><a href="trouble.html#trouble-garbled">„Daten nicht lesbar“</a></li><li><a href="trouble.html#trouble-protocol">„Profil passt nicht zum Zähler“</a></li><li><a href="trouble.html#trouble-no-match">„Keine passenden Werte“</a></li><li><a href="trouble.html#trouble-key">„Schlüssel passt nicht“</a></li></ol></li></ol></details></nav>
+<main><h1>Geräteeinstellungen</h1><article id="device-connection"><h2><a href="#device-connection">Adresse und Verbindung des gPlug nachsehen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich nachsehen, unter welcher Adresse er erreichbar ist und wie gut
+sein WLAN-Empfang ist, damit ich ihn wiederfinde und einen guten Standort wähle.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Tippen Sie unten auf <span class="ui">Gerät</span>. Die Karte <span class="ui">Verbindung</span> ist offen.</li>
+<li>Sie zeigt <span class="ui">Host</span> (die Adresse mit <code>.local</code>), <span class="ui">IP</span>, das <span class="ui">WLAN</span> mit Signalstärke
+und das gewählte <span class="ui">Profil</span>.
+<figure><img src="img/device.png" alt="Geräte-Tab mit Verbindung und Schlüssel" loading="lazy"><figcaption>Geräte-Tab mit Verbindung und Schlüssel</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Die angezeigte Adresse öffnet die App auch auf einem anderen Gerät im selben WLAN.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Die Signalstärke ist in dBm angegeben: −50 ist sehr gut, unter −80 wird die Verbindung unzuverlässig.</li>
+<li>Jede Karte im Tab <span class="ui">Gerät</span> lässt sich mit einem Tipp auf ihren Titel auf- und zuklappen; der
+Browser merkt sich das.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-wifi"><h2><a href="#device-wifi">Das WLAN wechseln</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich ihn in ein anderes WLAN bringen, zum Beispiel nach einem
+Routerwechsel, ohne ihn neu einzurichten.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Tippen Sie auf <span class="ui">Gerät</span> und in der Karte <span class="ui">Verbindung</span> auf <span class="ui">WLAN ändern</span>.</li>
+<li>Sie sehen die aktuelle Verbindung. Tippen Sie nochmals auf <span class="ui">WLAN ändern</span>; der gPlug sucht die
+Netze in Reichweite.
+<figure><img src="img/device-wifi-scan.png" alt="Gefundene Netze" loading="lazy"><figcaption>Gefundene Netze</figcaption></figure></li>
+<li>Tippen Sie auf das neue Netz, geben Sie das <span class="ui">Passwort</span> ein und tippen Sie auf <span class="ui">Verbinden</span>.
+Ist das Netz verborgen, wählen Sie <span class="ui">Netzwerk manuell eingeben</span>.</li>
+<li>Nach <span class="ui">Verbinde…</span> erscheint <span class="ui">Verbunden</span> mit Netz, IP und Signal.
+<figure><img src="img/device-wifi-ok.png" alt="Mit dem neuen Netz verbunden" loading="lazy"><figcaption>Mit dem neuen Netz verbunden</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li><span class="ui">Verbunden</span> zeigt das neue Netz.</li>
+<li>Bei falschem Passwort erscheint <span class="ui">Verbindung fehlgeschlagen. Passwort prüfen.</span> und der gPlug bleibt erreichbar.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Liegt das neue Netz in einem anderen WLAN als Ihr Telefon, verbinden Sie das Telefon danach mit
+diesem Netz und öffnen die Adresse erneut.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-key"><h2><a href="#device-key">Den gespeicherten Schlüssel prüfen oder ersetzen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug mit verschlüsseltem Zähler möchte ich prüfen, ob der gespeicherte Schlüssel
+dem aus dem Brief meines Netzbetreibers entspricht, und ihn bei Bedarf ersetzen, ohne ihn je im
+Klartext zu sehen.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Im Tab <span class="ui">Gerät</span> zeigt die Karte <span class="ui">Schlüssel (GUEK)</span>, ob der Schlüssel <span class="ui">gültig</span> oder
+<span class="ui">ungültig</span> ist.
+<figure><img src="img/device-key.png" alt="Karte Schlüssel" loading="lazy"><figcaption>Karte Schlüssel</figcaption></figure></li>
+<li>Zum Vergleichen öffnen Sie <code>#setup/meter</code> (die Adresse des gPlug mit angehängtem <code>#setup/meter</code>).
+<span class="ui">Gespeicherten Schlüssel verwenden</span> ist eingeschaltet und zeigt eine Kennung des gespeicherten Schlüssels.</li>
+<li>Öffnen Sie <span class="ui">Mit dem Brief des Netzbetreibers vergleichen</span>, geben Sie den Schlüssel aus dem Brief ein und tippen Sie auf
+<span class="ui">Prüfen</span>.
+<figure><img src="img/wizard-meter-keep.png" alt="Gespeicherten Schlüssel mit dem Brief vergleichen" loading="lazy"><figcaption>Gespeicherten Schlüssel mit dem Brief vergleichen</figcaption></figure></li>
+<li>Um den Schlüssel zu ersetzen, schalten Sie <span class="ui">Gespeicherten Schlüssel verwenden</span> aus, geben den neuen unter <span class="ui">Schlüssel (GUEK)</span> ein
+und tippen auf <span class="ui">Weiter</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Beim Vergleich erscheint <span class="ui">Stimmt mit dem gespeicherten Schlüssel überein.</span> oder <span class="ui">Stimmt nicht überein. Schalter ausschalten und den Schlüssel aus dem Brief eingeben.</span>.</li>
+<li>Nach dem Ersetzen zeigt die Einrichtungsprüfung <span class="ui">Daten empfangen</span>.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li><span class="ui">Nur auf dem Gerät gespeichert. Wird nie im Klartext angezeigt oder exportiert.</span></li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026. Auf echter Hardware geprüft: gPlugK 2026-09-25.</p></article><article id="device-mqtt"><h2><a href="#device-mqtt">Messwerte per MQTT senden</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug mit einer eigenen Hausautomation (Node-RED, ioBroker, InfluxDB) möchte ich
+die Messwerte an meinen MQTT-Broker senden, im Format, das mein System erwartet.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Öffnen Sie im Tab <span class="ui">Gerät</span> die Karte <span class="ui">MQTT</span> und schalten Sie <span class="ui">MQTT aktivieren</span> ein.</li>
+<li>Tragen Sie <span class="ui">Broker (Name oder IP)</span> und <span class="ui">Port</span> ein, falls nötig <span class="ui">Benutzer (optional)</span> und
+<span class="ui">Passwort (optional)</span>, dazu <span class="ui">Intervall (Sekunden)</span>.</li>
+<li>Wählen Sie unter <span class="ui">Vorlage</span> eine Vorlage: <span class="ui">JSON, eine Nachricht</span>, <span class="ui">Ein Topic pro Wert</span> oder
+<span class="ui">InfluxDB Line Protocol</span>. Wer mehr braucht, ändert <span class="ui">Topic</span> und <span class="ui">Nachricht</span> selbst;
+<span class="ui">Platzhalter</span> listet die Platzhalter.</li>
+<li><span class="ui">Vorschau mit den aktuellen Werten</span> zeigt genau, was gesendet würde.
+<figure><img src="img/device-mqtt.png" alt="MQTT-Einstellungen mit Vorschau" loading="lazy"><figcaption>MQTT-Einstellungen mit Vorschau</figcaption></figure></li>
+<li>Optional: <span class="ui">Gerätestatus senden</span> sendet zusätzlich Speicher, Firmware, WLAN und Diagnose des
+gPlug auf eigenem Topic; <span class="ui">Verfügbarkeits-Topic</span> meldet <code>online</code> und <code>offline</code>.</li>
+<li>Tippen Sie auf <span class="ui">Speichern</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Nach <span class="ui">Gespeichert</span> zeigt der Kartentitel <span class="ui">verbunden</span>, und auf dem Broker kommen
+Nachrichten an.</li>
+<li>Ein Fehler in einer Vorlage erscheint unter dem Feld mit Stelle und Grund, zum Beispiel
+„<span class="ui">Topic, Zeichen 12: unbekannter Platzhalter oder Register</span>“, und <span class="ui">Speichern</span> bleibt
+gesperrt, bis er behoben ist.</li>
+<li>Kann der gPlug den Broker nicht erreichen, zeigt der Kartentitel den Grund, etwa <span class="ui">Broker nicht erreichbar</span>
+oder <span class="ui">Anmeldung abgelehnt</span>.</li>
+<li>Passt eine Vorlage nach einem Wechsel des Zählerprofils nicht mehr, zeigt der Titel
+<span class="ui">pausiert</span>, bis Sie die Vorlage anpassen.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Home Assistant braucht MQTT nicht; es verbindet sich direkt mit dem gPlug.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-firmware"><h2><a href="#device-firmware">Die Firmware aktualisieren</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich eine neue Firmware installieren, ohne ein Kabel anzuschliessen,
+damit mein Gerät Fehlerbehebungen und neue Funktionen bekommt.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Öffnen Sie im Tab <span class="ui">Gerät</span> die Karte <span class="ui">Firmware und Neustart</span>. Sie zeigt die installierte Version.</li>
+<li>Tippen Sie auf <span class="ui">Nach Updates suchen</span>. Gibt es eine neuere Version, erscheint zum Beispiel
+<span class="ui">Update verfügbar: 0.6.0 → 0.7.0</span> mit dem Link <span class="ui">Was ist neu</span>.
+<figure><img src="img/device-fw.png" alt="Ein Update ist verfügbar" loading="lazy"><figcaption>Ein Update ist verfügbar</figcaption></figure></li>
+<li>Tippen Sie auf <span class="ui">0.7.0 installieren</span> und bestätigen Sie mit <span class="ui">Jetzt installieren</span>.
+<figure><img src="img/device-fw-confirm.png" alt="Installation bestätigen" loading="lazy"><figcaption>Installation bestätigen</figcaption></figure></li>
+<li>Der gPlug lädt die Firmware selbst herunter und startet neu. Lassen Sie ihn am Strom.
+<figure><img src="img/device-fw-done.png" alt="Firmware aktualisiert" loading="lazy"><figcaption>Firmware aktualisiert</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Die Karte zeigt <span class="ui">Firmware aktualisiert</span> und die neue Version.</li>
+<li>Einstellungen und Verlauf sind erhalten; nur die laufende Viertelstunde geht verloren.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Der gPlug fragt nie von selbst nach Updates, nur wenn Sie <span class="ui">Nach Updates suchen</span> tippen.</li>
+<li>Eine Firmware-Datei vom Computer installieren Sie mit <span class="ui">Firmware-Datei wählen</span> und <span class="ui">Installieren</span>. Nehmen
+Sie die Datei im OTA-Format (<code>.ota.bin</code>).</li>
+<li>Ist ein OTA-Passwort gesetzt, fragt die Karte nach dem <span class="ui">OTA-Passwort</span>.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026. Auf echter Hardware geprüft: gPlugK 2026-09-25.</p></article><article id="device-restart"><h2><a href="#device-restart">Den gPlug neu starten</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich ihn aus der App neu starten, ohne den Stecker zu ziehen.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Öffnen Sie im Tab <span class="ui">Gerät</span> die Karte <span class="ui">Firmware und Neustart</span>.</li>
+<li>Tippen Sie auf <span class="ui">Gerät neu starten</span> und bestätigen Sie mit <span class="ui">Wirklich neu starten?</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Nach wenigen Sekunden meldet die Karte <span class="ui">Gerät läuft wieder</span>; die <span class="ui">Laufzeit</span> beginnt von vorn.</li>
+<li>Das Ereignisprotokoll verzeichnet den Neustart.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li><span class="ui">Live-Daten fallen kurz aus, die Minutenwerte der letzten Stunde und der 24-h-Speicherverlauf beginnen neu.</span></li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-log-memory"><h2><a href="#device-log-memory">Ereignisprotokoll und Speicher ansehen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich sehen, was auf dem Gerät passiert ist – etwa warum es neu
+gestartet hat –, damit ich ein Problem melden oder selbst einordnen kann.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Öffnen Sie im Tab <span class="ui">Gerät</span> die Karte <span class="ui">Ereignisprotokoll</span>. Sie listet die letzten Ereignisse mit
+Zeit, zum Beispiel <span class="ui">Neustart</span>, <span class="ui">WLAN getrennt</span> oder <span class="ui">Keine Zählerdaten</span>.
+<figure><img src="img/device-log.png" alt="Ereignisprotokoll" loading="lazy"><figcaption>Ereignisprotokoll</figcaption></figure></li>
+<li>Mit <span class="ui">Protokoll kopieren</span> oder <span class="ui">Als Datei speichern</span> geben Sie das Protokoll weiter.</li>
+<li>Die Karte <span class="ui">Arbeitsspeicher</span> zeigt <span class="ui">Frei</span>, <span class="ui">Minimum seit Start</span> und <span class="ui">Grösster Block</span> sowie den
+Verlauf der letzten 24 Stunden.
+<figure><img src="img/device-mem.png" alt="Arbeitsspeicher" loading="lazy"><figcaption>Arbeitsspeicher</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Das Protokoll bleibt über Neustarts erhalten und nennt bei einem Neustart den Grund.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li><span class="ui">Fällt die Linie über Tage stetig, verliert die Firmware Speicher. Ein Neustart setzt den Verlauf zurück.</span></li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-language-theme"><h2><a href="#device-language-theme">Sprache und Darstellung ändern</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Benutzer der App möchte ich Sprache und helle oder dunkle Darstellung wählen, damit ich die App
+bequem lesen kann.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Öffnen Sie im Tab <span class="ui">Gerät</span> die Karte <span class="ui">Sprache</span> und tippen Sie auf Deutsch, Français,
+Italiano oder English.
+<figure><img src="img/device-lang.png" alt="Sprache wählen" loading="lazy"><figcaption>Sprache wählen</figcaption></figure></li>
+<li>Öffnen Sie die Karte <span class="ui">Darstellung</span> und wählen Sie <span class="ui">Hell</span> oder <span class="ui">Dunkel</span>.
+<figure><img src="img/device-theme.png" alt="Darstellung wählen" loading="lazy"><figcaption>Darstellung wählen</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Die App wechselt sofort, ohne neu zu laden.</li>
+<li>Die Wahl gilt für diesen Browser; ein anderes Telefon behält seine eigene.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-rerun-setup"><h2><a href="#device-rerun-setup">Den Einrichtungsassistenten erneut öffnen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich Modell oder Zählerprofil später ändern, zum Beispiel nach einem
+Zählerwechsel, ohne alles neu einzurichten.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Hängen Sie an die Adresse des gPlug einen der folgenden Teile an und öffnen Sie sie:<ul>
+<li><code>#setup</code> – der ganze Assistent ab <span class="ui">Willkommen</span></li>
+<li><code>#setup/hardware</code> – direkt zum Schritt <span class="ui">Gerät</span></li>
+<li><code>#setup/meter</code> – direkt zum Schritt <span class="ui">Smart Meter</span></li>
+<li><code>#setup/key</code> – zum Schritt <span class="ui">Smart Meter</span>, mit leerem Schlüsselfeld</li>
+</ul>
+</li>
+<li>Ändern Sie, was nötig ist, und gehen Sie mit <span class="ui">Weiter</span> bis <span class="ui">Abschluss</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Die Einrichtungsprüfung zeigt <span class="ui">Daten empfangen</span>; der Verlauf bleibt erhalten.</li>
+</ul>
+</section><section class="notes"><h3>Hinweise</h3><ul>
+<li>Die Knöpfe der Karte <span class="ui">Einrichtung prüfen</span> führen genau zu diesen Adressen.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026.</p></article><article id="device-reset-wifi"><h2><a href="#device-reset-wifi">Den gPlug in den Einrichtungsmodus zurücksetzen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug, der sein WLAN nicht mehr erreicht (neuer Router, geändertes Passwort),
+möchte ich ihn wieder in den Einrichtungsmodus bringen, damit ich ihn neu verbinden kann.</p>
+</section><section class="steps"><h3>So geht's</h3><ol>
+<li>Halten Sie die Taste am gPlug mindestens 3 Sekunden gedrückt.</li>
+<li>Der gPlug vergisst seine WLAN-Zugangsdaten, startet neu und öffnet wieder das Netz
+<code>gPlug-Setup</code>; die Leuchte blinkt blau.</li>
+<li>Verbinden Sie ihn wie bei der Ersteinrichtung und tippen Sie auf <span class="ui">Speichern</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
+<li>Der gPlug ist im neuen WLAN erreichbar.</li>
+<li>Modell, Zählerprofil, Schlüssel und Verlauf sind erhalten; der Assistent muss nicht erneut
+durchlaufen werden.</li>
+</ul>
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026. Auf echter Hardware geprüft: gPlugK 2026-09-10.</p></article><nav class="pn"><a href="daily.html">← Im Alltag</a><a href="trouble.html">Wenn etwas nicht stimmt →</a></nav></main>
+</div>
+</body>
+</html>

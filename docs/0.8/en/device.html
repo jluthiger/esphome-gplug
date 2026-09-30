@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en" data-page="device.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Device settings · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>User manual</span></a>
+  <nav class="switch" aria-label="Language"><a lang="de" hreflang="de" class="lang" href="../de/device.html">Deutsch</a><b lang="en">English</b><a lang="fr" hreflang="fr" class="lang" href="../fr/device.html">Français</a><a lang="it" hreflang="it" class="lang" href="../it/device.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><details><summary>Contents</summary><ol><li><a href="setup.html">First setup</a><ol><li><a href="setup.html#setup-wifi">Connect the gPlug to your Wi-Fi</a></li><li><a href="setup.html#setup-device">Start the assistant and choose the device</a></li><li><a href="setup.html#setup-meter">Confirm the meter profile and enter the key</a></li><li><a href="setup.html#setup-check">Understand the setup check</a></li><li><a href="setup.html#setup-port-closed">Continue although the customer interface is not enabled yet</a></li></ol></li><li><a href="daily.html">Everyday use</a><ol><li><a href="daily.html#daily-live">Read the current power and the meter readings</a></li><li><a href="daily.html#daily-history">View energy per day, week, month and year</a></li><li><a href="daily.html#daily-csv">Export the load profile as CSV</a></li><li><a href="daily.html#daily-stream">View, copy and save the received raw data</a></li></ol></li><li class="cur"><a href="device.html">Device settings</a><ol><li><a href="device.html#device-connection">Look up the gPlug's address and connection</a></li><li><a href="device.html#device-wifi">Change the Wi-Fi</a></li><li><a href="device.html#device-key">Check or replace the stored key</a></li><li><a href="device.html#device-mqtt">Send meter values over MQTT</a></li><li><a href="device.html#device-firmware">Update the firmware</a></li><li><a href="device.html#device-restart">Restart the gPlug</a></li><li><a href="device.html#device-log-memory">View the event log and memory</a></li><li><a href="device.html#device-language-theme">Change the language and appearance</a></li><li><a href="device.html#device-rerun-setup">Open the setup assistant again</a></li><li><a href="device.html#device-reset-wifi">Put the gPlug back into setup mode</a></li></ol></li><li><a href="trouble.html">When something is wrong</a><ol><li><a href="trouble.html#trouble-waiting">“Waiting for the first data” does not go away</a></li><li><a href="trouble.html#trouble-silent">“No signals from the meter”</a></li><li><a href="trouble.html#trouble-garbled">“Data unreadable”</a></li><li><a href="trouble.html#trouble-protocol">“Profile does not match the meter”</a></li><li><a href="trouble.html#trouble-no-match">“No matching values”</a></li><li><a href="trouble.html#trouble-key">“Key does not fit”</a></li></ol></li></ol></details></nav>
+<main><h1>Device settings</h1><article id="device-connection"><h2><a href="#device-connection">Look up the gPlug's address and connection</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to look up the address it is reachable at and how good its Wi-Fi
+reception is, so that I can find it again and choose a good spot for it.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Tap <span class="ui">Device</span> at the bottom. The <span class="ui">Connection</span> card is open.</li>
+<li>It shows the <span class="ui">Host</span> (the address ending in <code>.local</code>), the <span class="ui">IP</span>, the <span class="ui">Wi-Fi</span> with its
+signal strength and the selected <span class="ui">Profile</span>.
+<figure><img src="img/device.png" alt="Device tab with connection and key" loading="lazy"><figcaption>Device tab with connection and key</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The address shown also opens the app on another device in the same Wi-Fi.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>The signal strength is given in dBm: −50 is very good, below −80 the connection becomes unreliable.</li>
+<li>Every card on the <span class="ui">Device</span> tab opens and closes with a tap on its title; the browser
+remembers your choice.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-wifi"><h2><a href="#device-wifi">Change the Wi-Fi</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to move it to another Wi-Fi network, for example after changing my
+router, without setting it up again.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Tap <span class="ui">Device</span> and, on the <span class="ui">Connection</span> card, <span class="ui">Change Wi-Fi</span>.</li>
+<li>You see the current connection. Tap <span class="ui">Change Wi-Fi</span> again; the gPlug searches for networks in
+range.
+<figure><img src="img/device-wifi-scan.png" alt="Networks found" loading="lazy"><figcaption>Networks found</figcaption></figure></li>
+<li>Tap the new network, enter the <span class="ui">Password</span> and tap <span class="ui">Connect</span>. If the network is hidden,
+choose <span class="ui">Enter network manually</span>.</li>
+<li>After <span class="ui">Connecting…</span>, <span class="ui">Connected</span> appears with network, IP and signal.
+<figure><img src="img/device-wifi-ok.png" alt="Connected to the new network" loading="lazy"><figcaption>Connected to the new network</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li><span class="ui">Connected</span> shows the new network.</li>
+<li>With a wrong password, <span class="ui">Connection failed. Check the password.</span> appears and the gPlug stays reachable.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>If the new network is not the one your phone is on, connect the phone to it afterwards and open the
+address again.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-key"><h2><a href="#device-key">Check or replace the stored key</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug with an encrypted meter I want to check whether the stored key matches the one
+in my grid operator&#39;s letter, and replace it if needed, without ever seeing it in plain text.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>On the <span class="ui">Device</span> tab the <span class="ui">Key (GUEK)</span> card shows whether the key is <span class="ui">valid</span> or
+<span class="ui">invalid</span>.
+<figure><img src="img/device-key.png" alt="Key card" loading="lazy"><figcaption>Key card</figcaption></figure></li>
+<li>To compare, open <code>#setup/meter</code> (the gPlug&#39;s address with <code>#setup/meter</code> appended).
+<span class="ui">Use the stored key</span> is switched on and shows an ID of the stored key.</li>
+<li>Open <span class="ui">Compare with the grid operator's letter</span>, enter the key from the letter and tap <span class="ui">Check</span>.
+<figure><img src="img/wizard-meter-keep.png" alt="Comparing the stored key with the letter" loading="lazy"><figcaption>Comparing the stored key with the letter</figcaption></figure></li>
+<li>To replace the key, switch <span class="ui">Use the stored key</span> off, enter the new one under <span class="ui">Key (GUEK)</span> and tap
+<span class="ui">Next</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The comparison shows <span class="ui">Matches the stored key.</span> or <span class="ui">Does not match. Turn the switch off and enter the key from the letter.</span>.</li>
+<li>After replacing it, the setup check shows <span class="ui">Data received</span>.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li><span class="ui">Stored on the device only. Never shown in plain text or exported.</span></li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-25.</p></article><article id="device-mqtt"><h2><a href="#device-mqtt">Send meter values over MQTT</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug with a home automation system of my own (Node-RED, ioBroker, InfluxDB) I want
+to send the meter values to my MQTT broker, in the format my system expects.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>On the <span class="ui">Device</span> tab, open the <span class="ui">MQTT</span> card and switch <span class="ui">Enable MQTT</span> on.</li>
+<li>Enter the <span class="ui">Broker (name or IP)</span> and <span class="ui">Port</span>, if needed <span class="ui">User (optional)</span> and <span class="ui">Password (optional)</span>,
+and the <span class="ui">Interval (seconds)</span>.</li>
+<li>Choose a <span class="ui">Template</span>: <span class="ui">JSON, one message</span>, <span class="ui">One topic per value</span> or
+<span class="ui">InfluxDB line protocol</span>. If you need more, edit <span class="ui">Topic</span> and <span class="ui">Message</span> yourself;
+<span class="ui">Placeholders</span> lists the placeholders.</li>
+<li><span class="ui">Preview with the current values</span> shows exactly what would be sent.
+<figure><img src="img/device-mqtt.png" alt="MQTT settings with preview" loading="lazy"><figcaption>MQTT settings with preview</figcaption></figure></li>
+<li>Optional: <span class="ui">Send device status</span> also sends the gPlug&#39;s memory, firmware, Wi-Fi and diagnosis on
+a topic of its own; the <span class="ui">Availability topic</span> reports <code>online</code> and <code>offline</code>.</li>
+<li>Tap <span class="ui">Save</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>After <span class="ui">Saved</span> the card title shows <span class="ui">connected</span>, and messages arrive on the broker.</li>
+<li>A mistake in a template appears below the field with its position and reason, for example
+“<span class="ui">Topic, character 12: unknown placeholder or register</span>”, and <span class="ui">Save</span> stays disabled
+until it is fixed.</li>
+<li>If the gPlug cannot reach the broker, the card title shows the reason, such as <span class="ui">Broker unreachable</span>
+or <span class="ui">Login refused</span>.</li>
+<li>If a template no longer fits after a change of meter profile, the title shows <span class="ui">paused</span>
+until you adapt the template.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>Home Assistant does not need MQTT; it connects to the gPlug directly.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-firmware"><h2><a href="#device-firmware">Update the firmware</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to install new firmware without connecting a cable, so that my device
+gets bug fixes and new features.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>On the <span class="ui">Device</span> tab, open the <span class="ui">Firmware and restart</span> card. It shows the installed version.</li>
+<li>Tap <span class="ui">Check for updates</span>. If there is a newer version, a line such as
+<span class="ui">Update available: 0.6.0 → 0.7.0</span> appears with the link <span class="ui">What's new</span>.
+<figure><img src="img/device-fw.png" alt="An update is available" loading="lazy"><figcaption>An update is available</figcaption></figure></li>
+<li>Tap <span class="ui">Install 0.7.0</span> and confirm with <span class="ui">Install now</span>.
+<figure><img src="img/device-fw-confirm.png" alt="Confirming the installation" loading="lazy"><figcaption>Confirming the installation</figcaption></figure></li>
+<li>The gPlug downloads the firmware itself and restarts. Keep it powered.
+<figure><img src="img/device-fw-done.png" alt="Firmware updated" loading="lazy"><figcaption>Firmware updated</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The card shows <span class="ui">Firmware updated</span> and the new version.</li>
+<li>Settings and history are kept; only the quarter hour in progress is lost.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>The gPlug never checks for updates on its own, only when you tap <span class="ui">Check for updates</span>.</li>
+<li>To install a firmware file from your computer, use <span class="ui">Choose firmware file</span> and <span class="ui">Install</span>. Take the file
+in OTA format (<code>.ota.bin</code>).</li>
+<li>If an OTA password is set, the card asks for the <span class="ui">OTA password</span>.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-25.</p></article><article id="device-restart"><h2><a href="#device-restart">Restart the gPlug</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to restart it from the app without pulling the plug.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>On the <span class="ui">Device</span> tab, open the <span class="ui">Firmware and restart</span> card.</li>
+<li>Tap <span class="ui">Restart device</span> and confirm with <span class="ui">Really restart?</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>After a few seconds the card reports <span class="ui">Device is back</span>; the <span class="ui">Uptime</span> starts again from zero.</li>
+<li>The event log records the restart.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li><span class="ui">Live data pauses briefly, and the last hour's per-minute values and the 24 h memory trend start over.</span></li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-log-memory"><h2><a href="#device-log-memory">View the event log and memory</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to see what happened on the device – such as why it restarted – so that
+I can report a problem or make sense of it myself.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>On the <span class="ui">Device</span> tab, open the <span class="ui">Event log</span> card. It lists the last events with their
+time, for example <span class="ui">Restart</span>, <span class="ui">Wi-Fi lost</span> or <span class="ui">No meter data</span>.
+<figure><img src="img/device-log.png" alt="Event log" loading="lazy"><figcaption>Event log</figcaption></figure></li>
+<li><span class="ui">Copy log</span> or <span class="ui">Save as file</span> lets you pass the log on.</li>
+<li>The <span class="ui">Memory</span> card shows <span class="ui">Free</span>, <span class="ui">Minimum since start</span> and <span class="ui">Largest block</span>, and the trend of
+the last 24 hours.
+<figure><img src="img/device-mem.png" alt="Memory" loading="lazy"><figcaption>Memory</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The log is kept across restarts and gives the reason for each restart.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li><span class="ui">A line that keeps falling over days means the firmware is leaking memory. A restart clears the trend.</span></li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-language-theme"><h2><a href="#device-language-theme">Change the language and appearance</a></h2><section class="story"><h3>What it is about</h3><p>As a user of the app I want to choose the language and a light or dark appearance, so that the app is
+comfortable to read.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>On the <span class="ui">Device</span> tab, open the <span class="ui">Language</span> card and tap Deutsch, Français, Italiano or
+English.
+<figure><img src="img/device-lang.png" alt="Choosing the language" loading="lazy"><figcaption>Choosing the language</figcaption></figure></li>
+<li>Open the <span class="ui">Appearance</span> card and choose <span class="ui">Light</span> or <span class="ui">Dark</span>.
+<figure><img src="img/device-theme.png" alt="Choosing the appearance" loading="lazy"><figcaption>Choosing the appearance</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The app switches at once, without reloading.</li>
+<li>The choice applies to this browser; another phone keeps its own.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-rerun-setup"><h2><a href="#device-rerun-setup">Open the setup assistant again</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to change the model or meter profile later, for example after the meter
+has been replaced, without setting everything up again.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Append one of the following to the gPlug&#39;s address and open it:<ul>
+<li><code>#setup</code> – the whole assistant from <span class="ui">Welcome</span></li>
+<li><code>#setup/hardware</code> – straight to the <span class="ui">Device</span> step</li>
+<li><code>#setup/meter</code> – straight to the <span class="ui">Smart meter</span> step</li>
+<li><code>#setup/key</code> – to the <span class="ui">Smart meter</span> step, with an empty key field</li>
+</ul>
+</li>
+<li>Change what is needed and continue with <span class="ui">Next</span> up to <span class="ui">Done</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The setup check shows <span class="ui">Data received</span>; the history is kept.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>The buttons on the <span class="ui">Check the setup</span> card lead to exactly these addresses.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="device-reset-wifi"><h2><a href="#device-reset-wifi">Put the gPlug back into setup mode</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug that can no longer reach its Wi-Fi (new router, changed password), I want to
+put it back into setup mode so that I can connect it again.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Hold the button on the gPlug for at least 3 seconds.</li>
+<li>The gPlug forgets its Wi-Fi credentials, restarts and opens the <code>gPlug-Setup</code> network again; the
+light blinks blue.</li>
+<li>Connect it as in the first setup and tap <span class="ui">Save</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The gPlug is reachable in the new Wi-Fi.</li>
+<li>Model, meter profile, key and history are kept; the assistant does not have to be run again.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-10.</p></article><nav class="pn"><a href="daily.html">← Everyday use</a><a href="trouble.html">When something is wrong →</a></nav></main>
+</div>
+</body>
+</html>

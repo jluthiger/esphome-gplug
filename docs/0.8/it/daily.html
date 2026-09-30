@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="it" data-page="daily.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Nell'uso quotidiano · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>Manuale d'uso</span></a>
+  <nav class="switch" aria-label="Lingua"><a lang="de" hreflang="de" class="lang" href="../de/daily.html">Deutsch</a><a lang="en" hreflang="en" class="lang" href="../en/daily.html">English</a><a lang="fr" hreflang="fr" class="lang" href="../fr/daily.html">Français</a><b lang="it">Italiano</b></nav>
+  <label class="ver" hidden>Versione <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Indice"><details><summary>Indice</summary><ol><li><a href="setup.html">Prima configurazione</a><ol><li><a href="setup.html#setup-wifi">Collegare il gPlug al Wi-Fi</a></li><li><a href="setup.html#setup-device">Avviare la procedura e scegliere il dispositivo</a></li><li><a href="setup.html#setup-meter">Confermare il profilo del contatore e inserire la chiave</a></li><li><a href="setup.html#setup-check">Capire la verifica della configurazione</a></li><li><a href="setup.html#setup-port-closed">Proseguire anche se l'interfaccia cliente non è ancora attivata</a></li></ol></li><li class="cur"><a href="daily.html">Nell'uso quotidiano</a><ol><li><a href="daily.html#daily-live">Leggere la potenza attuale e le letture del contatore</a></li><li><a href="daily.html#daily-history">Vedere l'energia per giorno, settimana, mese e anno</a></li><li><a href="daily.html#daily-csv">Esportare la curva di carico in CSV</a></li><li><a href="daily.html#daily-stream">Vedere, copiare e salvare i dati grezzi ricevuti</a></li></ol></li><li><a href="device.html">Impostazioni del dispositivo</a><ol><li><a href="device.html#device-connection">Consultare l'indirizzo e la connessione del gPlug</a></li><li><a href="device.html#device-wifi">Cambiare il Wi-Fi</a></li><li><a href="device.html#device-key">Verificare o sostituire la chiave salvata</a></li><li><a href="device.html#device-mqtt">Inviare i valori misurati via MQTT</a></li><li><a href="device.html#device-firmware">Aggiornare il firmware</a></li><li><a href="device.html#device-restart">Riavviare il gPlug</a></li><li><a href="device.html#device-log-memory">Consultare il registro eventi e la memoria</a></li><li><a href="device.html#device-language-theme">Cambiare lingua e aspetto</a></li><li><a href="device.html#device-rerun-setup">Riaprire la procedura di configurazione</a></li><li><a href="device.html#device-reset-wifi">Riportare il gPlug in modalità di configurazione</a></li></ol></li><li><a href="trouble.html">Quando qualcosa non va</a><ol><li><a href="trouble.html#trouble-waiting">«In attesa dei primi dati» non scompare</a></li><li><a href="trouble.html#trouble-silent">«Nessun segnale dal contatore»</a></li><li><a href="trouble.html#trouble-garbled">«Dati illeggibili»</a></li><li><a href="trouble.html#trouble-protocol">«Il profilo non corrisponde al contatore»</a></li><li><a href="trouble.html#trouble-no-match">«Nessun valore corrispondente»</a></li><li><a href="trouble.html#trouble-key">«La chiave non è corretta»</a></li></ol></li></ol></details></nav>
+<main><h1>Nell'uso quotidiano</h1><article id="daily-live"><h2><a href="#daily-live">Leggere la potenza attuale e le letture del contatore</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio vedere a colpo d&#39;occhio quanta corrente sto prelevando o
+immettendo in questo momento, per capire il mio consumo.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Aprite l&#39;indirizzo del gPlug. L&#39;app si avvia nella scheda <span class="ui">In diretta</span>.</li>
+<li>In alto c&#39;è la <span class="ui">Potenza attiva 1.7.0 / 2.7.0</span> in kW con la direzione: <span class="ui">Prelievo dalla rete</span> o <span class="ui">Immissione in rete</span>.</li>
+<li>Il grafico sottostante mostra l&#39;ultima ora (<span class="ui">−60 min</span> fino a <span class="ui">ora</span>). Toccate o passate
+sopra il grafico per leggere un momento preciso.</li>
+<li>Le schede <span class="ui">Prelievo 1.8.0</span> e <span class="ui">Immissione 2.8.0</span> mostrano le letture in kWh, come le indica il
+contatore.</li>
+<li>Con i profili trifase, <span class="ui">Fasi · 21/41/61.7.0</span> mostra potenza, tensione e corrente per fase.
+<figure><img src="img/live.png" alt="Vista in tempo reale con potenza, letture e fasi" loading="lazy"><figcaption>Vista in tempo reale con potenza, letture e fasi</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>In alto a destra c&#39;è <span class="ui">Dati aggiornati</span>; i valori si aggiornano ogni pochi secondi.</li>
+<li>Le letture corrispondono al display del contatore.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>Dopo un riavvio del gPlug, la parte del grafico precedente al riavvio proviene dalla memoria del
+dispositivo (una media ogni 15 minuti).</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026. Verificato su hardware reale: gPlugK 2026-09-14.</p></article><article id="daily-history"><h2><a href="#daily-history">Vedere l'energia per giorno, settimana, mese e anno</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio vedere quanta energia ho prelevato e immesso in un giorno, una
+settimana, un mese o un anno, per confrontare i periodi.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Toccate <span class="ui">Storico</span> in basso.</li>
+<li>Scegliete il periodo in alto: <span class="ui">Giorno</span>, <span class="ui">Settimana</span>, <span class="ui">Mese</span> o
+<span class="ui">Anno</span>.</li>
+<li>Il grafico <span class="ui">Energia per intervallo</span> mostra il prelievo verso l&#39;alto e l&#39;immissione verso il basso.
+Sotto ci sono i totali <span class="ui">Prelievo</span>, <span class="ui">Immissione</span> e <span class="ui">Totale</span>.
+<figure><img src="img/history.png" alt="Storico di un giorno con i totali" loading="lazy"><figcaption>Storico di un giorno con i totali</figcaption></figure></li>
+<li>Toccate <span class="ui">Registri (attuali)</span> per vedere tutti i valori attuali del contatore con il loro codice OBIS.
+<figure><img src="img/history-regs.png" alt="Elenco dei registri attuali" loading="lazy"><figcaption>Elenco dei registri attuali</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Ogni periodo mostra un grafico e i tre totali.</li>
+<li><span class="ui">Totale</span> è il prelievo meno l&#39;immissione.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li>Il gPlug salva un valore ogni 15 minuti. Ne conserva circa un anno, anche dopo un riavvio o un
+aggiornamento del firmware.</li>
+<li><span class="ui">Marca temporale stimata (registrata prima della sincronizzazione dell'orologio).</span> appare quando dei valori sono stati registrati prima che il gPlug ricevesse
+l&#39;ora da internet.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="daily-csv"><h2><a href="#daily-csv">Esportare la curva di carico in CSV</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio scaricare i valori quartorari salvati come file, per verificare
+la bolletta elettrica o fare il conteggio in un raggruppamento ai fini del consumo proprio.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Toccate <span class="ui">Storico</span> e aprite la scheda <span class="ui">Esportare la curva di carico</span>. Anche chiusa, la sua riga mostra il
+periodo salvato.</li>
+<li>Scegliete <span class="ui">Dal</span> e <span class="ui">Al</span>.</li>
+<li>Toccate <span class="ui">Scaricare il CSV</span>.
+<figure><img src="img/history-csv.png" alt="Esportare la curva di carico" loading="lazy"><figcaption>Esportare la curva di carico</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Il browser salva un file CSV con letture, energia e potenza per quarto d&#39;ora, separati da punto e
+virgola.</li>
+<li>Se <span class="ui">Dal</span> è dopo <span class="ui">Al</span>, appare <span class="ui">«Dal» dev'essere precedente ad «Al».</span> e non viene scaricato nulla.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li><span class="ui">Esportare tutto, anche gli intervalli senza marca temporale</span> include anche gli intervalli senza marca temporale.</li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><article id="daily-stream"><h2><a href="#daily-stream">Vedere, copiare e salvare i dati grezzi ricevuti</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug interessato alla tecnica voglio vedere i dati che il contatore invia
+davvero, per mostrare cosa arriva in caso di problemi.</p>
+</section><section class="steps"><h3>Come fare</h3><ol>
+<li>Toccate <span class="ui">Dati</span> in basso. Vedete gli ultimi frame con l&#39;ora e <span class="ui">CRC OK</span> o
+<span class="ui">CRC FAIL</span>.</li>
+<li>Scegliete la vista in alto: per i contatori cifrati <span class="ui">Grezzo · cifrato</span> o <span class="ui">Decifrato</span>, per i
+contatori DSMR <span class="ui">Hex</span> o <span class="ui">Testo in chiaro</span>.</li>
+<li>L&#39;interruttore <span class="ui">Registrazione in diretta attiva</span> ferma la visualizzazione per leggere con calma; il gPlug continua a
+registrare.</li>
+<li>Toccate un frame per aprirlo; offre <span class="ui">Copiare</span> e <span class="ui">Frame come .txt</span>.</li>
+<li>Selezionate dei frame o toccate <span class="ui">Selezionare tutto</span> e scaricateli nella scheda
+<span class="ui">Esportare la selezione</span>.
+<figure><img src="img/stream.png" alt="Flusso di dati con gli ultimi frame" loading="lazy"><figcaption>Flusso di dati con gli ultimi frame</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
+<li>Un frame copiato o salvato contiene i byte come testo esadecimale con marca temporale e CRC.</li>
+</ul>
+</section><section class="notes"><h3>Note</h3><ul>
+<li><span class="ui">La chiave non viene mai esportata.</span></li>
+</ul>
+</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026.</p></article><nav class="pn"><a href="setup.html">← Prima configurazione</a><a href="device.html">Impostazioni del dispositivo →</a></nav></main>
+</div>
+</body>
+</html>

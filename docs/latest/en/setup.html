@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-page="setup.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>First setup · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>User manual</span></a>
+  <nav class="switch" aria-label="Language"><a lang="de" hreflang="de" class="lang" href="../de/setup.html">Deutsch</a><b lang="en">English</b><a lang="fr" hreflang="fr" class="lang" href="../fr/setup.html">Français</a><a lang="it" hreflang="it" class="lang" href="../it/setup.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Contents"><details><summary>Contents</summary><ol><li class="cur"><a href="setup.html">First setup</a><ol><li><a href="setup.html#setup-wifi">Connect the gPlug to your Wi-Fi</a></li><li><a href="setup.html#setup-device">Start the assistant and choose the device</a></li><li><a href="setup.html#setup-meter">Confirm the meter profile and enter the key</a></li><li><a href="setup.html#setup-check">Understand the setup check</a></li><li><a href="setup.html#setup-port-closed">Continue although the customer interface is not enabled yet</a></li></ol></li><li><a href="daily.html">Everyday use</a><ol><li><a href="daily.html#daily-live">Read the current power and the meter readings</a></li><li><a href="daily.html#daily-history">View energy per day, week, month and year</a></li><li><a href="daily.html#daily-csv">Export the load profile as CSV</a></li><li><a href="daily.html#daily-stream">View, copy and save the received raw data</a></li></ol></li><li><a href="device.html">Device settings</a><ol><li><a href="device.html#device-connection">Look up the gPlug's address and connection</a></li><li><a href="device.html#device-wifi">Change the Wi-Fi</a></li><li><a href="device.html#device-key">Check or replace the stored key</a></li><li><a href="device.html#device-mqtt">Send meter values over MQTT</a></li><li><a href="device.html#device-firmware">Update the firmware</a></li><li><a href="device.html#device-restart">Restart the gPlug</a></li><li><a href="device.html#device-log-memory">View the event log and memory</a></li><li><a href="device.html#device-language-theme">Change the language and appearance</a></li><li><a href="device.html#device-rerun-setup">Open the setup assistant again</a></li><li><a href="device.html#device-reset-wifi">Put the gPlug back into setup mode</a></li></ol></li><li><a href="trouble.html">When something is wrong</a><ol><li><a href="trouble.html#trouble-waiting">“Waiting for the first data” does not go away</a></li><li><a href="trouble.html#trouble-silent">“No signals from the meter”</a></li><li><a href="trouble.html#trouble-garbled">“Data unreadable”</a></li><li><a href="trouble.html#trouble-protocol">“Profile does not match the meter”</a></li><li><a href="trouble.html#trouble-no-match">“No matching values”</a></li><li><a href="trouble.html#trouble-key">“Key does not fit”</a></li></ol></li></ol></details></nav>
+<main><h1>First setup</h1><article id="setup-wifi"><h2><a href="#setup-wifi">Connect the gPlug to your Wi-Fi</a></h2><section class="story"><h3>What it is about</h3><p>As the new owner of a gPlug I want to connect it to my home Wi-Fi so that I can open its app in a
+browser.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Plug the gPlug into the meter&#39;s customer interface. As long as it knows no Wi-Fi, it opens a
+network of its own called <code>gPlug-Setup</code>.</li>
+<li>Connect your phone to <code>gPlug-Setup</code>. The phone opens the setup page by itself; if it does not,
+open <code>http://192.168.4.1/</code> in the browser.</li>
+<li>Tap your home network in the list and enter its password under <span class="ui">Wi-Fi settings</span>.
+<figure><img src="img/captive.png" alt="Setup page with the networks found" loading="lazy"><figcaption>Setup page with the networks found</figcaption></figure></li>
+<li>Note the address under <span class="ui">Afterwards reachable on your home Wi-Fi at</span> – or tap <span class="ui">Copy</span>. It looks like
+<code>http://gplug-xxxxxx.local/</code>.</li>
+<li>Tap <span class="ui">Save</span>. Take a screenshot now: the page closes as soon as the phone switches back to your
+home Wi-Fi.
+<figure><img src="img/captive-saved.png" alt="After saving: the gPlug's address from now on" loading="lazy"><figcaption>After saving: the gPlug's address from now on</figcaption></figure></li>
+<li>Connect the phone to your home Wi-Fi again and open the address you noted.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The address you noted shows the gPlug&#39;s setup assistant.</li>
+<li>The <code>gPlug-Setup</code> network disappears shortly afterwards.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>The setup page follows the phone&#39;s language.</li>
+<li>If the address does not open, look for the gPlug in your router&#39;s device list under its name
+<code>gplug-xxxxxx</code> and open its IP address.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-16 (Android).</p></article><article id="setup-device"><h2><a href="#setup-device">Start the assistant and choose the device</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a freshly connected gPlug I want to tell it which model I have so that it talks to
+my meter&#39;s customer interface correctly.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>Open the gPlug&#39;s address. The first time, the assistant opens with <span class="ui">Welcome</span>. It shows the
+firmware version and the device&#39;s name. Tap <span class="ui">Next</span>.
+<figure><img src="img/wizard-welcome.png" alt="The assistant's welcome page" loading="lazy"><figcaption>The assistant's welcome page</figcaption></figure></li>
+<li>Under <span class="ui">Device</span>, choose your model, for example gPlugK. The model name is printed on the
+case.
+<figure><img src="img/wizard-hardware.png" alt="Choosing the model" loading="lazy"><figcaption>Choosing the model</figcaption></figure></li>
+<li>You only need <span class="ui">Pin assignment (change only if needed)</span> if you have modified the gPlug yourself. Otherwise leave the proposed
+values as they are.</li>
+<li>Tap <span class="ui">Next</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The assistant moves on to the <span class="ui">Smart meter</span> step.</li>
+<li>The chosen model is saved, even if you leave the assistant now.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="setup-meter"><h2><a href="#setup-meter">Confirm the meter profile and enter the key</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to choose the matching meter profile and store my grid operator&#39;s key
+so that the gPlug can read my meter&#39;s values.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>In the <span class="ui">Smart meter</span> step the gPlug first listens to what your meter sends. After a few seconds the
+<span class="ui">Detecting the meter</span> card shows <span class="ui">Meter detected</span> and the protocol it recognised.</li>
+<li>If exactly one profile fits, it is already selected. If several fit, choose your grid operator&#39;s
+profile. <span class="ui">Choose a different profile</span> shows more profiles.</li>
+<li>If the meter sends encrypted data, enter the key (GUEK) under <span class="ui">Key (GUEK)</span>: 32 characters from 0–9
+and A–F, as in your grid operator&#39;s letter.
+<figure><img src="img/wizard-meter.png" alt="Detected meter, proposed profile and key field" loading="lazy"><figcaption>Detected meter, proposed profile and key field</figcaption></figure></li>
+<li><span class="ui">Values</span> lists the values the profile reads.</li>
+<li>Tap <span class="ui">Next</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li><span class="ui">Next</span> only becomes active once a profile is chosen and the key is valid.</li>
+<li>The assistant moves on to <span class="ui">Done</span> and checks the connection to the meter there.</li>
+</ul>
+</section><section class="notes"><h3>Notes</h3><ul>
+<li>The key is stored on the gPlug only and never shown again.</li>
+<li>If there is still no signal after half a minute, check the cable. Some grid operators have to
+enable the customer interface first.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Understand the setup check</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to see at the end of the setup whether the meter is really being read,
+so that I can fix a mistake while I am still in the assistant.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>In the <span class="ui">Done</span> step the <span class="ui">Connection to the meter</span> card first shows <span class="ui">Waiting for the first data from the meter…</span>. Depending on the
+meter this takes up to a minute.
+<figure><img src="img/wizard-done-waiting.png" alt="The check waits for the first data" loading="lazy"><figcaption>The check waits for the first data</figcaption></figure></li>
+<li>When data arrives, <span class="ui">Data received</span> appears with the meter number, the current power and the number
+of values. Tap <span class="ui">Open live view</span>.
+<figure><img src="img/wizard-done-ok.png" alt="Data received" loading="lazy"><figcaption>Data received</figcaption></figure></li>
+<li>If no usable data arrives, the <span class="ui">Check the setup</span> card appears instead, with an explanation and a
+button that takes you straight back to the right step, such as <span class="ui">Change meter profile</span>. What each message
+means is explained in the chapter <em>When something is wrong</em>.</li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>After <span class="ui">Open live view</span> you see the live view with <span class="ui">Data current</span>.</li>
+<li>After a button on the <span class="ui">Check the setup</span> card you are in the matching step of the assistant; your other
+entries are kept.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><article id="setup-port-closed"><h2><a href="#setup-port-closed">Continue although the customer interface is not enabled yet</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug whose grid operator has not enabled the customer interface yet, I want to
+finish the setup anyway so that the gPlug starts reading as soon as the meter sends.</p>
+</section><section class="steps"><h3>How to do it</h3><ol>
+<li>In the <span class="ui">Done</span> step, <span class="ui">No signals from the meter</span> appears after a minute.</li>
+<li>If you are sure that the model and the cable are right, tap <span class="ui">Continue to the live view anyway</span>.
+<figure><img src="img/diag-silent.png" alt="No signals from the meter, with the way to the live view" loading="lazy"><figcaption>No signals from the meter, with the way to the live view</figcaption></figure></li>
+</ol>
+</section><section class="acceptance"><h3>How you know it worked</h3><ul>
+<li>The live view opens and shows the same <span class="ui">Check the setup</span> card until data arrives.
+<figure><img src="img/live-diag.png" alt="Live view while the meter is silent" loading="lazy"><figcaption>Live view while the meter is silent</figcaption></figure></li>
+<li>As soon as the grid operator enables the interface, the values appear without anything else to do.</li>
+</ul>
+</section><p class="verified">Checked with the device simulator on 30 September 2026.</p></article><nav class="pn"><span></span><a href="daily.html">Everyday use →</a></nav></main>
+</div>
+</body>
+</html>

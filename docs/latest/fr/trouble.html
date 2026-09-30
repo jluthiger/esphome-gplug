@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr" data-page="trouble.html">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Quand quelque chose ne va pas · gPlug</title>
+<link rel="stylesheet" href="../assets/docs.css">
+<script src="../assets/docs.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="index.html">gPlug <span>Manuel d'utilisation</span></a>
+  <nav class="switch" aria-label="Langue"><a lang="de" hreflang="de" class="lang" href="../de/trouble.html">Deutsch</a><a lang="en" hreflang="en" class="lang" href="../en/trouble.html">English</a><b lang="fr">Français</b><a lang="it" hreflang="it" class="lang" href="../it/trouble.html">Italiano</a></nav>
+  <label class="ver" hidden>Version <select></select></label>
+</header>
+<div class="wrap">
+<nav class="toc" aria-label="Sommaire"><details><summary>Sommaire</summary><ol><li><a href="setup.html">Première mise en service</a><ol><li><a href="setup.html#setup-wifi">Connecter le gPlug au Wi-Fi</a></li><li><a href="setup.html#setup-device">Lancer l'assistant et choisir l'appareil</a></li><li><a href="setup.html#setup-meter">Confirmer le profil du compteur et saisir la clé</a></li><li><a href="setup.html#setup-check">Comprendre le contrôle de la configuration</a></li><li><a href="setup.html#setup-port-closed">Continuer alors que l'interface client n'est pas encore activée</a></li></ol></li><li><a href="daily.html">Au quotidien</a><ol><li><a href="daily.html#daily-live">Lire la puissance actuelle et les index</a></li><li><a href="daily.html#daily-history">Voir l'énergie par jour, semaine, mois et année</a></li><li><a href="daily.html#daily-csv">Exporter la courbe de charge en CSV</a></li><li><a href="daily.html#daily-stream">Voir, copier et enregistrer les données brutes reçues</a></li></ol></li><li><a href="device.html">Réglages de l'appareil</a><ol><li><a href="device.html#device-connection">Consulter l'adresse et la connexion du gPlug</a></li><li><a href="device.html#device-wifi">Changer de Wi-Fi</a></li><li><a href="device.html#device-key">Vérifier ou remplacer la clé enregistrée</a></li><li><a href="device.html#device-mqtt">Envoyer les mesures par MQTT</a></li><li><a href="device.html#device-firmware">Mettre à jour le micrologiciel</a></li><li><a href="device.html#device-restart">Redémarrer le gPlug</a></li><li><a href="device.html#device-log-memory">Consulter le journal des événements et la mémoire</a></li><li><a href="device.html#device-language-theme">Changer la langue et l'apparence</a></li><li><a href="device.html#device-rerun-setup">Rouvrir l'assistant de configuration</a></li><li><a href="device.html#device-reset-wifi">Remettre le gPlug en mode configuration</a></li></ol></li><li class="cur"><a href="trouble.html">Quand quelque chose ne va pas</a><ol><li><a href="trouble.html#trouble-waiting">« En attente des premières données » ne disparaît pas</a></li><li><a href="trouble.html#trouble-silent">« Aucun signal du compteur »</a></li><li><a href="trouble.html#trouble-garbled">« Données illisibles »</a></li><li><a href="trouble.html#trouble-protocol">« Le profil ne correspond pas au compteur »</a></li><li><a href="trouble.html#trouble-no-match">« Aucune valeur correspondante »</a></li><li><a href="trouble.html#trouble-key">« La clé ne convient pas »</a></li></ol></li></ol></details></nav>
+<main><h1>Quand quelque chose ne va pas</h1><article id="trouble-waiting"><h2><a href="#trouble-waiting">« En attente des premières données » ne disparaît pas</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug, je veux savoir combien de temps le contrôle peut durer, afin de
+ne rien changer trop tôt.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>Après l&#39;enregistrement du profil de compteur, <span class="ui">Liaison avec le compteur</span> affiche <span class="ui">En attente des premières données du compteur…</span> avec un
+compteur de secondes.
+<figure><img src="img/wizard-done-waiting.png" alt="Le contrôle attend" loading="lazy"><figcaption>Le contrôle attend</figcaption></figure></li>
+<li>Attendez jusqu&#39;à une minute. Certains compteurs n&#39;envoient que toutes les 10 à 30 secondes.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Au plus tard après une minute, <span class="ui">Données reçues</span> apparaît, ou la carte <span class="ui">Vérifier la configuration</span> avec l&#39;un des
+messages de ce chapitre.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="trouble-silent"><h2><a href="#trouble-silent">« Aucun signal du compteur »</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug qui ne reçoit rien du compteur, je veux savoir quoi vérifier.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>La carte <span class="ui">Vérifier la configuration</span> affiche <span class="ui">Aucun signal du compteur</span> ; en haut à droite figure <span class="ui">Aucune donnée</span>.
+<figure><img src="img/diag-silent.png" alt="Aucun signal du compteur" loading="lazy"><figcaption>Aucun signal du compteur</figcaption></figure></li>
+<li>Vérifiez que le gPlug est bien enfiché dans l&#39;interface client et que le câble est intact.</li>
+<li>Touchez <span class="ui">Vérifier l'appareil et le raccordement</span> et vérifiez que le bon modèle est sélectionné.</li>
+<li>Si rien n&#39;arrive toujours, demandez à votre gestionnaire de réseau si l&#39;interface client est
+activée. En attendant, vous pouvez continuer avec <span class="ui">Continuer quand même vers la vue en direct</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Après la correction, le contrôle de la configuration affiche <span class="ui">Données reçues</span>.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="trouble-garbled"><h2><a href="#trouble-garbled">« Données illisibles »</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug qui reçoit des données qu&#39;il ne peut pas lire, je veux savoir quel
+réglage est faux.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>La carte <span class="ui">Vérifier la configuration</span> affiche <span class="ui">Données illisibles</span>.
+<figure><img src="img/diag-garbled.png" alt="Données illisibles" loading="lazy"><figcaption>Données illisibles</figcaption></figure></li>
+<li>Touchez <span class="ui">Changer le profil du compteur</span> et choisissez un autre profil ; le gPlug propose le protocole reconnu.</li>
+<li>Si cela n&#39;aide pas, vérifiez le modèle choisi avec <span class="ui">Vérifier l'appareil et le raccordement</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Après la correction, le contrôle de la configuration affiche <span class="ui">Données reçues</span>.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="trouble-protocol"><h2><a href="#trouble-protocol">« Le profil ne correspond pas au compteur »</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug ayant choisi un profil avec le mauvais protocole, je veux arriver
+rapidement au bon profil.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>La carte <span class="ui">Vérifier la configuration</span> affiche <span class="ui">Le profil ne correspond pas au compteur</span> ; en haut à droite figure <span class="ui">Profil incorrect</span>.
+Ce message arrive immédiatement, sans délai d&#39;attente.
+<figure><img src="img/diag-protocol.png" alt="Le profil ne correspond pas au compteur" loading="lazy"><figcaption>Le profil ne correspond pas au compteur</figcaption></figure></li>
+<li>Touchez <span class="ui">Changer le profil du compteur</span>. L&#39;étape <span class="ui">Smart Meter</span> propose le profil qui correspond au compteur
+reconnu.</li>
+<li>Confirmez-le, saisissez la clé si nécessaire et touchez <span class="ui">Suivant</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Après la correction, le contrôle de la configuration affiche <span class="ui">Données reçues</span>.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="trouble-no-match"><h2><a href="#trouble-no-match">« Aucune valeur correspondante »</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug dont le compteur envoie des données lisibles ne contenant aucune
+des valeurs attendues, je veux trouver le profil qui convient à mon compteur.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>La carte <span class="ui">Vérifier la configuration</span> affiche <span class="ui">Aucune valeur correspondante</span> ; en haut à droite figure <span class="ui">Aucune valeur</span>.
+<figure><img src="img/diag-no-match.png" alt="Aucune valeur correspondante" loading="lazy"><figcaption>Aucune valeur correspondante</figcaption></figure></li>
+<li>Touchez <span class="ui">Changer le profil du compteur</span> et choisissez le profil de votre gestionnaire de réseau. <span class="ui">Afficher tous les profils</span>
+affiche tous les profils.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Après la correction, le contrôle de la configuration affiche <span class="ui">Données reçues</span>.</li>
+</ul>
+</section><section class="notes"><h3>Remarques</h3><ul>
+<li>L&#39;onglet <span class="ui">Données</span> montre ce que le compteur envoie réellement.</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><article id="trouble-key"><h2><a href="#trouble-key">« La clé ne convient pas »</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug avec un compteur chiffré dont les données ne peuvent pas être
+déchiffrées, je veux saisir la bonne clé.</p>
+</section><section class="steps"><h3>Comment faire</h3><ol>
+<li>La carte <span class="ui">Vérifier la configuration</span> affiche <span class="ui">La clé ne correspond pas</span> ; en haut à droite figure <span class="ui">Clé non valable</span>. Dans
+l&#39;onglet <span class="ui">Appareil</span>, la carte <span class="ui">Clé (GUEK)</span> affiche <span class="ui">non valable</span>.
+<figure><img src="img/diag-key.png" alt="La clé ne convient pas" loading="lazy"><figcaption>La clé ne convient pas</figcaption></figure></li>
+<li>Touchez <span class="ui">Saisir à nouveau la clé</span>. Le champ de la clé est vide.</li>
+<li>Saisissez la clé (GUEK) de la lettre de votre gestionnaire de réseau – 32 caractères, sans
+espaces – et touchez <span class="ui">Suivant</span>.</li>
+</ol>
+</section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
+<li>Après la correction, le contrôle de la configuration affiche <span class="ui">Données reçues</span> et la carte
+<span class="ui">Clé (GUEK)</span> affiche <span class="ui">valable</span>.</li>
+</ul>
+</section><section class="notes"><h3>Remarques</h3><ul>
+<li>Ne confondez pas la GUEK avec d&#39;autres clés de la lettre (par exemple la clé d&#39;authentification).</li>
+</ul>
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026.</p></article><nav class="pn"><a href="device.html">← Réglages de l'appareil</a></nav></main>
+</div>
+</body>
+</html>

@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gPlug</title>
+<script>
+var l = "de", t = navigator.languages || [navigator.language || ""];
+for (var i = 0; i < t.length; i++) { var c = String(t[i]).slice(0, 2).toLowerCase(); if (["de","en","fr","it"].indexOf(c) >= 0) { l = c; break; } }
+location.replace(l + "/index.html" + location.hash);
+</script></head>
+<body><p><a href="de/index.html">Benutzerhandbuch – Deutsch</a></p><p><a href="en/index.html">User manual – English</a></p><p><a href="fr/index.html">Manuel d'utilisation – Français</a></p><p><a href="it/index.html">Manuale d'uso – Italiano</a></p></body></html>
