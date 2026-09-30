@@ -35,7 +35,6 @@ export function HistTab({ live, day, status, presets, wide }) {
     return () => { stop = true; };
   }, [range, day]);
 
-  const energy = range === "week" || range === "month" || range === "year";
   const bars = histBars(hist, range);
   const vals = bars.filter((b) => !b.missing).map((b) => b.v);
   const estimated = hist && hist.pts.some((p) => p[0] === null);
@@ -52,21 +51,21 @@ export function HistTab({ live, day, status, presets, wide }) {
     ${err && html`<div class="err">${err}</div>`}
     <div class="card">
       <div class="between" style="margin-bottom:2px">
-        <span class="lbl">${energy ? S.energyPerBucket : S.netPower}</span>
+        <span class="lbl">${S.energyPerBucket}</span>
         <span class="num" style="font-size:.66rem;color:var(--muted2)">
           ${S.points(vals.length)}
         </span>
       </div>
       ${loading && html`<p class="hint"><span class="spin"></span> ${S.loading}</p>`}
       ${!loading && bars.length < 2 && html`<p class="hint">${S.noHistory}</p>`}
-      ${bars.length >= 2 && html`<${Bars} bars=${bars} range=${range} energy=${energy} />`}
+      ${bars.length >= 2 && html`<${Bars} bars=${bars} range=${range} />`}
       ${bars.length >= 2 && html`
         <div class="axis">
           ${axisLabels(bars).map((l) => html`<span>${l}</span>`)}
         </div>`}
     </div>
     ${estimated && html`<p class="hint">${S.timeEstimated}</p>`}
-    ${vals.length >= 2 && (energy ? html`<${EnergyStats} bars=${bars} />` : html`<${PowerStats} vals=${vals} />`)}`;
+    ${vals.length >= 2 && html`<${EnergyStats} bars=${bars} />`}`;
   const registers = regs.length > 0 && html`
     <div class="card">
       <div class="lbl" style="margin-bottom:4px">${S.registers}</div>
@@ -86,27 +85,23 @@ export function HistTab({ live, day, status, presets, wide }) {
   return html`${chartPart}<${ExportCard} status=${status} />${registers}`;
 }
 
-// History -> bars. Day keeps power (W, signed); longer ranges switch to energy per bucket (Wh,
-// import positive / export negative) because a mean over a whole day says very little.
+// History -> bars: energy per bucket (Wh, import positive / export negative) for every range. Day
+// used to plot the mean power instead, which made it the one range whose bars did not add up to its
+// totals; a quarter-hour's energy is that mean times 0.25 h anyway, so the shape is unchanged.
 // A hole in the qh sequence means the device was off: render it as a gap rather than closing it.
 function histBars(hist, range) {
   if (!hist || !hist.pts?.length) return [];
-  const energy = range !== "day";
   const step = hist.bucket || 1;
   const out = [];
   let prevQh = null;
-  for (const [qh, dEi, dEo, pMin, pMax, pAvg, flags] of hist.pts) {
+  for (const [qh, dEi, dEo, , , , flags] of hist.pts) {
     if (qh !== null && prevQh !== null && out.length < MAX_BARS) {
       for (let g = prevQh + step; g < qh && out.length < MAX_BARS; g += step)
         out.push({ v: 0, missing: true, label: bucketLabel(range, g), qh: g });
     }
     const label = qh === null ? null : bucketLabel(range, qh);
-    if (energy) {
-      const known = dEi !== null || dEo !== null;
-      out.push({ v: (dEi || 0) - (dEo || 0), label, qh, missing: !known || (flags & HF_NO_DATA) !== 0 });
-    } else {
-      out.push({ v: pAvg, label, qh, missing: (flags & HF_NO_DATA) !== 0 });
-    }
+    const known = dEi !== null || dEo !== null;
+    out.push({ v: (dEi || 0) - (dEo || 0), label, qh, missing: !known || (flags & HF_NO_DATA) !== 0 });
     if (qh !== null) prevQh = qh;
   }
   return out;
@@ -168,15 +163,6 @@ function axisLabels(bars) {
   return [...new Set(pick)].map((i) => labelled[i].label);
 }
 
-function PowerStats({ vals }) {
-  return html`
-    <div class="grid3">
-      <${Stat} k=${S.statMax} v=${num(Math.max(...vals) / 1000, 2)} u="kW" />
-      <${Stat} k=${S.statAvg} v=${num(vals.reduce((a, b) => a + b, 0) / vals.length / 1000, 2)} u="kW" />
-      <${Stat} k=${S.statMin} v=${num(Math.min(...vals) / 1000, 2)} u="kW" />
-    </div>`;
-}
-
 function EnergyStats({ bars }) {
   const known = bars.filter((b) => !b.missing);
   const imp = known.reduce((a, b) => a + Math.max(0, b.v), 0) / 1000;
@@ -194,7 +180,7 @@ function Stat({ k, v, u, dir }) {
     <div class="v ${dir || ""}" style="font-size:1.1rem">${v}</div><div class="u ${dir || ""}">${u}</div></div>`;
 }
 
-function Bars({ bars, range, energy }) {
+function Bars({ bars, range }) {
   // Bar width and gap are in pixels, so a wider column means more bars' worth of room rather than
   // wider bars (see box.js).
   const svg = useRef(null);
@@ -205,20 +191,22 @@ function Bars({ bars, range, energy }) {
   const bw = w / bars.length;
 
   // A record written before the clock synced has no time (qh null), so its reading is the value
-  // alone rather than a made-up date.
+  // alone rather than a made-up date. A quarter hour typically holds a few hundred Wh, which one
+  // decimal of kWh would round to nothing, so Day reads to 10 Wh.
+  const dec = range === "day" ? 2 : 1;
   const { i, props } = useScrub(bars.length, true);
   const sel = i === null ? null : bars[i];
   let text = null;
   if (sel) {
     const v = sel.missing ? S.noData
-      : `${num(Math.abs(sel.v) / 1000, energy ? 1 : 2)} ${energy ? "kWh" : "kW"} ${sel.v >= 0 ? S.statImport : S.statExport}`;
+      : `${num(Math.abs(sel.v) / 1000, dec)} kWh ${sel.v >= 0 ? S.statImport : S.statExport}`;
     text = sel.qh == null ? v : `${bucketWhen(range, sel.qh)} · ${v}`;
   }
   const gx = i === null ? 0 : ((i + 0.5) * bw).toFixed(1);
   return html`
     <${Readout} text=${text} />
     <svg ref=${svg} viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="hist${i === null ? "" : " on"}" role="img"
-      aria-label=${energy ? S.energyPerBucket : S.netPower} ...${props}>
+      aria-label=${S.energyPerBucket} ...${props}>
       <line x1="0" y1=${zero} x2=${w} y2=${zero} class="zero" />
       ${bars.map((b, idx) => {
         const x = (idx * bw + (bw > 3 ? 1 : 0.2)).toFixed(1);
