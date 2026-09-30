@@ -1,6 +1,6 @@
 {
   "name": "gPlug",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "home_assistant_domain": "esphome",
   "funding_url": "https://gplug.ch/",
   "new_install_prompt_erase": true,
@@ -14,8 +14,8 @@
       ],
       "ota": {
         "path": "gplug-ota.bin",
-        "md5": "f7c9402b87861c6d5b5a6835db10d15d",
-        "release_url": "https://github.com/jluthiger/esphome-gplug/releases/tag/v0.7.0"
+        "md5": "01c60ea540f48126d7da853e7e6e630d",
+        "release_url": "https://github.com/jluthiger/esphome-gplug/releases/tag/v0.8.0"
       }
     }
   ]
