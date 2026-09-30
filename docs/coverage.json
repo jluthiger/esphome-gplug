@@ -1,0 +1,23 @@
+{
+  "_": "Every screen and card of the device UI. build.mjs fails when an entry has no story whose `screen` names it, and when spa/src has a tab (live/tabbar.js TABS), wizard step (main.js STEPS) or collapsible card (Collapsible id=\"...\") that no entry lists under `ui` -- so a new card cannot ship without a story. Entries with an empty `ui` are screens the scan cannot see (captive portal, diagnosis card, Wi-Fi form).",
+  "captive": { "what": "Wi-Fi setup page of the captive portal (firmware/components/captive_portal/captive.html)", "ui": [] },
+  "wizard-welcome": { "what": "Wizard step Welcome (steps/welcome.js)", "ui": ["step:welcome"] },
+  "wizard-hardware": { "what": "Wizard step Device: variant and pins (steps/hardware.js)", "ui": ["step:hardware"] },
+  "wizard-meter": { "what": "Wizard step Smart Meter: detection, profile, GUEK, key check (steps/meter.js)", "ui": ["step:meter"] },
+  "wizard-done": { "what": "Wizard step Done: setup check (steps/done.js)", "ui": ["step:done"] },
+  "diagnosis": { "what": "Diagnosis card with fix buttons (diag.js), on Done and on the Live tab", "ui": [] },
+  "live": { "what": "Live tab (live/live-tab.js)", "ui": ["tab:live"] },
+  "history": { "what": "History tab: ranges and totals (live/hist-tab.js)", "ui": ["tab:hist"] },
+  "history-regs": { "what": "History tab: register list card", "ui": ["card:regs"] },
+  "history-csv": { "what": "History tab: load profile export card", "ui": ["card:csv"] },
+  "stream": { "what": "Data Stream tab (live/stream-tab.js)", "ui": ["tab:stream"] },
+  "device-conn": { "what": "Device tab: connection card", "ui": ["tab:setup", "card:conn"] },
+  "device-wifi": { "what": "Device tab: change Wi-Fi (steps/wifi.js)", "ui": [] },
+  "device-key": { "what": "Device tab: key card", "ui": ["card:key"] },
+  "device-mqtt": { "what": "Device tab: MQTT card (live/mqtt-card.js)", "ui": ["card:mqtt"] },
+  "device-fw": { "what": "Device tab: firmware and restart card (live/firmware-card.js)", "ui": ["card:fw"] },
+  "device-mem": { "what": "Device tab: memory card (live/mem-card.js)", "ui": ["card:mem"] },
+  "device-log": { "what": "Device tab: event log card (live/log-card.js)", "ui": ["card:log"] },
+  "device-lang": { "what": "Device tab: language card", "ui": ["card:lang"] },
+  "device-theme": { "what": "Device tab: appearance card", "ui": ["card:theme"] }
+}

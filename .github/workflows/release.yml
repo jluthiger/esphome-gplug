@@ -2,14 +2,15 @@
 #   * GitHub Release assets -- gplug-<version>.ota.bin (upload in the app's Setup tab) and
 #     gplug-<version>.factory.bin (esptool, full flash from 0x0).
 #   * GitHub Pages -- install/ plus the factory image and an ESP Web Tools manifest, so a fresh
-#     gPlug can be flashed from Chrome over USB without installing anything.
+#     gPlug can be flashed from Chrome over USB without installing anything. Pages serves the
+#     gh-pages branch; this workflow writes its root, docs.yml the user manual under docs/.
 #
 # Trigger: push a tag, or run manually with a version for a test build (no release, no publish --
 # the images are left as a workflow artifact).
 #   v1.2.3        release: GitHub Release (latest), installer page deployed, `stable` moved to it
 #   v1.2.3-rc.1   pre-release: GitHub pre-release only; installer page and `stable` stay on the last release
 # A tag must point at a release commit (.github/release-check.sh): gplug.yaml's version and
-# component ref say the same as the tag, and CHANGELOG.md has the notes. See README.md, "Cutting a
+# component ref say the same as the tag, and CHANGELOG.md has the notes. See DEVELOPMENT.md, "Cutting a
 # release".
 name: Release firmware
 
@@ -32,9 +33,7 @@ env:
   ESPHOME_VERSION: "2026.6.5"
 
 permissions:
-  contents: write     # create the release
-  pages: write        # deploy the installer page
-  id-token: write     # actions/deploy-pages
+  contents: write     # create the release, push the installer to gh-pages
 
 jobs:
   build:
@@ -145,10 +144,12 @@ jobs:
           path: out/*.bin
           if-no-files-found: error
 
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: steps.version.outputs.release == 'true' && steps.version.outputs.prerelease == 'false'
         with:
+          name: install
           path: out/install
+          if-no-files-found: error
 
       - name: Publish the release
         if: steps.version.outputs.release == 'true'
@@ -187,17 +188,24 @@ jobs:
             "out/gplug-${VERSION}.factory.bin"
 
   # Serves install/index.html + manifest.json + gplug-factory.bin at the repo's Pages URL, so the
-  # page always installs the newest released image.
+  # page always installs the newest released image. Written into the root of the gh-pages branch,
+  # next to the user manual under docs/ that docs.yml maintains, never touching it.
   pages:
     needs: build
     if: needs.build.outputs.release == 'true' && needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+    # Shared with docs.yml: both push to gh-pages.
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
     steps:
-      - id: deploy
-        uses: actions/deploy-pages@v5
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: install
+          path: out/install
+      - name: Publish the installer to gh-pages
+        run: .github/publish-pages.sh install out/install
 
   # `stable` is what an adopted gPlug follows (dashboard_import in gplug.yaml): it always points at
   # the newest release commit, whose gplug.yaml pins the component to that same tag. Moved only after

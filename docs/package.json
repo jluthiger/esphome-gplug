@@ -1,0 +1,15 @@
+{
+  "name": "gplug-docs",
+  "private": true,
+  "type": "module",
+  "description": "User manual for the gPlug ESPHome firmware, generated from the user stories in stories/",
+  "scripts": {
+    "build": "node build.mjs",
+    "shots": "node shots.mjs",
+    "serve": "node serve.mjs"
+  },
+  "devDependencies": {
+    "marked": "^18.0.14",
+    "playwright": "^1.63.0"
+  }
+}

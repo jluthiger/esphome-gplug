@@ -6,11 +6,11 @@ disable-model-invocation: true
 
 # Release
 
-The process is in `README.md` → "Versions and branches" and "Cutting a release"; this is the
+The process is in `DEVELOPMENT.md` → "Versions and branches" and "Cutting a release"; this is the
 checklist. Every tag push and every push to `main` below is outward-facing: **state exactly what
 will be pushed and wait for the user's yes** before each one.
 
-Ask for the version if not given. Minor vs patch: see the table in the README (`CHANGELOG.md`
+Ask for the version if not given. Minor vs patch: see the table in `DEVELOPMENT.md` (`CHANGELOG.md`
 *Unreleased* shows what changed; any settings/API/entity-key break or partition change → minor).
 
 ## 1. Preflight
@@ -20,6 +20,15 @@ Ask for the version if not given. Minor vs patch: see the table in the README (`
 - `CHANGELOG.md` *Unreleased* describes everything user-visible since the last tag
   (`git log --oneline <last tag>..HEAD`); fill gaps, write *Upgrade notes* (USB reflash? settings and
   history kept? HA entity IDs changed?).
+- **User manual, minor/major releases (`X.Y.0`) only** -- the tag publishes a new edition
+  (`.github/workflows/docs.yml`), and a failing build there leaves the release without one:
+  - For every *Added* and *Changed* line under *Unreleased*, find the stories it touches
+    (`grep -l` the screen or key in `docs/stories/de/`) and check their steps still match the app.
+    Update de first, then en/fr/it, and set `mock:` to the date you walked the steps on the mock.
+    A new screen or card needs a story; the build names it (`coverage: spa/src has card:...`).
+  - `cd spa && npm run build && cd ../docs && npm run shots && npm run build -- --strict` passes
+    (~12 min). Look at the screenshots of the changed screens (`docs/img/de/`).
+  - Report which stories changed, or that none needed to.
 
 ## 2. Release candidate `X.Y.Z-rc.N`
 1. `firmware/gplug.yaml`: `version: "X.Y.Z-rc.N"`, external_components `ref: vX.Y.Z-rc.N`.
@@ -46,8 +55,9 @@ Ask for the version if not given. Minor vs patch: see the table in the README (`
    Nothing else in this commit.
 2. `.github/release-check.sh X.Y.Z` passes.
 3. Confirm, then `git tag vX.Y.Z && git push origin main vX.Y.Z`.
-4. Workflow: release published as latest, installer page deployed, `stable` moved
-   (`git ls-remote origin stable` equals the tag's commit).
+4. Workflow: release published as latest, installer on gh-pages, `stable` moved
+   (`git ls-remote origin stable` equals the tag's commit). For a `vX.Y.0` tag the *User manual* workflow
+   published `docs/X.Y/` and `docs/latest/` (patch releases get no edition) (open `https://jluthiger.github.io/esphome-gplug/docs/`).
 
 ## 5. Back to development
 - `version: "<next minor>-dev"`, `ref: main`. Commit "Start X.Y+1.0 development", confirm, push.

@@ -12,7 +12,9 @@ replacing Tasmota. Two halves that ship as one image:
 
 Read before non-trivial work: `DESIGN.md` (goal, constraints), `DECISIONS.md` (decision log),
 `firmware/README.md` (component, HTTP API, diag table), `spa/README.md` (screens, device API used),
-`firmware/MEMORY.md` (flash/RAM budget). Phase: PoC.
+`firmware/MEMORY.md` (flash/RAM budget), `DEVELOPMENT.md` (layout, versions, releases, Pages).
+Phase: PoC. `README.md` is for users only (what the firmware does, install, get started): keep
+developer material out of it.
 
 ## Commands
 
@@ -24,10 +26,11 @@ firmware/test/run.sh [name...]   # host C++ tests (clang++, no IDF); capture-bas
 cd firmware && esphome config dev.yaml    # validate YAML
 cd firmware && esphome compile dev.yaml   # full image (~2 min)
 cd firmware && python3 tools/size_report.py [--check]   # flash/RAM tables for MEMORY.md; --check: is it current?
+cd docs && npm run build         # user manual (docs/README.md); `npm run shots` first for screenshots (needs spa/dist)
 ```
 
 `/verify` runs the whole chain. Flashing a device (`esphome run/upload`) and tagging a release
-are user-confirmed — never do either unprompted. Releases: `/release` (process in `README.md`,
+are user-confirmed — never do either unprompted. Releases: `/release` (process in `DEVELOPMENT.md`,
 "Versions and branches" / "Cutting a release").
 
 ## Rules that bite
@@ -40,6 +43,10 @@ are user-confirmed — never do either unprompted. Releases: `/release` (process
 - **Four languages** (`spa/src/i18n/{de,en,fr,it}.js`): every UI string exists in all four with the
   same type and arity; `de` is the reference. Text via `S.key` from `strings.js`, never hard-coded.
   Build fails on mismatch.
+- **The user manual quotes the UI by key** (`{{S.key}}` in `docs/stories/<lang>/*.md`). Renaming or
+  removing a string, or adding a tab/step/card, means updating the stories (all four languages) and
+  `docs/coverage.json`; `cd docs && npm run build` fails otherwise. A changed flow with unchanged
+  labels passes the build: update the stories in the same change.
 - **Mobile-first** UI (SPA and `captive.html`). Desktop rules only in `src/style.desktop.css`.
 - **Budget**: SPA ≤ 64 kB gzipped; app image in a 1408 kB slot (see `firmware/MEMORY.md`). No
   unbounded heap on device: fixed-size buffers, max 48 OBIS entries. Report size deltas for

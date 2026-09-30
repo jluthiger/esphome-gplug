@@ -1,0 +1,65 @@
+# Builds the user manual (docs/) with fresh screenshots from the mock device and publishes it on
+# GitHub Pages next to the web installer (.github/publish-pages.sh). Runs only for major and minor
+# releases: tag vX.Y.0 -> docs/X.Y/ and docs/latest/. Patch releases and release candidates change no
+# user-visible behaviour worth a new edition, and the screenshot run takes ~12 min, so pushes and
+# pull requests are left to the local check (cd docs && npm run build, part of /verify).
+# A manual run builds without publishing.
+name: User manual
+
+on:
+  push:
+    tags: ["v*.*.0"]    # v1.2.0, v1.10.0; not v1.2.3 or v1.2.0-rc.1
+  workflow_dispatch:
+
+permissions:
+  contents: write     # push to gh-pages
+
+jobs:
+  manual:
+    # The tag glob also matches v1.2.0-rc.0; a pre-release gets no edition.
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    # Shared with release.yml's installer publish: both push to gh-pages.
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            spa/package-lock.json
+            docs/package-lock.json
+
+      - name: Build the SPA (the mock serves it for the screenshots)
+        working-directory: spa
+        run: npm ci && npm run build
+
+      - name: Install manual tooling
+        working-directory: docs
+        run: npm ci && npx playwright install --with-deps chromium
+
+      - name: Screenshots
+        working-directory: docs
+        run: npm run shots
+
+      - name: Build the manual
+        working-directory: docs
+        run: npm run build -- --strict
+
+      - id: edition
+        name: Which edition
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = push ] && [ "${GITHUB_REF_TYPE}" = tag ]; then
+            v="${GITHUB_REF_NAME#v}"
+            echo "publish=true"; echo "edition=${v%.*}"
+          else
+            echo "publish=false"
+          fi >> "$GITHUB_OUTPUT"
+
+      - name: Publish to gh-pages
+        if: steps.edition.outputs.publish == 'true'
+        run: .github/publish-pages.sh docs docs/site "${{ steps.edition.outputs.edition }}" latest

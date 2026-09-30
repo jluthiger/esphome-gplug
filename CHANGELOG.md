@@ -2,13 +2,17 @@
 
 What changed for someone running a gPlug, per release. Versions follow [Semantic Versioning](https://semver.org/);
 while the project is a proof of concept (0.x), a minor release may break things, and says so under
-**Upgrade notes**. How releases are made: [README.md](README.md#cutting-a-release).
+**Upgrade notes**. How releases are made: [DEVELOPMENT.md](DEVELOPMENT.md#cutting-a-release).
 
 Every change a user would notice gets a line under **Unreleased** in the same commit. Upgrade notes
 answer three questions whenever the answer is not "nothing to do": does it need a USB reflash
 (partition table), are stored settings and history kept, do Home Assistant entity IDs change.
 
 ## [Unreleased]
+
+### Added
+
+- A user manual in German, French, Italian and English, one chapter each for first setup, everyday use, device settings and troubleshooting, with screenshots of the app in each language: <https://jluthiger.github.io/esphome-gplug/docs/>.
 
 ### Fixed
 

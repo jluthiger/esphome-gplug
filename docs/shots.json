@@ -1,0 +1,242 @@
+{
+  "_": "Screenshot runs for shots.mjs. Each run starts a fresh mock with `env` and walks the UI; labels are i18n keys (S.* from the SPA, C.* from the captive portal) or literal text, `args` fills a function key, `exact: false` matches part of a text. `open` presets which collapsible cards start open. `reload` reloads the page, as a user coming back later would (the app then reads the saved setup). `card` on a shot crops to the card with that title. Sequences are shared step lists, pulled in with {\"use\": name}.",
+  "viewport": { "width": 390, "height": 844 },
+  "sequences": {
+    "online": [
+      { "api": "POST /api/config/wifi", "body": { "ssid": "Home-WLAN", "psk": "secret" } }
+    ],
+    "toMeter": [
+      { "use": "online" },
+      { "waitFor": "S.welcome" },
+      { "click": "S.next" },
+      { "waitFor": "gPlugK" },
+      { "click": "gPlugK" },
+      { "click": "S.next" },
+      { "waitFor": "S.detectFound" }
+    ],
+    "toDone": [
+      { "use": "toMeter" },
+      { "fill": "input.num", "value": "00112233445566778899AABBCCDDEEFF" },
+      { "click": "S.next" }
+    ],
+    "toLive": [
+      { "use": "toDone" },
+      { "waitFor": "S.checkOk" },
+      { "click": "S.openLive" },
+      { "waitFor": "S.tabLive" },
+      { "reload": true },
+      { "waitFor": "S.tabLive" }
+    ],
+    "toDevice": [
+      { "use": "toLive" },
+      { "click": "S.tabDevice" },
+      { "waitFor": "S.setupConn" }
+    ]
+  },
+  "runs": [
+    {
+      "name": "captive",
+      "captive": true,
+      "steps": [
+        { "waitFor": "Zuhause" },
+        { "shot": "captive" },
+        { "click": "Zuhause" },
+        { "fill": "#psk", "value": "geheim123" },
+        { "click": "C.save" },
+        { "wait": 500 },
+        { "shot": "captive-saved" }
+      ]
+    },
+    {
+      "name": "wizard",
+      "env": { "MOCK_DETECT": "dlms" },
+      "steps": [
+        { "use": "online" },
+        { "waitFor": "S.welcome" },
+        { "shot": "wizard-welcome" },
+        { "click": "S.next" },
+        { "waitFor": "gPlugK" },
+        { "click": "gPlugK" },
+        { "shot": "wizard-hardware" },
+        { "click": "S.next" },
+        { "waitFor": "S.detectFound" },
+        { "fill": "input.num", "value": "00112233445566778899AABBCCDDEEFF" },
+        { "shot": "wizard-meter", "full": true },
+        { "click": "S.next" },
+        { "waitFor": "S.checkWaiting", "exact": false },
+        { "shot": "wizard-done-waiting" },
+        { "waitFor": "S.checkOk" },
+        { "shot": "wizard-done-ok" },
+        { "click": "S.openLive" },
+        { "waitFor": "S.tabLive" },
+        { "reload": true },
+        { "waitFor": "S.tabLive" },
+        { "wait": 3000 },
+        { "shot": "live", "full": true }
+      ]
+    },
+    {
+      "name": "meter-keep-key",
+      "steps": [
+        { "use": "toLive" },
+        { "goto": "#setup/meter" },
+        { "waitFor": "S.keepKey" },
+        { "click": "S.keyCheck" },
+        { "fill": "input.num", "value": "00112233445566778899AABBCCDDEEFF" },
+        { "click": "S.keyCheckBtn" },
+        { "waitFor": "S.keyMatch" },
+        { "shot": "wizard-meter-keep", "full": true }
+      ]
+    },
+    {
+      "name": "history",
+      "steps": [
+        { "use": "toLive" },
+        { "click": "S.tabHist" },
+        { "waitFor": "S.energyPerBucket" },
+        { "wait": 1000 },
+        { "shot": "history" },
+        { "click": "S.rangeMonth" },
+        { "wait": 1500 },
+        { "shot": "history-month" },
+        { "click": "S.csvTitle" },
+        { "shot": "history-csv", "card": "S.csvTitle" },
+        { "click": "S.csvTitle" },
+        { "click": "S.registers" },
+        { "shot": "history-regs", "card": "S.registers" }
+      ]
+    },
+    {
+      "name": "stream",
+      "steps": [
+        { "use": "toLive" },
+        { "click": "S.tabStream" },
+        { "waitFor": "S.crcOk" },
+        { "wait": 1000 },
+        { "shot": "stream", "full": true }
+      ]
+    },
+    {
+      "name": "device",
+      "env": { "MOCK_UPDATE": "0.7.0" },
+      "steps": [
+        { "use": "toDevice" },
+        { "shot": "device" },
+        { "shot": "device-key", "card": "S.setupKey" },
+        { "click": "S.memTitle" },
+        { "click": "S.logTitle" },
+        { "click": "S.language" },
+        { "click": "S.theme" },
+        { "wait": 1500 },
+        { "shot": "device-mem", "card": "S.memTitle" },
+        { "shot": "device-log", "card": "S.logTitle" },
+        { "shot": "device-lang", "card": "S.language" },
+        { "shot": "device-theme", "card": "S.theme" }
+      ]
+    },
+    {
+      "name": "device-wifi",
+      "steps": [
+        { "use": "toDevice" },
+        { "click": "S.changeWifi" },
+        { "waitFor": "S.connected" },
+        { "shot": "device-wifi" },
+        { "click": "S.changeWifi" },
+        { "waitFor": "Nachbar" },
+        { "shot": "device-wifi-scan" },
+        { "click": "Home-WLAN" },
+        { "fill": "input[type=password]", "value": "geheim123" },
+        { "click": "S.connect" },
+        { "waitFor": "S.connected", "timeout": 15000 },
+        { "shot": "device-wifi-ok" }
+      ]
+    },
+    {
+      "name": "device-mqtt",
+      "open": { "mqtt": true },
+      "steps": [
+        { "use": "toDevice" },
+        { "waitFor": "S.mqttEnable" },
+        { "css": "button[role=switch]" },
+        { "fill": "input[type=text]", "value": "192.168.1.10" },
+        { "wait": 800 },
+        { "shot": "device-mqtt", "card": "S.mqttTitle" }
+      ]
+    },
+    {
+      "name": "device-fw",
+      "env": { "MOCK_UPDATE": "0.7.0" },
+      "open": { "fw": true },
+      "steps": [
+        { "use": "toDevice" },
+        { "click": "S.fwRelCheck" },
+        { "waitFor": "S.fwRelInstall", "args": ["0.7.0"] },
+        { "shot": "device-fw", "card": "S.fwTitle" },
+        { "click": "S.fwRelInstall", "args": ["0.7.0"] },
+        { "waitFor": "S.fwRelConfirm" },
+        { "shot": "device-fw-confirm", "card": "S.fwTitle" },
+        { "click": "S.fwRelConfirm" },
+        { "waitFor": "S.fwDone", "timeout": 60000 },
+        { "shot": "device-fw-done", "card": "S.fwTitle" }
+      ]
+    },
+    {
+      "name": "diag-silent",
+      "env": { "MOCK_DIAG": "silent" },
+      "steps": [
+        { "use": "toDone" },
+        { "waitFor": "S.dgSilent", "timeout": 30000 },
+        { "shot": "diag-silent" },
+        { "click": "S.continueAnyway" },
+        { "waitFor": "S.tabLive" },
+        { "shot": "live-diag" }
+      ]
+    },
+    {
+      "name": "diag-garbled",
+      "env": { "MOCK_DIAG": "garbled" },
+      "steps": [
+        { "use": "toDone" },
+        { "waitFor": "S.dgGarbled", "timeout": 30000 },
+        { "shot": "diag-garbled" }
+      ]
+    },
+    {
+      "name": "diag-no-match",
+      "env": { "MOCK_DIAG": "no_match" },
+      "steps": [
+        { "use": "toDone" },
+        { "waitFor": "S.dgNoMatch", "timeout": 30000 },
+        { "shot": "diag-no-match" }
+      ]
+    },
+    {
+      "name": "diag-key",
+      "steps": [
+        { "use": "toMeter" },
+        { "fill": "input.num", "value": "DEAD0000000000000000000000000000" },
+        { "click": "S.next" },
+        { "waitFor": "S.dgKey", "timeout": 30000 },
+        { "shot": "diag-key" }
+      ]
+    },
+    {
+      "name": "diag-protocol",
+      "steps": [
+        { "use": "online" },
+        { "waitFor": "S.welcome" },
+        { "click": "S.next" },
+        { "waitFor": "gPlugD" },
+        { "click": "gPlugD" },
+        { "click": "S.next" },
+        { "waitFor": "S.detectFound" },
+        { "click": "S.otherProfile" },
+        { "click": "P1 HDLC/DLMS", "exact": false },
+        { "fill": "input.num", "value": "00112233445566778899AABBCCDDEEFF" },
+        { "click": "S.next" },
+        { "waitFor": "S.dgProtocol", "timeout": 30000 },
+        { "shot": "diag-protocol" }
+      ]
+    }
+  ]
+}
