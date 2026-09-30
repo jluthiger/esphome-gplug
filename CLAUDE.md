@@ -1,4 +1,4 @@
-# gPlug ESPHome
+# METER (gPlug ESPHome)
 
 ESPHome firmware for gPlug smart-meter adapters (ESP32-C3, 4 MB flash, ~400 kB SRAM, no PSRAM),
 replacing Tasmota. Two halves that ship as one image:

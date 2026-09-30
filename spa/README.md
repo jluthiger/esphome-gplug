@@ -1,4 +1,4 @@
-# gPlug SPA – setup wizard
+# METER SPA – setup wizard
 
 Preact + htm, no JSX, no framework build step. esbuild bundles everything into one gzipped
 `index.html` that the ESPHome firmware embeds (bundled inside `components/gplug_smi`) and serves at `/`.

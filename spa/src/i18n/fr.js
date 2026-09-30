@@ -5,7 +5,7 @@
 // Reviewed for terminology, not by a native speaker -- see firmware/README.md.
 export const fr = {
   brand: "Adaptateur IoT",
-  title: "Configuration du gPlug",
+  title: "Configuration de METER",
   next: "Suivant",
   back: "Retour",
   skip: "Ignorer",
@@ -239,7 +239,7 @@ export const fr = {
   fwRejected: "L'appareil a refusé le fichier.",
   fwNoReturn: "L'appareil ne se manifeste plus. Rechargez la page dans quelques minutes.",
   fwConnLost: "La connexion a été interrompue pendant le transfert.",
-  fwVersion: "gPlug",
+  fwVersion: "METER",
   fwRelCheck: "Rechercher des mises à jour",
   fwRelChecking: "Recherche de mises à jour…",
   fwRelHint: "Interroge la page des versions sur github.io. L'appareil ne vérifie jamais de lui-même.",

@@ -2,7 +2,7 @@
   "name": "gplug-docs",
   "private": true,
   "type": "module",
-  "description": "User manual for the gPlug ESPHome firmware, generated from the user stories in stories/",
+  "description": "User manual for METER, the ESPHome firmware for gPlug adapters, generated from the user stories in stories/",
   "scripts": {
     "build": "node build.mjs",
     "shots": "node shots.mjs",

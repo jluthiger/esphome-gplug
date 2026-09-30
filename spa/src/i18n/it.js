@@ -4,7 +4,7 @@
 // arrangements. Reviewed for terminology, not by a native speaker -- see firmware/README.md.
 export const it = {
   brand: "Adattatore IoT",
-  title: "Configurazione gPlug",
+  title: "Configurazione METER",
   next: "Avanti",
   back: "Indietro",
   skip: "Salta",
@@ -238,7 +238,7 @@ export const it = {
   fwRejected: "Il dispositivo ha rifiutato il file.",
   fwNoReturn: "Il dispositivo non si rifà vivo. Ricaricate la pagina fra qualche minuto.",
   fwConnLost: "La connessione si è interrotta durante il trasferimento.",
-  fwVersion: "gPlug",
+  fwVersion: "METER",
   fwRelCheck: "Cerca aggiornamenti",
   fwRelChecking: "Ricerca aggiornamenti…",
   fwRelHint: "Interroga la pagina delle versioni su github.io. Il dispositivo non controlla mai da solo.",

@@ -3,7 +3,7 @@
 // computed from.
 export const en = {
   brand: "IoT adapter",
-  title: "gPlug setup",
+  title: "METER setup",
   next: "Next",
   back: "Back",
   skip: "Skip",
@@ -237,7 +237,7 @@ export const en = {
   fwRejected: "The device rejected the file.",
   fwNoReturn: "The device is not reporting back. Reload the page in a few minutes.",
   fwConnLost: "The connection dropped during the transfer.",
-  fwVersion: "gPlug",
+  fwVersion: "METER",
   fwRelCheck: "Check for updates",
   fwRelChecking: "Checking for updates…",
   fwRelHint: "Asks the release page on github.io. The device never checks on its own.",

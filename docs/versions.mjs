@@ -24,9 +24,9 @@ writeFileSync(join(dir, "versions.json"), JSON.stringify(list, null, 2) + "\n");
 
 const target = editions.includes("latest") ? "latest" : releases[0];
 writeFileSync(join(dir, "index.html"), `<!doctype html>
-<html><head><meta charset="utf-8"><title>gPlug</title>
+<html><head><meta charset="utf-8"><title>METER</title>
 <meta http-equiv="refresh" content="0; url=${target}/">
 <link rel="canonical" href="${target}/"></head>
-<body><a href="${target}/">gPlug manual</a></body></html>
+<body><a href="${target}/">METER manual</a></body></html>
 `);
 console.log(`versions           ${list.map((e) => e.id).join(", ")} -> index ${target}/`);

@@ -1,8 +1,8 @@
-# gPlug Benutzerhandbuch
+# METER Benutzerhandbuch
 
-Der gPlug liest die Kundenschnittstelle Ihres Smart Meters aus und zeigt Leistung, Zählerstände und
-Verlauf in einer App, die direkt auf dem Gerät läuft – im Browser Ihres Telefons oder Computers,
-ohne Cloud und ohne Konto.
+METER ist eine freie Firmware für gPlug-Adapter. Der gPlug liest die Kundenschnittstelle Ihres
+Smart Meters aus und zeigt Leistung, Zählerstände und Verlauf in einer App, die direkt auf dem Gerät
+läuft – im Browser Ihres Telefons oder Computers, ohne Cloud und ohne Konto.
 
 Dieses Handbuch ist nach Aufgaben geordnet. Jede Aufgabe beginnt mit dem, was Sie erreichen wollen,
 führt Schritt für Schritt durch die Bildschirme und sagt am Schluss, woran Sie erkennen, dass es
