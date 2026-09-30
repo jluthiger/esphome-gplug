@@ -16,6 +16,7 @@
 #include <esp_http_server.h>
 #include <mbedtls/sha256.h>
 #include <esp_heap_caps.h>
+#include <esp_crypto_lock.h>
 #include <fcntl.h>
 #include <lwip/opt.h>   // LWIP_SOCKET_OFFSET, CONFIG_LWIP_MAX_SOCKETS
 #include <lwip/sockets.h>
@@ -45,6 +46,13 @@ static uint32_t qh_from_epoch(uint32_t ep) {
 // ---------------------------------------------------------------- lifecycle
 
 void GplugSmi::setup() {
+  // IDF creates the MPI accelerator's lock on first use and never frees it. That first use is
+  // the certificate check of the first update check, while the TLS session occupies the low
+  // heap, so the 88 B mutex landed 12-28 kB into the 116 kB region that holds the largest free
+  // block and split it for the rest of the boot (issue #35, gPlugK 2026-09-30: 112 -> 100 kB,
+  // 84 kB in rc.6). Taking the lock once here creates it while the heap is still unfragmented.
+  esp_crypto_mpi_lock_acquire();
+  esp_crypto_mpi_lock_release();
   std::string s;
   if (this->nvs_load_("hw", s)) {
     std::string err;
