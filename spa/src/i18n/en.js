@@ -18,12 +18,13 @@ export const en = {
   errHistoryOff: "The device is not storing any history (storage area unavailable).",
 
   welcome: "Welcome",
-  welcomeText: "This assistant sets up your gPlug in four steps: device, smart meter, Wi-Fi, done.",
+  welcomeText: "This assistant sets up your gPlug in three steps: device, smart meter, done.",
   version: "Firmware",
 
   hardware: "Device",
   hardwareText: "Which gPlug do you have? The model name is printed on the case.",
   pins: "Pin assignment (change only if needed)",
+  pinHint: "ESP32-C3: GPIO 0–21. Empty = not present.",
   pinRx: "HAN RX",
   pinRed: "LED red",
   pinGreen: "LED green",
@@ -59,6 +60,8 @@ export const en = {
   wifi: "Wi-Fi",
   wifiText: "Connect the gPlug to your home network. It is then reachable at the address shown below.",
   ssid: "Network",
+  connect: "Connect",
+  signal: "Signal",
   password: "Password",
   scan: "Search for networks",
   manual: "Enter network manually",

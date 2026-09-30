@@ -19,12 +19,13 @@ export const it = {
   errHistoryOff: "Il dispositivo non salva alcuno storico (area di memoria non disponibile).",
 
   welcome: "Benvenuti",
-  welcomeText: "Questa procedura configura il gPlug in quattro passi: dispositivo, Smart Meter, Wi-Fi, fine.",
+  welcomeText: "Questa procedura configura il gPlug in tre passi: dispositivo, Smart Meter, fine.",
   version: "Firmware",
 
   hardware: "Dispositivo",
   hardwareText: "Quale gPlug possedete? La denominazione è indicata sull'involucro.",
   pins: "Assegnazione dei pin (modificare solo se necessario)",
+  pinHint: "ESP32-C3: GPIO 0–21. Vuoto = non presente.",
   pinRx: "HAN RX",
   pinRed: "LED rosso",
   pinGreen: "LED verde",
@@ -60,6 +61,8 @@ export const it = {
   wifi: "Wi-Fi",
   wifiText: "Collegate il gPlug alla vostra rete domestica. Sarà poi raggiungibile all'indirizzo indicato qui sotto.",
   ssid: "Rete",
+  connect: "Connetti",
+  signal: "Segnale",
   password: "Password",
   scan: "Cercare le reti",
   manual: "Inserire la rete manualmente",
