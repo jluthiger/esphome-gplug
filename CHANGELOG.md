@@ -10,16 +10,6 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
-### Changed
-
-- Phone layout: all panels share the same side margin and inner padding, so their edges and contents line up on every screen. The Wi-Fi setup page (captive portal) now uses the same width as the app instead of sizing its card to its text, with full-width input fields.
-- Drop-down fields (e.g. *MQTT → QoS*) show their arrow inset from the right edge, in the same style as the arrows of the collapsible cards, instead of the browser's arrow pressed against the border.
-
-### Fixed
-
-- The *Data* and *Device* screens no longer scroll sideways on narrow phones while the gPlug waits for meter data; the status pill moves under the title.
-- *Device → MQTT*: the port field was too narrow on a 320 px phone and cut off "1883".
-
 ## [0.7.0] – 2026-09-30
 
 ### Added
@@ -35,6 +25,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - *History → Day* now shows the energy of each quarter hour (import up, export down) with import, export and sum totals, like Week, Month and Year, instead of the average power with max/mean/min.
 - History: the "Export load profile" card starts closed and shows the stored date range on its title row; tap it to open. The browser remembers whether it was left open.
 - History is more compact: the import/export/sum totals sit inside the chart card, and the register list starts closed with the number of registers on its title row, so the chart and its figures fit on one phone screen. On wide screens the panels of both columns are evenly spaced and the range picker spans the chart's width.
+- Phone layout: all panels share the same side margin and inner padding, so their edges and contents line up on every screen. The Wi-Fi setup page (captive portal) now uses the same width as the app instead of sizing its card to its text, with full-width input fields.
+- Drop-down fields (e.g. *MQTT → QoS*) show their arrow inset from the right edge, in the same style as the arrows of the collapsible cards, instead of the browser's arrow pressed against the border.
 
 ### Fixed
 
@@ -44,6 +36,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - *History → Export load profile*: on a narrow phone the "To" date no longer sticks out past the card; the two date fields stack when they do not fit side by side.
 - *Device → Memory*: the figures above the chart now show the same measurement the chart ends in, with the time it was taken ("Measured at"), instead of a separate reading taken at another moment that could differ by a few kB. The chart also draws the minimum since start (dotted), so a low minimum can be traced to when it happened. Folded, the card keeps showing the figure it last showed.
 - The uptime the gPlug reports (to the web page and in the MQTT device status) no longer starts again at zero after 49.7 days of running.
+- The *Data* and *Device* screens no longer scroll sideways on narrow phones while the gPlug waits for meter data; the status pill moves under the title.
+- *Device → MQTT*: the port field was too narrow on a 320 px phone and cut off "1883".
 
 ### Upgrade notes
 
