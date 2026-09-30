@@ -25,8 +25,8 @@ affect only when the user asked for a quick check; say which were skipped.
    any prose in the file that quotes the old numbers.
 6. **User manual** (if `spa/src`, `docs/` or `captive.html` changed): `cd docs && npm run build`.
    Fails on unknown keys, missing translations or uncovered screens. Screenshots are optional
-   locally (`npm run shots`, ~12 min). CI builds the manual only on `vX.Y.0` tags, so this local
-   run is the only check before a release.
+   locally (`npm run shots`, ~12 min). PR CI builds the manual without screenshots; the full
+   build with screenshots runs only on `vX.Y.0` tags.
 7. **Mock smoke test** (if SPA behaviour changed): `cd spa && npm run dev` in background, fetch the
    touched `/api/*` routes and `/`, or use the `run` skill to drive the page. Stop the server after.
 

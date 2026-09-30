@@ -81,6 +81,14 @@ The workflow rebuilds the SPA and refuses to release if the committed `spa.html.
 the release commit, compiles `dev.yaml` and attaches `gplug-<version>.ota.bin` and
 `.factory.bin`. `workflow_dispatch` is a dry run: build artefacts only, no release, no deploy.
 
+Every pull request and push to `main` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): SPA
+build with the stale-bundle and 64 kB checks, host tests (without the capture-based ones), the manual
+build (without screenshots), and `esphome compile dev.yaml` with `tools/size_report.py --check`. Its
+four job names (*SPA bundle*, *Host tests*, *User manual*, *Firmware*) are the required checks of the
+`protect-main` ruleset, which also blocks force pushes and deletion of `main` and asks for a pull
+request; repository admins may bypass it, so release commits can still be pushed directly. A second
+ruleset, `protect-release-tags`, keeps `v*` tags from being moved or deleted once pushed.
+
 A released image is built from the config in this repository, so two secrets in it are public: the
 OTA password is empty, meaning anyone on the LAN can reflash the device, and the API encryption key
 is the placeholder in `gplug.yaml`, meaning anyone on the LAN can talk to the ESPHome API. Neither
