@@ -15,10 +15,10 @@ account, no subscription – the app runs on the gPlug itself.
 
 <p align="center">
   <a href="https://jluthiger.github.io/esphome-gplug/">
-    <img alt="Install METER firmware in your browser" src="install/install-button.svg" width="440">
+    <img alt="Install METER firmware in your browser" src="install/install-button.svg" width="700">
   </a>
   <br>
-  Chrome or Edge on a computer and a USB cable – nothing else to install.
+  Chrome or Edge on your computer, plus a USB cable—nothing else to install.
 </p>
 
 ## What you get
