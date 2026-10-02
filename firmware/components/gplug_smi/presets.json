@@ -1025,29 +1025,29 @@
     {
      "obis": "31.7.0",
      "type": "number",
-     "scale": 1000.0,
+     "scale": 100.0,
      "label": "I1 ___ 31_7",
      "unit": "A",
      "name": "I1",
-     "precision": 3
+     "precision": 2
     },
     {
      "obis": "51.7.0",
      "type": "number",
-     "scale": 1000.0,
+     "scale": 100.0,
      "label": "I2 ___ 51_7",
      "unit": "A",
      "name": "I2",
-     "precision": 3
+     "precision": 2
     },
     {
      "obis": "71.7.0",
      "type": "number",
-     "scale": 1000.0,
+     "scale": 100.0,
      "label": "I3 ___ 51_7",
      "unit": "A",
      "name": "I3",
-     "precision": 3
+     "precision": 2
     },
     {
      "obis": "130.7.0",
@@ -1301,29 +1301,29 @@
     {
      "obis": "31.7.0",
      "type": "number",
-     "scale": 1000.0,
+     "scale": 100.0,
      "label": "I1 ___ 31.7.0",
      "unit": "A",
      "name": "I1",
-     "precision": 3
+     "precision": 2
     },
     {
      "obis": "51.7.0",
      "type": "number",
-     "scale": 1000.0,
+     "scale": 100.0,
      "label": "I2 ___ 51.7.0",
      "unit": "A",
      "name": "I2",
-     "precision": 3
+     "precision": 2
     },
     {
      "obis": "71.7.0",
      "type": "number",
-     "scale": 1000.0,
+     "scale": 100.0,
      "label": "I3 ___ 71.7.0",
      "unit": "A",
      "name": "I3",
-     "precision": 3
+     "precision": 2
     },
     {
      "obis": "130.7.0",

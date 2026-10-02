@@ -840,11 +840,22 @@ single browser with the SPA open**, and 3 from the machine running the probe. Th
   Energie, Tasmota `weblog 4`, 2026-03-28):** 22 HDLC frames / 6 push cycles replayed byte-wise,
   0 FCS and 0 HCS errors, GBT reassembly to 364 B and 158 B APDUs, and all 64 decoded values
   identical to the values the device's own script logged and published over MQTT, SM-ID string
-  included. Two facts came out of it: this meter's push is *unencrypted* although both gPlugM presets
-  carry `encrypted: true` (harmless — `loop()` feeds the decoder regardless and the key stays unused),
-  and the meter alternates a 10 s totals push with a tariff-register push, so only sticky per-entry
-  values (`have_[]`) show a complete picture. The same log fixed the gPlugM current scale (mA, not
-  cA) and added `130.7.0` plus `5.8.0`/`6.8.0`/`7.8.0`/`8.8.0` to the presets.
+  included. The six cycles are pinned as capture C in `test_capturelist.cpp` (64 values; the first
+  captures that cover the plaintext GBT path from HDLC in, since this meter pushes unencrypted).
+  Three facts came out of it: this meter's push is *unencrypted* although both gPlugM presets carry
+  `encrypted: true` (harmless — `loop()` feeds the decoder regardless and the key stays unused), the
+  meter alternates a 10 s totals push with a tariff-register push, so only sticky per-entry values
+  (`have_[]`) show a complete picture, and `130.7.0` plus `5.8.0`/`6.8.0`/`7.8.0`/`8.8.0` were
+  missing from the presets although the meter sends them.
+- **A matching MQTT payload validates the decoder, not the preset's scale.** The same log settled the
+  gPlugM current scale, but only via apparent power: the meter reports 8198 W of export alongside
+  currents of 1212/1105/1159, which is 34.8 A and ~8.0 kVA at 230 V with the `@100` the *universal*
+  preset uses, and 3.5 A / 0.8 kVA with the `@1000` the *Romande Energie* preset used -- less
+  apparent power than the real power in the same push, which cannot happen. Consistent across seven
+  samples, so currents are in 10 mA and the Romande Energie preset (and the Tasmota script it comes
+  from) had it wrong. Values decoded identically either way, and the device's own published 1.212 A
+  agreed with the wrong scale, so cross-checking against the device log alone cannot catch this
+  class of error -- a physical plausibility check can.
 - History is verified by host tests and a mock-server walkthrough only: real sector rotation, recovery
   from a power cut mid-append, and a 24 h run still need the device. A dev build with
   `HIST_INTERVAL_S = 60` exercises rotation in ~3.5 h.

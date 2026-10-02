@@ -18,8 +18,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ### Fixed
 
-- gPlugM showed phase currents ten times too high (12.12 A instead of 1.212 A) with the *universal*
-  preset: the meter sends milliamps.
+- gPlugM showed phase currents ten times too low (1.212 A instead of 12.12 A) with the *Romande
+  Energie* preset: the meter sends hundredths of an ampere. Tasmota has the same error, so the value
+  in the old firmware was wrong too — at 8.2 kW of export the app now shows ~12 A per phase instead
+  of ~1.2 A.
 
 ### Changed
 
@@ -31,6 +33,7 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   settings, history, event log and MQTT settings are kept.
 - **gPlugM only:** the meter profile is stored on the device, so the corrected currents and the new
   reactive values appear once you pick the profile again under *Device → Change meter profile*.
+  History and the energy counters are unaffected: only the current readings were mis-scaled.
 - Home Assistant entities do not change: the reactive values show in the app and over MQTT, not as
   Home Assistant sensors (it exposes power, energy, voltage and current).
 
