@@ -1,18 +1,58 @@
 # Flash and RAM usage
 
-Snapshot of the `dev.yaml` build from 2026-09-30 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
-4 MB flash), with the Home Assistant entities, the update-from-release components and MQTT. Sizes in kB = 1024 bytes. Numbers come from the
-linker map, not from a running device, except where noted.
+What fits, what is left, and what to do when a change moves either. The summary is the part worth
+reading before a change; the collapsed sections below hold the tables it is drawn from and the
+history of how the image got here.
 
-The two tables marked *generated* are the output of `tools/size_report.py`, which reads the linker
-map and the ELF symbols of the last build. Paste them, with the baseline line below, after a build
+Snapshot of the `dev.yaml` build from 2026-09-30 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+4 MB flash), with the Home Assistant entities, the update-from-release components and MQTT. Sizes
+in kB = 1024 bytes. Numbers come from the linker map, not from a running device, except where noted.
+
+<!-- size-baseline image=1249850 dram=130510 gplug_smi_obj=25304 -->
+
+## The four budgets
+
+| Budget | Used | Limit | Left |
+|---|---|---|---|
+| App image in the `app0` slot | 1221 kB (86.7 %) | 1408 kB | 187 kB |
+| Static RAM (IRAM + DRAM at link time) | 127.5 kB (40.6 %) | 314 kB of SRAM | 186.3 kB for the heap at boot |
+| Free heap on a device | 197 kB idle, 83-101 kB at the worst minimum | >= 80 kB after 24 h (`DESIGN.md`) | the TLS update check is the peak, ~44 kB |
+| SPA, gzipped | 58.5 kB | 64 kB | 5.5 kB |
+
+The history partition (704 kB) holds ~374 days of 15-min records; every other partition is sized by
+ESPHome, see the partition table below.
+
+## What costs what
+
+Of the 1221 kB image, 74 % is platform that no gPlug change touches (Wi-Fi 298 kB, ESP-IDF 242 kB,
+crypto 210 kB, networking 140 kB). gPlug's own share is about 142 kB: 72.9 kB `gplug_smi` code and
+69.3 kB embedded web files, of which the SPA alone is 58.5 kB. The remaining 96 kB of string
+literals belong to all of the above together, which the by-owner section explains under
+"Misleading attribution".
+
+Static RAM is dominated by IRAM code (59.6 kB, platform) and the one `GplugSmi` object (24.7 kB),
+half of which is the Datenstrom frame log.
+
+## If memory gets tight
+
+- **Image**: the SPA and the HTTP layer are the only large parts that are ours to shrink -- the SPA
+  58.5 kB, the HTTP API 21.1 kB and the ArduinoJson it pulls in for the POST bodies 17.8 kB.
+  Meter decoding, the reason the firmware exists, is 5.4 kB. Switching a whole feature off in the
+  YAML (MQTT, update-from-release) frees far more than tuning code: the release install cost 128 kB.
+- **Static RAM**: `FRAME_LOG_LEN` and `FRAME_LOG_RAW_CAP` in `gplug_smi.h` are the first dials; the
+  frame log is 10.0 kB of the 24.7 kB object.
+- **Heap**: the peak is an update check over TLS (~44 kB with `CONFIG_MBEDTLS_DYNAMIC_BUFFER`,
+  ~62 kB without), not steady-state operation.
+
+## Keeping this file current
+
+The three tables marked *generated* are the output of `tools/size_report.py`, which reads the linker
+map and the ELF symbols of the last build. Paste them, with the baseline line above, after a build
 that changes the image; `tools/size_report.py --check` fails once the build has drifted more than
 1 kB (image) or 0.5 kB (static RAM, `GplugSmi` object) from that line, and a Claude Code hook runs
 it after every `esphome compile`. Snapshots up to 2026-09-12 were grouped by hand from
 `esp_idf_size` output, so their row values are not comparable with the generated ones; the image
 and static-RAM totals are.
-
-<!-- size-baseline image=1249850 dram=130510 gplug_smi_obj=25304 -->
 
 ```
 tools/size_report.py                     # tables + baseline line for this file
@@ -22,7 +62,10 @@ B=.esphome/build/gplug/.pioenvs/gplug
 python <esp-idf>/components/partition_table/gen_esp32part.py $B/partitions.bin   # real partition table
 ```
 
-## Flash: partition table
+## Details
+
+<details>
+<summary><b>Flash: partition table</b></summary>
 
 Decoded from the flashed `partitions.bin`. `gplug.yaml` only adds `data`; the rest is ESPHome's
 standard ESP-IDF layout.
@@ -40,7 +83,67 @@ standard ESP-IDF layout.
 | data | `0x340000` | 704 kB | 15-min history: 176 sectors x 204 records x 20 B, ~374 days |
 | (unused) | `0x3F0000` | 64 kB | |
 
-## Flash: the app image
+</details>
+
+<details>
+<summary><b>Flash: the app image, by owner (*generated*)</b></summary>
+
+By section: 891 kB code run from flash, 258 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
+(those two are stored in flash *and* occupy RAM).
+
+By owner (*generated*):
+
+| Part | Size | Share of image |
+|---|---|---|
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.4 % |
+| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.9 kB | 19.8 % |
+| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 209.5 kB | 17.2 % |
+| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.5 % |
+| String literals from all code | 95.9 kB | 7.9 % |
+| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 6.9 % |
+| `gplug_smi` code | 72.9 kB | 6.0 % |
+| Embedded web files, gzipped except the PNG: SPA 58.5 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 69.3 kB | 5.7 % |
+| ESPHome-generated `main.cpp` setup code | 6.1 kB | 0.5 % |
+| Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
+
+The platform (Wi-Fi, ESP-IDF, crypto, networking) is 74 % of the image; gPlug's own code and web
+files, `gplug_smi` and the embedded web files together, about 12 %.
+
+### Inside the `gplug_smi` row (*generated*)
+
+`esp_idf_size` stops at the object file, and the component is two of them (`gplug_smi.cpp`, with
+every header-only decoder, store and route handler inlined into it, and `mqtt.cpp`), so the row
+above is one lump. This table splits it by the source file each function was compiled from, taken
+from the linker map's input sections and the DWARF line table; the rules are `GPLUG_PARTS` in
+`tools/size_report.py`, and a section the rules do not name lands in "Everything else".
+
+Inside `gplug_smi`: 80,800 B = 78.9 kB, of which 6.7 kB string literals that the image table counts in its "String literals" row, not in "`gplug_smi` code" (72.9 kB).
+
+| Part of `gplug_smi` | Size | Of it literals | Share |
+|---|---|---|---|
+| HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`) | 21.1 kB | 3.1 kB | 26.8 % |
+| Everything else: lifecycle, config apply and NVS, Home Assistant entities, LED and button, update check, heap sampler, and the `std::string`/`std::vector` code inlined into them | 18.2 kB | 2.0 kB | 23.1 % |
+| ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, `/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings | 17.8 kB | 0.0 kB | 22.6 % |
+| MQTT: client, template compiler and renderer, status payload (`mqtt.cpp`, `mqtt_template.h`, `mqtt_status.h`) | 9.4 kB | 1.3 kB | 12.0 % |
+| History and event store: 15-min records on the `data` partition, CSV rows, event log in NVS | 6.9 kB | 0.3 kB | 8.7 % |
+| Meter decoding: HDLC + DLMS/COSEM, DSMR/P1, AES-GCM, protocol sniffing, frame log | 5.4 kB | 0.0 kB | 6.8 % |
+
+Reading it: the HTTP surface is the biggest part of the component, more than three times the meter
+decoding it exists for, and ArduinoJson -- pulled in only to parse the POST bodies and to
+re-serialize the stored settings -- is as large as all of MQTT. The "Of it literals" column is the
+part of each row that sits in the merged pool, i.e. field names and fixed JSON scaffolding.
+
+**Misleading attribution:** `esp_idf_size` reports ~80 kB of `.rodata` in `api_connection.cpp.o`,
+which the script books as "String literals". That is the linker's merged string-literal pool (`.rodata.*.str1.4`): string literals from every
+object are deduplicated into one section, and the whole section is credited to the first object
+that contributed. It is not API code.
+
+</details>
+
+<details>
+<summary><b>Flash: how the image grew (one entry per change)</b></summary>
+
+Newest first; each entry gives the image size it replaced and where the delta went.
 
 Image 1,249,850 B = 1221 kB in a 1408 kB slot: **86.7 % full, 187 kB headroom** (2026-09-30, with
 mbedTLS dynamic buffers and the MPI lock created at boot (issue #35): +3.6 kB, of which 3.0 kB
@@ -79,33 +182,10 @@ the sampler, `/api/heap` and two more HA entities; 1,059,332 B before, with the 
 entities: +8.7 kB for the sensor and text_sensor cores, 21 entities and their publishing; 1,050,616 B
 before that, with the wide-screen SPA; 1,041,930 B = 72.3 % on 2026-09-12).
 
-By section: 891 kB code run from flash, 258 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
-(those two are stored in flash *and* occupy RAM).
+</details>
 
-By owner (*generated*):
-
-| Part | Size | Share of image |
-|---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.4 % |
-| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.9 kB | 19.8 % |
-| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 209.5 kB | 17.2 % |
-| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.5 % |
-| String literals from all code | 95.9 kB | 7.9 % |
-| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 6.9 % |
-| `gplug_smi` code | 72.9 kB | 6.0 % |
-| Embedded web files, gzipped except the PNG: SPA 58.5 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 69.3 kB | 5.7 % |
-| ESPHome-generated `main.cpp` setup code | 6.1 kB | 0.5 % |
-| Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
-
-The platform (Wi-Fi, ESP-IDF, crypto, networking) is 74 % of the image; gPlug's own code and web
-files are about 10 %.
-
-**Misleading attribution:** `esp_idf_size` reports ~80 kB of `.rodata` in `api_connection.cpp.o`,
-which the script books as "String literals". That is the linker's merged string-literal pool (`.rodata.*.str1.4`): string literals from every
-object are deduplicated into one section, and the whole section is credited to the first object
-that contributed. It is not API code.
-
-## RAM: static
+<details>
+<summary><b>RAM: static, and inside the `GplugSmi` object (*generated*)</b></summary>
 
 The C3 has 314 kB (321,296 B) of SRAM usable by the app; IRAM and DRAM share it. Table *generated*:
 
@@ -150,7 +230,10 @@ The frame log is half the object. If RAM gets tight, `FRAME_LOG_LEN` and `FRAME_
 `gplug_smi.h` are the first things to shrink. The DLMS decoder's frame/APDU buffers are
 `std::vector`s and live on the heap, not in this object.
 
-## RAM: heap at runtime
+</details>
+
+<details>
+<summary><b>RAM: heap at runtime, and the device readings</b></summary>
 
 These are configured sizes from `sdkconfig.gplug` and the code, not measurements:
 
@@ -196,3 +279,5 @@ space, so it cannot read higher.
 Since 2026-09-14 the device keeps its own 24 h trend of free heap, minimum and largest block
 (`/api/heap`, Memory card on the Device tab), so that reading is a screenshot rather than a polling
 session.
+
+</details>

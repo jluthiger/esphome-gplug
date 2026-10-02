@@ -10,6 +10,8 @@ groupings from the linker map and the ELF symbols, so updating the file is a pas
 can tell when that paste is due.
 
 Groups are by archive (ESP-IDF libraries) and by object file (ESPHome, gplug_smi, libsodium/noise).
+The `gplug_smi` row is split once more -- HTTP API, ArduinoJson, MQTT, meter decoding, store -- from
+the linker map's input sections, since the whole component compiles into two object files.
 "Bytes in the image" counts what is stored in flash: code and read-only data run from flash, plus
 IRAM code and .data initial values, which are copied to RAM at boot.
 """
@@ -42,9 +44,17 @@ def esp_idf_size(*args):
     return json.loads(out)
 
 
+def tool(name):
+    """Path of a toolchain binary; the version is in the package directory name, so glob for it."""
+    return str(next(PIO.glob(f"packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-{name}")))
+
+
+def run(args, stdin=None):
+    return subprocess.run(args, input=stdin, check=True, capture_output=True, text=True).stdout
+
+
 def symbols():
-    nm = next(PIO.glob("packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-nm"))
-    out = subprocess.run([str(nm), "-S", "-C", str(BUILD / "firmware.elf")], check=True, capture_output=True, text=True).stdout
+    out = run([tool("nm"), "-S", "-C", str(BUILD / "firmware.elf")])
     syms = {}
     for line in out.splitlines():
         parts = line.split(None, 3)
@@ -107,6 +117,77 @@ def owner(archive, obj):
     if "/src/esphome/" in obj:
         return "esphome"
     return "idf"
+
+
+# Splitting the `gplug_smi` row. The component is two translation units -- gplug_smi.cpp, with every
+# header-only decoder, store and route handler inlined into it, and mqtt.cpp -- so esp_idf_size,
+# which stops at the object file, reports it as one lump. These rules split it finer: the linker map
+# lists one input section per function and per literal pool with its address and owning object, and
+# addr2line turns each address into the source file it was compiled from (the headers the function
+# was inlined from, which is what we want to group by). Each section is matched as
+# "<source file>|<demangled owner symbol>" against the patterns below, first match wins, so a
+# pattern can name either a header or the methods of gplug_smi.cpp that belong to a part.
+GPLUG_SECTION = re.compile(r"^\s+(0x[0-9a-f]{8,16})\s+(0x[0-9a-f]+)\s+\S*/gplug_smi/(gplug_smi|mqtt)\.cpp\.o$")
+GPLUG_PARTS = [
+    ("ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, "
+     "`/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings",
+     r"/ArduinoJson/"),
+    ("HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`)",
+     r"::(json_[a-z_0-9]*|handle_[a-z_0-9]*|send_gz_|send_json_|read_body_|canHandle|handleRequest"
+     r"|isRequestHandlerTrivial|socket_json_|socket_count_|json_escape|append_num|bytes_to_hex)\b"),
+    ("MQTT: client, template compiler and renderer, status payload (`mqtt.cpp`, `mqtt_template.h`, `mqtt_status.h`)",
+     r"/mqtt(_template|_status)?\.(h|cpp)|gplug_mqtt::|::mqtt_[a-z_0-9]*\("),
+    ("Meter decoding: HDLC + DLMS/COSEM, DSMR/P1, AES-GCM, protocol sniffing, frame log",
+     r"/(dlms_decoder|dsmr_parser|aes_gcm|protocol_sniff|frame_log)\.h"
+     r"|::(on_dlms_apdu_|on_dsmr_value_|apply_dlms_value_|note_energy_exact_)\b"),
+    ("History and event store: 15-min records on the `data` partition, CSV rows, event log in NVS",
+     r"/(history_store|history_csv|partition_flash|event_log)\.h"
+     r"|::(hist_|log_)[a-z_0-9]*\(|::wh_to_record|::csv_local_time"),
+]
+GPLUG_REST = ("Everything else: lifecycle, config apply and NVS, Home Assistant entities, LED and button, "
+              "update check, heap sampler, and the `std::string`/`std::vector` code inlined into them")
+
+
+def gplug_sections():
+    """(address, size, owner symbol, is literal pool) of every image section of the two gplug_smi objects.
+
+    The map repeats the whole input-section list once under "Discarded input sections" (COMDAT
+    duplicates the linker threw away), so parsing starts at the memory map proper.
+    """
+    text = (BUILD / "firmware.map").read_text(errors="replace")
+    text = text[text.index("Linker script and memory map"):]
+    out, sec = [], None
+    for line in text.splitlines():
+        if line.startswith(" .") and not line.startswith("  "):
+            sec = line.strip().split()[0]
+        found = GPLUG_SECTION.match(line)
+        if found and sec and not sec.startswith((".debug", ".note", ".riscv", ".comment")):
+            # ".rodata._ZN...str1.4" -> "_ZN...": the literal pool of one function.
+            name = sec.split(".", 2)[2].removesuffix(".str1.4") if sec.count(".") >= 2 else "?"
+            out.append((int(found.group(1), 16), int(found.group(2), 16), name,
+                        sec.endswith(".str1.4")))
+    return out
+
+
+def gplug_rows():
+    """Rows for the `gplug_smi` sub-table, plus its total and how much of it is string literals.
+
+    The total is larger than the "`gplug_smi` code" row of the image table: the literal pools
+    (.str1.4) are part of the merged pool that esp_idf_size credits to the API connection, i.e. to
+    the "String literals from all code" row. Keeping them here is what makes the parts comparable --
+    a JSON route is mostly literals -- so the sub-table states both numbers.
+    """
+    secs = gplug_sections()
+    demangled = run([tool("c++filt")], "\n".join(s[2] for s in secs)).splitlines()
+    files = run([tool("addr2line"), "-e", str(BUILD / "firmware.elf")],
+                "\n".join(hex(s[0]) for s in secs)).splitlines()
+    sizes = {label: [0, 0] for label in [label for label, _ in GPLUG_PARTS] + [GPLUG_REST]}
+    for (_, size, _, is_literal), name, where in zip(secs, demangled, files):
+        key = f"{where}|{name}"
+        label = next((lbl for lbl, pattern in GPLUG_PARTS if re.search(pattern, key)), GPLUG_REST)
+        sizes[label][0] += size
+        sizes[label][1] += size if is_literal else 0
+    return sizes, sum(v[0] for v in sizes.values()), sum(v[1] for v in sizes.values())
 
 
 def measure():
@@ -189,6 +270,14 @@ def report(m):
     print("| Part | Size | Share of image |\n|---|---|---|")
     for label, size in rows:
         print(f"| {label} | {kb(size)} | {pct(size, m['image'])} |")
+    print()
+    parts, gplug_total, literals = gplug_rows()
+    print(f"Inside `gplug_smi`: {gplug_total:,} B = {kb(gplug_total)}, of which {kb(literals)} string "
+          f"literals that the image table counts in its \"String literals\" row, not in "
+          f"\"`gplug_smi` code\" ({kb(i['gplug'])}).\n")
+    print("| Part of `gplug_smi` | Size | Of it literals | Share |\n|---|---|---|---|")
+    for label, (size, lit) in sorted(parts.items(), key=lambda kv: -kv[1][0]):
+        print(f"| {label} | {kb(size)} | {kb(lit)} | {pct(size, gplug_total)} |")
     print()
     rrows = [
         ("IRAM code (interrupts, flash driver, scheduler, Wi-Fi)", m["iram"]),
