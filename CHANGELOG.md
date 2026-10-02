@@ -10,9 +10,29 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Added
+
+- The gPlugM presets now read the reactive values the meter sends: instantaneous reactive power (*Q*,
+  missing from both presets) and the four reactive energy counters (*Q5*–*Q8*, missing from the
+  Romande Energie preset). They appear in the app's value list and in MQTT.
+
+### Fixed
+
+- gPlugM showed phase currents ten times too high (12.12 A instead of 1.212 A) with the *universal*
+  preset: the meter sends milliamps.
+
 ### Changed
 
 - The firmware is now called **METER** (Monitoring Energy Through Every Reading): the app title, the home-screen shortcut, the web installer and the user manual use the new name. "gPlug" still names the adapter hardware. The device address (`gplug-xxxxxx.local`), the setup network `gPlug-Setup`, MQTT topics and Home Assistant entities are unchanged.
+
+### Upgrade notes
+
+- Update over the air as usual: no USB reflash (the partition table is unchanged). Wi-Fi, meter
+  settings, history, event log and MQTT settings are kept.
+- **gPlugM only:** the meter profile is stored on the device, so the corrected currents and the new
+  reactive values appear once you pick the profile again under *Device → Change meter profile*.
+- Home Assistant entities do not change: the reactive values show in the app and over MQTT, not as
+  Home Assistant sensors (it exposes power, energy, voltage and current).
 
 ## [0.8.0] – 2026-09-30
 

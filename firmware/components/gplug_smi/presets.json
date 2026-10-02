@@ -1050,6 +1050,15 @@
      "precision": 3
     },
     {
+     "obis": "130.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q ___ 130_7",
+     "unit": "kvar",
+     "name": "Q",
+     "precision": 3
+    },
+    {
      "obis": "32.7.0",
      "type": "number",
      "scale": 1000.0,
@@ -1128,6 +1137,42 @@
      "label": "Eo2 ___ 2_8_2",
      "unit": "kWh",
      "name": "Eo2",
+     "precision": 3
+    },
+    {
+     "obis": "5.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q5 ___ 5_8_0",
+     "unit": "kVArh",
+     "name": "Q5",
+     "precision": 3
+    },
+    {
+     "obis": "6.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q6 ___ 6_8_0",
+     "unit": "kVArh",
+     "name": "Q6",
+     "precision": 3
+    },
+    {
+     "obis": "7.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q7 ___ 7_8_0",
+     "unit": "kVArh",
+     "name": "Q7",
+     "precision": 3
+    },
+    {
+     "obis": "8.8.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q8 ___ 8_8_0",
+     "unit": "kVArh",
+     "name": "Q8",
      "precision": 3
     }
    ],
@@ -1256,29 +1301,38 @@
     {
      "obis": "31.7.0",
      "type": "number",
-     "scale": 100.0,
+     "scale": 1000.0,
      "label": "I1 ___ 31.7.0",
      "unit": "A",
      "name": "I1",
-     "precision": 2
+     "precision": 3
     },
     {
      "obis": "51.7.0",
      "type": "number",
-     "scale": 100.0,
+     "scale": 1000.0,
      "label": "I2 ___ 51.7.0",
      "unit": "A",
      "name": "I2",
-     "precision": 2
+     "precision": 3
     },
     {
      "obis": "71.7.0",
      "type": "number",
-     "scale": 100.0,
+     "scale": 1000.0,
      "label": "I3 ___ 71.7.0",
      "unit": "A",
      "name": "I3",
-     "precision": 2
+     "precision": 3
+    },
+    {
+     "obis": "130.7.0",
+     "type": "number",
+     "scale": 1000.0,
+     "label": "Q ___ 130.7.0",
+     "unit": "kvar",
+     "name": "Q",
+     "precision": 3
     },
     {
      "obis": "1.8.0",

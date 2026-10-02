@@ -113,7 +113,7 @@ optional and uses ESPHome's native API.
 ### Technical
 
 - Platform: ESPHome, delivered as an **external component** (`external_components:`) in a dedicated repository.
-- Descriptor: JSON, schema-versioned. Fixed maximum number of OBIS entries: 48 (largest preset, gPlugM universal, has 33).
+- Descriptor: JSON, schema-versioned. Fixed maximum number of OBIS entries: 48 (largest preset, gPlugM universal, has 34).
   No unbounded heap use.
 - SPA: Preact 10 + htm 3 (no JSX, no framework build), bundled by esbuild into one `index.html`, gzip-embedded in the
   firmware and served at `/`. Setup wizard measured at 11.7 kB gzipped. Budget for the full SPA (live + history):

@@ -836,6 +836,15 @@ single browser with the SPA open**, and 3 from the machine running the probe. Th
   underlying theory; see the two 2026-09-10 entries in `DECISIONS.md` for the full trail.
   `dbg_structure.cpp <hex files...>` remains for dumping any future capture's descriptors/values with
   byte offsets.
+- **gPlugM push decode cross-checked against a full device log (gPlugM on an L+G E450 at Romande
+  Energie, Tasmota `weblog 4`, 2026-03-28):** 22 HDLC frames / 6 push cycles replayed byte-wise,
+  0 FCS and 0 HCS errors, GBT reassembly to 364 B and 158 B APDUs, and all 64 decoded values
+  identical to the values the device's own script logged and published over MQTT, SM-ID string
+  included. Two facts came out of it: this meter's push is *unencrypted* although both gPlugM presets
+  carry `encrypted: true` (harmless — `loop()` feeds the decoder regardless and the key stays unused),
+  and the meter alternates a 10 s totals push with a tariff-register push, so only sticky per-entry
+  values (`have_[]`) show a complete picture. The same log fixed the gPlugM current scale (mA, not
+  cA) and added `130.7.0` plus `5.8.0`/`6.8.0`/`7.8.0`/`8.8.0` to the presets.
 - History is verified by host tests and a mock-server walkthrough only: real sector rotation, recovery
   from a power cut mid-append, and a 24 h run still need the device. A dev build with
   `HIST_INTERVAL_S = 60` exercises rotation in ~3.5 h.
