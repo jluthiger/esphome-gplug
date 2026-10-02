@@ -707,8 +707,17 @@ nothing measurable, one check by 34 kB. Two causes, both fixed:
 "Largest block" is `heap_caps_get_largest_free_block()`, which reports TLSF's size class
 (`tlsf_fit_size()`: 4 kB steps between 64 and 128 kB), not the exact block. 112 kB is the whole
 free space of that region, the most it can read, so fragmentation computed as 1 - largest/free
-sits at ~21 % on a healthy device with ~144 kB free. The 24 h run against the `DESIGN.md` target
-(>= 80 kB free, < 20 % fragmented) is still to be done.
+sits at ~21 % on a healthy device with ~144 kB free.
+
+**24 h run against the `DESIGN.md` target** (gPlugK 2026-10-02, 0.9.0-dev, single boot, 35.1 h
+uptime, MQTT and Home Assistant API connected, SPA open from one browser for the run, 3 HTTP
+keep-alive sessions): the full 288-sample ring (`/api/heap`, the whole 24 h window) never saw the
+largest block below 112 kB — the fix above held for the entire run. Free ranged 136-142 kB, the
+minimum since boot settled at 84 kB after the same early-boot dip described above and did not fall
+further. Fragmentation (1 - largest/free per sample) ranged 17.6-21.1 %, average 20.5 %. Target:
+>= 80 kB free (met, 4 kB margin) and < 20 % fragmented (missed by ~0.5 pt on average, structural —
+TLSF's 4 kB size classes round 112 kB down from a ~141 kB pool, as above, not a further leak or
+split).
 
 **Wiping the stored history.** The 15-min log lives in the `data` partition and survives every
 `esphome run`. To clear it, erase that region — take the offset from the boot log
