@@ -6,9 +6,9 @@ import { num, bucketLabel, bucketWhen, dateShort, dateRange, qhDate, QH_EPOCH } 
 import { Collapsible } from "./collapsible.js";
 import { useBox } from "../box.js";
 import { useScrub, Readout } from "../scrub.js";
-// Every range here comes from the flash history (/api/history), fetched once per range and kept,
-// so re-visiting one costs the device nothing; the scan reads flash, which is why it is not on the
-// 10 s poll. There is deliberately no "last hour" range: that is live data, not stored history,
+// Every range here comes from the flash history (/api/history), fetched per range and kept until
+// the store gains a record, so re-visiting one costs the device nothing; the scan reads flash,
+// which is why it is not on the 10 s poll. There is deliberately no "last hour" range: that is live data, not stored history,
 // and the Live tab draws exactly the same series one tap away.
 const RANGES = [["day", "rangeDay"], ["week", "rangeWeek"], ["month", "rangeMonth"], ["year", "rangeYear"]];
 const HF_CONFIG_CHANGE = 8, HF_NO_DATA = 16;
@@ -25,9 +25,15 @@ export function HistTab({ live, day, status, presets, wide }) {
     // The live screen already holds the day range (it needs it to fill the last hour), so taking
     // it from there saves the device a second flash scan for data the app has in hand.
     if (range === "day" && day) { cache.set("day", day); setHist(day); setErr(null); return; }
-    if (cache.has(range)) { setHist(cache.get(range)); setErr(null); return; }
+    // A cached range is good until the store has a newer record than it does. The day history the
+    // live screen re-reads every 5 min tells when that happened; without that check a tab left open
+    // kept showing the week as it was at first view, hours behind the day range.
+    const kept = cache.get(range);
+    if (kept && (!day || kept.newest_qh === day.newest_qh)) { setHist(kept); setErr(null); return; }
     let stop = false;
-    setLoading(true); setHist(null); setErr(null);
+    setErr(null);
+    // A stale range stays on screen while it is re-read, rather than blanking the chart every 15 min.
+    if (kept) setHist(kept); else { setLoading(true); setHist(null); }
     api.history(range)
       .then((h) => { if (!stop) { cache.set(range, h); setHist(h); } })
       .catch((e) => { if (!stop) setErr(String(e.message || e)); })

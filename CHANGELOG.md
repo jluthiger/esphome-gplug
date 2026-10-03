@@ -18,6 +18,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ### Fixed
 
+- The History tab's Week, Month and Year charts no longer freeze at the moment they were first
+  opened: they are re-read when the device stores a new quarter hour.
 - gPlugM showed phase currents ten times too low (1.212 A instead of 12.12 A) with the *Romande
   Energie* preset: the meter sends hundredths of an ampere. Tasmota has the same error, so the value
   in the old firmware was wrong too — at 8.2 kW of export the app now shows ~12 A per phase instead
