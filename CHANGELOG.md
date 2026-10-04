@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.9.0] – 2026-10-04
+
 ### Added
 
 - The gPlugM presets now read the reactive values the meter sends: instantaneous reactive power (*Q*,
