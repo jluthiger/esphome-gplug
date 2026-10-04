@@ -1,7 +1,11 @@
 [
   {
     "id": "latest",
-    "title": "0.8 (latest)"
+    "title": "0.9 (latest)"
+  },
+  {
+    "id": "0.9",
+    "title": "0.9"
   },
   {
     "id": "0.8",
