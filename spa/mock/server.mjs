@@ -90,8 +90,9 @@ const DIAG_GRACE_S = 8;
 
 // Header sniffing like GplugSmi's ProtocolSniffer: what the line "speaks" shows up in /api/live
 // `detect` DETECT_DELAY_S after the hardware step. Defaults follow the variant (gPlugD/D-E -> DSMR,
-// gPlugK/M -> encrypted DLMS); MOCK_DETECT=dsmr|dlms|none overrides it, e.g. `dlms` on a gPlugD
-// makes the wizard propose the encrypted P1 profile, `none` leaves the step in manual mode.
+// gPlugK/M -> encrypted DLMS); MOCK_DETECT=dsmr|dlms|plain|none overrides it, e.g. `dlms` on a gPlugD
+// makes the wizard propose the encrypted P1 profile, `plain` is DLMS without ciphering (no key
+// asked, issue #44), `none` leaves the step in manual mode.
 const MOCK_DETECT = process.env.MOCK_DETECT || "";
 const DETECT_DELAY_S = 4;
 
@@ -99,9 +100,10 @@ function detect() {
   const none = { protocol: null, encrypted: null, hits: 0, age: null };
   if (!state.hardware) return none;
   const t = (Date.now() - state.hwT0) / 1000;
-  const proto = MOCK_DETECT || (["gplugk", "gplugm"].includes(state.hardware.variant) ? "dlms" : "dsmr");
-  if (proto === "none" || t < DETECT_DELAY_S) return none;
-  return { protocol: proto, encrypted: proto === "dlms", hits: Math.floor(t / 5) + 1, age: Math.floor(t % 5) };
+  const mode = MOCK_DETECT || (["gplugk", "gplugm"].includes(state.hardware.variant) ? "dlms" : "dsmr");
+  if (mode === "none" || t < DETECT_DELAY_S) return none;
+  const proto = mode === "plain" ? "dlms" : mode;
+  return { protocol: proto, encrypted: mode === "dlms", hits: Math.floor(t / 5) + 1, age: Math.floor(t % 5) };
 }
 
 function live() {

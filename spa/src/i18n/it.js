@@ -52,6 +52,7 @@ export const it = {
   otherProfile: "Scegliere un altro profilo",
   key: "Chiave (GUEK)",
   keyHint: "32 caratteri esadecimali. La chiave si ottiene dal gestore di rete. Viene salvata solo sul dispositivo e non è più visualizzata.",
+  keyOptionalHint: "Lasciate vuoto se il contatore invia dati non cifrati.",
   keyInvalid: "La chiave deve essere di 32 caratteri esadecimali.",
   encrypted: "cifrato",
   noPresetForVariant: "Per questo dispositivo non è previsto alcun profilo.",

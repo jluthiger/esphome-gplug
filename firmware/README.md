@@ -848,7 +848,8 @@ single browser with the SPA open**, and 3 from the machine running the probe. Th
   included. The six cycles are pinned as capture C in `test_capturelist.cpp` (64 values; the first
   captures that cover the plaintext GBT path from HDLC in, since this meter pushes unencrypted).
   Three facts came out of it: this meter's push is *unencrypted* although both gPlugM presets carry
-  `encrypted: true` (harmless — `loop()` feeds the decoder regardless and the key stays unused), the
+  `encrypted: true` (harmless — `loop()` feeds the decoder regardless and the key stays unused; since
+  issue #44 the wizard reads the flag as "takes a key" and asks for none on such a line), the
   meter alternates a 10 s totals push with a tariff-register push, so only sticky per-entry values
   (`have_[]`) show a complete picture, and `130.7.0` plus `5.8.0`/`6.8.0`/`7.8.0`/`8.8.0` were
   missing from the presets although the meter sends them.

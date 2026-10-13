@@ -51,6 +51,7 @@ export const de = {
   otherProfile: "Anderes Profil wählen",
   key: "Schlüssel (GUEK)",
   keyHint: "32 Hex-Zeichen. Sie erhalten den Schlüssel von Ihrem Netzbetreiber. Er wird nur auf dem Gerät gespeichert und nie wieder angezeigt.",
+  keyOptionalHint: "Leer lassen, wenn Ihr Zähler unverschlüsselt sendet.",
   keyInvalid: "Schlüssel muss aus 32 Hex-Zeichen bestehen.",
   encrypted: "verschlüsselt",
   noPresetForVariant: "Für dieses Gerät ist kein Profil hinterlegt.",

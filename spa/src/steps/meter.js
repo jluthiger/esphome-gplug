@@ -19,6 +19,12 @@ const LONG_WAIT_S = 30;
 // shown alone, so the user only confirms (and types the key when the line is encrypted). Several
 // fitting profiles (gPlugM has two DLMS ones) narrow the list to those. Tapping a card ends the
 // following; the wider lists stay reachable behind the "other profile" / "show all" actions.
+//
+// Key: a preset's `encrypted` flag only says that the profile *takes* a key -- the Tasmota scripts
+// it comes from leave the key empty for a meter that pushes plain DLMS, and the firmware decodes a
+// plain data-notification with or without one. Whether a key is asked for is therefore the line's
+// call (issue #44, a gPlugM on an unencrypted meter that could only be set up with a made-up key):
+// ciphered -> required, plain -> not asked and none stored, not known yet -> optional.
 export function Meter({ presets, variant, value, storedKey, keyHint, onChange, onNext, onBack }) {
   const [expand, setExpand] = useState(0);   // 0 = fitting profiles, 1 = this variant's, 2 = all
   const [manual, setManual] = useState(false);
@@ -40,7 +46,7 @@ export function Meter({ presets, variant, value, storedKey, keyHint, onChange, o
   const sniffs = !!live && live.detect !== undefined;   // firmware with the sniffer at all
   const det = live?.detect?.protocol ? live.detect : null;
   const mine = presets.filter((p) => p.variant === variant);
-  const fit = det ? mine.filter((p) => p.protocol === det.protocol && (det.encrypted == null || p.encrypted === det.encrypted)) : [];
+  const fit = det ? mine.filter((p) => p.protocol === det.protocol && (det.encrypted !== true || p.encrypted)) : [];
   const sel = presets.find((p) => p.id === value?.preset);
 
   // Follow the detection until the user picks by hand: whenever the selection is not a fitting
@@ -57,8 +63,13 @@ export function Meter({ presets, variant, value, storedKey, keyHint, onChange, o
     onChange({ ...value, preset: p.id, key: value?.key || "" });
   }
 
-  const keep = storedKey && value?.keepKey;
-  const keyOk = !sel?.encrypted || keep || HEX32.test(value?.key || "");
+  // The line's ciphering as far as it applies to a profile: true / false, or null while the
+  // sniffer has not seen the APDU tag (or reports another protocol than the profile's).
+  const lineEnc = (p) => !p?.encrypted ? false : det && det.protocol === p.protocol ? det.encrypted : null;
+  const selEnc = lineEnc(sel);
+  const keyMode = selEnc === false ? "none" : selEnc ? "required" : "optional";
+  const keep = keyMode !== "none" && storedKey && value?.keepKey;
+  const keyOk = keyMode === "none" || keep || HEX32.test(value?.key || "") || (keyMode === "optional" && !value?.key);
 
   // Which list is on screen: the narrowest tier that has something in it, widened on request. A
   // tier that would show the same cards as the one before it is skipped.
@@ -95,26 +106,26 @@ export function Meter({ presets, variant, value, storedKey, keyHint, onChange, o
     ${mine.length === 0 && html`<p class="hint">${S.noPresetForVariant}</p>`}
     ${list.map((p) => html`
       <div class="card click ${sel?.id === p.id ? "sel" : ""}" onClick=${() => pick(p)}>
-        <div class="t">${presetLabel(p)}</div>
+        <div class="t">${presetLabel(p, lineEnc(p))}</div>
         <div class="s">
           ${p.protocol.toUpperCase()} · ${p.baud} Bd · ${p.obis.length} ${S.values}
-          ${p.encrypted && html` · <span class="badge warn">${S.encrypted}</span>`}
+          ${lineEnc(p) && html` · <span class="badge warn">${S.encrypted}</span>`}
         </div>
       </div>`)}
     ${more && html`<button onClick=${() => setExpand(level + 1)}>${moreLabel}</button>`}
-    ${sel?.encrypted && storedKey && html`
+    ${keyMode !== "none" && storedKey && html`
       <div class="card switchrow" style="margin-top:14px">
         <div><div class="t">${S.keepKey}</div><div class="s">${keyHint && html`<span class="num">${S.keyFingerprint(keyHint)}</span><br />`}${S.keepKeyHint}</div></div>
         <button class="switch ${keep ? "on" : ""}" role="switch" aria-checked=${!!keep}
           onClick=${() => onChange({ ...value, keepKey: !value.keepKey })}><span></span></button>
       </div>`}
-    ${sel?.encrypted && keep && keyHint && html`<${KeyCheck} />`}
-    ${sel?.encrypted && !keep && html`
+    ${keep && keyHint && html`<${KeyCheck} />`}
+    ${keyMode !== "none" && !keep && html`
       <label>${S.key}</label>
       <input class="num" type="text" autocomplete="off" spellcheck="false" maxlength="32"
         value=${value.key} placeholder="0123456789ABCDEF0123456789ABCDEF"
         onInput=${(e) => onChange({ ...value, key: e.target.value.trim() })} />
-      <p class="hint">${S.keyHint}</p>
+      <p class="hint">${keyMode === "optional" ? S.keyOptionalHint + " " : ""}${S.keyHint}</p>
       ${value.key && !keyOk && html`<div class="err">${S.keyInvalid}</div>`}`}
     ${sel && html`
       <details>
@@ -125,7 +136,7 @@ export function Meter({ presets, variant, value, storedKey, keyHint, onChange, o
       </details>`}
     <div class="nav">
       <button onClick=${onBack}>${S.back}</button>
-      <button class="primary" disabled=${!sel || !keyOk} onClick=${onNext}>${S.next}</button>
+      <button class="primary" disabled=${!sel || !keyOk} onClick=${() => onNext(keyMode !== "none")}>${S.next}</button>
     </div>`;
 }
 

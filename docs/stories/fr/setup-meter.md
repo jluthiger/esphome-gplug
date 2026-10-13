@@ -17,16 +17,20 @@ mon gestionnaire de réseau afin que le gPlug puisse lire les valeurs de mon com
 2. Si un seul profil convient, il est déjà sélectionné. Si plusieurs conviennent, choisissez le
    profil de votre gestionnaire de réseau. {{S.otherProfile}} affiche d'autres profils.
 3. Si le compteur envoie des données chiffrées, saisissez la clé (GUEK) sous {{S.key}} :
-   32 caractères parmi 0–9 et A–F, comme dans la lettre de votre gestionnaire de réseau.
+   32 caractères parmi 0–9 et A–F, comme dans la lettre de votre gestionnaire de réseau. S'il
+   envoie des données non chiffrées, l'assistant ne demande pas de clé.
    {{img:wizard-meter|Compteur reconnu, profil proposé et champ de la clé}}
 4. {{S.values}} indique les valeurs que le profil lit.
 5. Touchez {{S.next}}.
 
 ## Acceptance
-- {{S.next}} ne devient actif qu'une fois un profil choisi et la clé valide.
+- {{S.next}} ne devient actif qu'une fois un profil choisi et, pour un compteur chiffré, la clé
+  valide.
 - L'assistant passe à {{S.done}} et y vérifie la liaison avec le compteur.
 
 ## Notes
 - La clé est enregistrée uniquement sur le gPlug et n'est plus jamais affichée.
+- Si le gPlug ne peut pas encore reconnaître si le compteur chiffre ses données, le champ de la
+  clé s'affiche mais peut rester vide.
 - Si aucun signal n'arrive après une demi-minute, vérifiez le câble. Certains gestionnaires de
   réseau doivent d'abord activer l'interface client.

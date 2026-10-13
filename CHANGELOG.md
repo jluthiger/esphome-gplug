@@ -20,6 +20,10 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 - The Memory card no longer shows a few kB less free memory before it is first opened than after:
   closed and open, it now shows the same measurement.
+- Setup no longer asks for a key when the meter sends unencrypted data, and proposes the profile
+  there as well. Before, a gPlugM (or a gPlugD/D-E/K on DLMS) on an unencrypted meter could only be
+  set up by typing a made-up key. If you did that, nothing breaks; to remove the key, run the setup
+  again (add `#setup` to the app's address).
 
 ## [0.9.0] – 2026-10-04
 

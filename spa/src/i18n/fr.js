@@ -53,6 +53,7 @@ export const fr = {
   otherProfile: "Choisir un autre profil",
   key: "Clé (GUEK)",
   keyHint: "32 caractères hexadécimaux. Vous obtenez la clé auprès de votre gestionnaire de réseau. Elle est enregistrée uniquement sur l'appareil et n'est plus jamais affichée.",
+  keyOptionalHint: "Laissez vide si votre compteur émet des données non chiffrées.",
   keyInvalid: "La clé doit comporter 32 caractères hexadécimaux.",
   encrypted: "chiffré",
   noPresetForVariant: "Aucun profil n'est prévu pour cet appareil.",

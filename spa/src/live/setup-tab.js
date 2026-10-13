@@ -31,7 +31,7 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
     [S.host, status?.hostname ? `${status.hostname}.local` : null],
     [S.ip, wifi?.ip],
     [S.wlan, wifi ? `${wifi.ssid} · ${wifi.rssi} dBm` : S.offline],
-    [S.profile, presetLabel(preset) || status?.meter?.preset],
+    [S.profile, presetLabel(preset, !!status?.meter?.encrypted) || status?.meter?.preset],
   ].filter(([, v]) => v);
 
   const encrypted = status?.meter?.encrypted;
