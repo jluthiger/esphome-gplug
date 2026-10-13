@@ -90,6 +90,13 @@ Questions, problems, a meter that does not work: open an
 [issue](https://github.com/jluthiger/esphome-gplug/issues). Please add what the setup check or the
 *Device → Event log* shows.
 
+## License
+
+METER is free software under the [GNU General Public License, version 3 or later](LICENSE):
+you may use, change and pass it on under the same terms, without warranty. Copyright © 2026 Jürg
+Luthiger. It builds on ESPHome and other open source software, listed in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 ---
 
 Building or changing the firmware yourself? See [DEVELOPMENT.md](DEVELOPMENT.md).

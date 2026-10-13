@@ -17,6 +17,7 @@ and constraints, [`DECISIONS.md`](DECISIONS.md) for why things are the way they 
 | [`DECISIONS.md`](DECISIONS.md) | Decision log with rationale |
 | [`install/`](install) | Web installer page (ESP Web Tools) + manifest, deployed to GitHub Pages by the release workflow |
 | [`docs/`](docs/README.md) | User manual: user stories per language, built into a static site with screenshots from the mock and published to GitHub Pages |
+| [`LICENSE`](LICENSE), [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md) | GPL-3.0-or-later for the whole repository; what the forked `captive_portal` and the bundled libraries bring along. Contributions are accepted under the same license |
 | [`CHANGELOG.md`](CHANGELOG.md) | What changed per release, with upgrade notes |
 | [`migration.md`](migration.md) | Replacing Tasmota on an existing gPlug: what to save first, software setup for macOS, Linux and Windows, erasing, flashing, and the way back |
 
