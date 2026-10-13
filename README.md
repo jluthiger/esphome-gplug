@@ -47,9 +47,15 @@ and **gPlugM**, with profiles for DSMR/P1 meters, Kamstrup and Landis+Gyr DLMS m
 meters of Swiss grid operators such as Romande Energie. One firmware serves all of them; you choose
 the model in the setup assistant.
 
-Tested on real hardware so far: the **gPlugK** on a Kamstrup meter. The other models run the same
-software with their own profiles, but have not been tried on a real device yet – if you have one,
-[your report](https://github.com/jluthiger/esphome-gplug/issues) helps.
+Tested on real hardware so far:
+
+| gPlug | Meter | Result |
+|---|---|---|
+| gPlugK | Kamstrup | Works. |
+| gPlugM | Energie Thun's meter (not encrypted) | Works: installation, setup and live values. Reported by a user, October 2026. |
+
+The other models run the same software with their own profiles, but have not been tried on a real
+device yet – if you have one, [your report](https://github.com/jluthiger/esphome-gplug/issues) helps.
 
 ## Get started
 
@@ -57,7 +63,8 @@ software with their own profiles, but have not been tried on a real device yet �
    [web installer](https://jluthiger.github.io/esphome-gplug/) in Chrome or Edge and press
    *Install METER firmware*.
 2. **Connect it to your Wi-Fi.** Plug the gPlug into your meter. On your phone, join the network
-   `gPlug-Setup`; a page opens where you choose your home Wi-Fi. Note the address it shows,
+   `gPlug-Setup`; a page opens where you choose your home Wi-Fi. If no page opens by itself, open
+   `http://192.168.4.1/` in the browser. Note the address the page shows,
    `http://gplug-xxxxxx.local/`.
 3. **Set it up.** Open that address. The assistant takes you through model, meter profile and – for
    an encrypted meter – the key from your grid operator's letter, and checks that data arrives.
