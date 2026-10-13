@@ -17,16 +17,20 @@ mio gestore di rete, affinché il gPlug possa leggere i valori del mio contatore
 2. Se un solo profilo è adatto, è già selezionato. Se ce ne sono diversi, scegliete il profilo del
    vostro gestore di rete. {{S.otherProfile}} mostra altri profili.
 3. Se il contatore invia dati cifrati, inserite la chiave (GUEK) sotto {{S.key}}: 32 caratteri tra
-   0–9 e A–F, come nella lettera del gestore di rete.
+   0–9 e A–F, come nella lettera del gestore di rete. Se invia dati non cifrati, la procedura non
+   chiede alcuna chiave.
    {{img:wizard-meter|Contatore riconosciuto, profilo proposto e campo della chiave}}
 4. {{S.values}} elenca i valori che il profilo legge.
 5. Toccate {{S.next}}.
 
 ## Acceptance
-- {{S.next}} diventa attivo solo quando è scelto un profilo e la chiave è valida.
+- {{S.next}} diventa attivo solo quando è scelto un profilo e, per un contatore cifrato, la chiave
+  è valida.
 - La procedura passa a {{S.done}} e lì verifica il collegamento con il contatore.
 
 ## Notes
 - La chiave è salvata solo sul gPlug e non viene più mostrata.
+- Se il gPlug non riesce ancora a riconoscere se il contatore cifra i dati, il campo della chiave
+  compare ma può restare vuoto.
 - Se dopo mezzo minuto non arriva ancora nessun segnale, verificate il cavo. Alcuni gestori di rete
   devono prima attivare l'interfaccia cliente.

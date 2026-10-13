@@ -69,11 +69,15 @@ export function onLangChange(fn) {
 
 // A preset's name comes from the device (presets.json) and is deliberately technical and
 // language-neutral -- "P1 DSMR", "Kamstrup DLMS Push". Only the encryption state is prose, so it
-// is appended here from the preset's own flag rather than baked into the name on the device.
-export function presetLabel(p) {
+// is appended here rather than baked into the name on the device. The preset's flag alone settles
+// it only when false: a profile that takes a key also reads a meter that pushes plain DLMS, so
+// for those the caller says what is actually the case (`enc`: the line's ciphering in the wizard,
+// a stored key on the Device tab) and the qualifier is left out while that is unknown.
+export function presetLabel(p, enc) {
   if (!p) return null;
   if (typeof p === "string") return p;   // an id the device reports without a matching preset
-  return p.name + " · " + (p.encrypted ? S.detectEncrypted : S.detectPlain);
+  const e = p.encrypted ? enc : false;
+  return e == null ? p.name : p.name + " · " + (e ? S.detectEncrypted : S.detectPlain);
 }
 
 export const S = new Proxy({}, {

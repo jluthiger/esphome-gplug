@@ -105,14 +105,16 @@ function App() {
   useEffect(() => { if (docTitle) document.title = docTitle; }, [docTitle]);
 
   // Persist each step to the device as the user leaves it.
-  async function commit(from) {
+  async function commit(from, withKey) {
     setBusy(true); setErr(null);
     try {
       if (from === "hardware") await api.setHardware(hw);
       if (from === "meter") {
         const p = data.presets.find((x) => x.id === meter.preset);
-        const keep = p.encrypted && status?.meter?.encrypted && meter.keepKey;
-        await api.setMeter({ preset: p.id, key: p.encrypted && !keep ? meter.key : undefined,
+        // withKey is the meter step's verdict (steps/meter.js): false on a line that pushes plain
+        // DLMS, where a key left over from an earlier setup is dropped rather than kept.
+        const keep = withKey && status?.meter?.encrypted && meter.keepKey;
+        await api.setMeter({ preset: p.id, key: withKey && !keep && meter.key ? meter.key : undefined,
           keep_key: keep || undefined, descriptor: toDescriptor(p, hw) });
       }
       setStep((s) => s + 1);
@@ -131,7 +133,7 @@ function App() {
       onBack=${back} onNext=${() => commit("hardware")} />`;
   else if (name === "meter") body = html`<${Meter} presets=${data.presets} variant=${hw?.variant} value=${meter}
       storedKey=${!!status?.meter?.encrypted} keyHint=${status?.meter?.key_hint}
-      onChange=${setMeter} onBack=${back} onNext=${() => commit("meter")} />`;
+      onChange=${setMeter} onBack=${back} onNext=${(withKey) => commit("meter", withKey)} />`;
   else body = html`<${Done} onOpenLive=${openLive} />`;
 
   // The live screen draws its own header (status bar, screen title, data pill -- see live/index.js);

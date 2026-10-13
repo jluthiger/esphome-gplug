@@ -17,16 +17,20 @@ so that the gPlug can read my meter's values.
 2. If exactly one profile fits, it is already selected. If several fit, choose your grid operator's
    profile. {{S.otherProfile}} shows more profiles.
 3. If the meter sends encrypted data, enter the key (GUEK) under {{S.key}}: 32 characters from 0–9
-   and A–F, as in your grid operator's letter.
+   and A–F, as in your grid operator's letter. If it sends unencrypted data, the assistant does not
+   ask for a key.
    {{img:wizard-meter|Detected meter, proposed profile and key field}}
 4. {{S.values}} lists the values the profile reads.
 5. Tap {{S.next}}.
 
 ## Acceptance
-- {{S.next}} only becomes active once a profile is chosen and the key is valid.
+- {{S.next}} only becomes active once a profile is chosen and, on an encrypted meter, the key is
+  valid.
 - The assistant moves on to {{S.done}} and checks the connection to the meter there.
 
 ## Notes
 - The key is stored on the gPlug only and never shown again.
+- If the gPlug cannot tell yet whether the meter encrypts, the key field is shown but may stay
+  empty.
 - If there is still no signal after half a minute, check the cable. Some grid operators have to
   enable the customer interface first.

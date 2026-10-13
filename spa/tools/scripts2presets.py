@@ -124,6 +124,8 @@ for script in sorted(ROOT.glob("*/*/script.txt")):
         "mode": parsed["uart"]["mode"],
         "baud": parsed["uart"]["baud"],
         "rx": parsed["uart"]["rx"],
+        # "Takes a key", not "is encrypted": every script that sets so4 defaults to dKEY="" for a
+        # meter that pushes plain DLMS. The SPA asks for the key by what the line sends (issue #44).
         "encrypted": opts.get("key") == "%dKEY%",
         "serial_flags": int(opts["serial_flags"], 16) if "serial_flags" in opts else 0,  # Tasmota so2: 4=invert RX, 8=no pullup
         "buffer": int(opts["buffer"]) if "buffer" in opts else None,

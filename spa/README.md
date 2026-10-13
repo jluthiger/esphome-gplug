@@ -57,12 +57,15 @@ with the pins, so the firmware's UART runs right away and its header sniffer rep
 speaks in `/api/live` `detect` (`protocol_sniff.h` in the firmware). The meter step polls that and
 follows it: exactly one of the variant's profiles fits → it is selected and shown alone, the user
 only confirms (plus the GUEK when the line is encrypted); several fit (gPlugM has two DLMS
-profiles) → the list is narrowed to those. Tapping a card ends the following; a "choose a
+profiles) → the list is narrowed to those. A preset's `encrypted` flag means "takes a key", not
+"is encrypted": every DLMS profile also fits a line that pushes plain DLMS, and whether the key is
+asked for follows `detect.encrypted` – `true` → required, `false` → no key field and none sent (a
+stored one is dropped), `null` → field shown, may stay empty (issue #44). Tapping a card ends the following; a "choose a
 different profile" action and a "show all profiles" toggle widen the list on request. Until the
 first frame the card shows a "waiting for signal" message, after 30 s without a byte it hints at
 the cable / customer port. A firmware without `detect` gets the old manual list. The same sniffer
 feeds the `protocol` diagnosis (shown as "wrong profile") when a configured profile contradicts
-the line. Mock: `MOCK_DETECT=dsmr|dlms|none npm run dev`.
+the line. Mock: `MOCK_DETECT=dsmr|dlms|plain|none npm run dev` (`plain`: DLMS without ciphering).
 
 ## Languages
 
@@ -90,8 +93,9 @@ Two things deliberately stay as they are. The `<input type="date">` fields in th
 render in the *browser's* locale, not the page's; that is the control's own behaviour and the page
 cannot influence it. And the preset names the device serves ("P1 DSMR", "Kamstrup DLMS Push") are
 technical identifiers, not prose -- the SPA appends the encryption state in the user's language
-from the preset's own `encrypted` flag (`presetLabel()`), which is why `scripts2presets.py` no
-longer puts that qualifier in the name.
+(`presetLabel()`), which is why `scripts2presets.py` no longer puts that qualifier in the name.
+For a preset that takes a key the state is what is actually the case, not the preset's flag: the
+line's ciphering in the wizard, a stored key on the Device tab, and nothing while unknown.
 
 The French and Italian wording follows Swiss grid-operator usage rather than literal translation:
 *soutirage*/*injection* and *prelievo*/*immissione* for the two directions, *courbe de charge* and

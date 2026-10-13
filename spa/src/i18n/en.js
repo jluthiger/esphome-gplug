@@ -51,6 +51,7 @@ export const en = {
   otherProfile: "Choose a different profile",
   key: "Key (GUEK)",
   keyHint: "32 hex characters. You get the key from your grid operator. It is stored on the device only and never shown again.",
+  keyOptionalHint: "Leave empty if your meter sends unencrypted data.",
   keyInvalid: "The key must be 32 hex characters.",
   encrypted: "encrypted",
   noPresetForVariant: "No profile is available for this device.",
