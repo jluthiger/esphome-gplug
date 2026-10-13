@@ -4,7 +4,7 @@ title: Confermare il profilo del contatore e inserire la chiave
 chapter: setup
 screen: wizard-meter
 order: 30
-mock: 2026-09-30
+mock: 2026-10-13
 hardware: gPlugK 2026-09-14
 ---
 ## Story

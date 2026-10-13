@@ -25,6 +25,12 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   set up by typing a made-up key. If you did that, nothing breaks; to remove the key, run the setup
   again (add `#setup` to the app's address).
 
+### Upgrade notes
+
+- Update over the air as usual: no USB reflash (the partition table is unchanged). Wi-Fi, meter
+  settings, history, event log and MQTT settings are kept.
+- Home Assistant entities do not change.
+
 ## [0.9.0] – 2026-10-04
 
 ### Added
