@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.10.0] – 2026-10-13
+
 ### Added
 
 - The project now has a license: [GPL-3.0-or-later](LICENSE). You may use, change and pass on the
