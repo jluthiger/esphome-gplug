@@ -30,10 +30,12 @@ function sampleAt({ samples, period = 300, uptime, at }, i) {
 // Closed, the card fetches nothing; MemBody only exists (and polls) while the card is open. The
 // summary shows the free heap the open card last showed, so closing it does not change the number
 // (issue #20: the page-load /api/status is read during the page's first burst of requests and ran
-// 2 kB below the open card on the gPlugK). Only a card not yet opened falls back to that figure.
+// 2-4 kB below the open card on the gPlugK). A card not yet opened shows mem.sample, the newest
+// trend sample that /api/status carries along, which is the figure opening it will show; only
+// firmware before 0.10.0, or a device with fewer than two samples, falls back to mem.free.
 export function MemCard({ status }) {
   const [shown, setShown] = useState(null);
-  const free = shown ?? toKb(status?.mem?.free ?? status?.heap);
+  const free = shown ?? status?.mem?.sample?.[1] ?? toKb(status?.mem?.free ?? status?.heap);
   return html`
     <${Collapsible} id="mem" title=${S.memTitle} summary=${free != null && S.memSummary(kbText(free))}>
       <${MemBody} status=${status} onFree=${setShown} />

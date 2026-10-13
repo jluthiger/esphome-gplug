@@ -307,7 +307,7 @@ function heapTrend() {
 function heapStatus() {
   const last = heapTrend().samples.at(-1);
   return { free: last[1] * 1024 + 312, min_free: last[2] * 1024, largest: last[3] * 1024,
-    stack_loop: 1420, stack_httpd: 2380 };
+    stack_loop: 1420, stack_httpd: 2380, sample: last };
 }
 
 // Mirrors /api/frames: the last FRAME_LEN captures, newest-first -- DLMS HDLC frames or DSMR P1
