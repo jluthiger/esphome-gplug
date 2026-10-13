@@ -363,6 +363,11 @@ branding, based on esphome 2026.6.5:
   file to edit for future branding tweaks — no rebuild-time script needed, ESPHome
   gzip-compresses it automatically via `to_code()`.
 
+The fork keeps upstream's license: ESPHome's C++ runtime files are GPLv3, its Python and other files
+MIT, and upstream carries no per-file headers to preserve. [`components/captive_portal/NOTICE.md`](components/captive_portal/NOTICE.md)
+states the origin, the copyright and what was changed, which is what GPLv3 section 5 asks of a
+modified copy; update its version when re-basing the fork.
+
 Since this is a fork of an actively-evolving core component (not a frozen vendored copy), re-diff
 `captive_portal.{h,cpp}`/`dns_server_esp32_idf.{h,cpp}` against the newly-installed esphome
 package before every ESPHome version bump, to pick up any upstream fixes (the diff today is small
