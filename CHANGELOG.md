@@ -16,6 +16,11 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   firmware and the app under its terms; software from others that is built in is listed in
   [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
+### Fixed
+
+- The Memory card no longer shows a few kB less free memory before it is first opened than after:
+  closed and open, it now shows the same measurement.
+
 ## [0.9.0] – 2026-10-04
 
 ### Added
