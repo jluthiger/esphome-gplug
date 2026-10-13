@@ -1,6 +1,6 @@
 {
   "name": "METER",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "home_assistant_domain": "esphome",
   "funding_url": "https://gplug.ch/",
   "new_install_prompt_erase": true,
@@ -14,8 +14,8 @@
       ],
       "ota": {
         "path": "gplug-ota.bin",
-        "md5": "40d64525edc7350e4d039d9ffc08da4a",
-        "release_url": "https://github.com/jluthiger/esphome-gplug/releases/tag/v0.9.0"
+        "md5": "8e41c63ffb9f380c3160f66b4b075ca4",
+        "release_url": "https://github.com/jluthiger/esphome-gplug/releases/tag/v0.10.0"
       }
     }
   ]
