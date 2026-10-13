@@ -995,6 +995,16 @@ std::string GplugSmi::json_status_() {
   {
     std::lock_guard<std::mutex> lock(mem_mutex_);
     s += ",\"stack_loop\":" + std::to_string(stack_loop_free_);
+    // The newest trend sample, in /api/heap's shape, so the closed Memory card can show the figure
+    // the open one will. `free` above is read here, on the httpd task in the middle of the page's
+    // first burst of requests, and ran 4 kB below the loop's idle sample on the gPlugK (137 against
+    // 141 kB, 2026-10-13). Only from the second sample on: the first is taken at boot, before Wi-Fi
+    // and the API clients took their share, and the card does not show that one either.
+    if (mem_ring_.count() >= 2) {
+      const auto &m = mem_ring_.at(mem_ring_.count() - 1);
+      s += ",\"sample\":[" + std::to_string(m.up_s) + "," + std::to_string(m.free_kb) + "," +
+           std::to_string(m.min_kb) + "," + std::to_string(m.largest_kb) + "," + std::to_string(m.sockets) + "]";
+    }
   }
   // This handler runs on the httpd task, so "this task" is the one whose stack is worth watching.
   s += ",\"stack_httpd\":" + std::to_string((unsigned) uxTaskGetStackHighWaterMark(nullptr));
