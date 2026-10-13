@@ -66,21 +66,25 @@ so that the gPlug can read my meter&#39;s values.</p>
 <li>If exactly one profile fits, it is already selected. If several fit, choose your grid operator&#39;s
 profile. <span class="ui">Choose a different profile</span> shows more profiles.</li>
 <li>If the meter sends encrypted data, enter the key (GUEK) under <span class="ui">Key (GUEK)</span>: 32 characters from 0–9
-and A–F, as in your grid operator&#39;s letter.
+and A–F, as in your grid operator&#39;s letter. If it sends unencrypted data, the assistant does not
+ask for a key.
 <figure><img src="img/wizard-meter.png" alt="Detected meter, proposed profile and key field" loading="lazy"><figcaption>Detected meter, proposed profile and key field</figcaption></figure></li>
 <li><span class="ui">Values</span> lists the values the profile reads.</li>
 <li>Tap <span class="ui">Next</span>.</li>
 </ol>
 </section><section class="acceptance"><h3>How you know it worked</h3><ul>
-<li><span class="ui">Next</span> only becomes active once a profile is chosen and the key is valid.</li>
+<li><span class="ui">Next</span> only becomes active once a profile is chosen and, on an encrypted meter, the key is
+valid.</li>
 <li>The assistant moves on to <span class="ui">Done</span> and checks the connection to the meter there.</li>
 </ul>
 </section><section class="notes"><h3>Notes</h3><ul>
 <li>The key is stored on the gPlug only and never shown again.</li>
+<li>If the gPlug cannot tell yet whether the meter encrypts, the key field is shown but may stay
+empty.</li>
 <li>If there is still no signal after half a minute, check the cable. Some grid operators have to
 enable the customer interface first.</li>
 </ul>
-</section><p class="verified">Checked with the device simulator on 30 September 2026. Checked on real hardware: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Understand the setup check</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to see at the end of the setup whether the meter is really being read,
+</section><p class="verified">Checked with the device simulator on 13 October 2026. Checked on real hardware: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Understand the setup check</a></h2><section class="story"><h3>What it is about</h3><p>As the owner of a gPlug I want to see at the end of the setup whether the meter is really being read,
 so that I can fix a mistake while I am still in the assistant.</p>
 </section><section class="steps"><h3>How to do it</h3><ol>
 <li>In the <span class="ui">Done</span> step the <span class="ui">Connection to the meter</span> card first shows <span class="ui">Waiting for the first data from the meter…</span>. Depending on the

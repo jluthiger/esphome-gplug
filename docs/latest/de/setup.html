@@ -66,21 +66,25 @@ Netzbetreibers hinterlegen, damit der gPlug die Werte meines Zählers lesen kann
 <li>Passt genau ein Profil, ist es bereits ausgewählt. Passen mehrere, wählen Sie das Profil Ihres
 Netzbetreibers. Mit <span class="ui">Anderes Profil wählen</span> sehen Sie weitere Profile.</li>
 <li>Sendet der Zähler verschlüsselt, geben Sie unter <span class="ui">Schlüssel (GUEK)</span> den Schlüssel (GUEK) ein: 32 Zeichen
-aus 0–9 und A–F, wie im Brief Ihres Netzbetreibers.
+aus 0–9 und A–F, wie im Brief Ihres Netzbetreibers. Sendet er unverschlüsselt, fragt der
+Assistent nicht nach einem Schlüssel.
 <figure><img src="img/wizard-meter.png" alt="Erkannter Zähler, vorgeschlagenes Profil und Schlüsselfeld" loading="lazy"><figcaption>Erkannter Zähler, vorgeschlagenes Profil und Schlüsselfeld</figcaption></figure></li>
 <li>Unter <span class="ui">Werte</span> sehen Sie, welche Werte das Profil liest.</li>
 <li>Tippen Sie auf <span class="ui">Weiter</span>.</li>
 </ol>
 </section><section class="acceptance"><h3>Woran Sie erkennen, dass es geklappt hat</h3><ul>
-<li><span class="ui">Weiter</span> ist erst aktiv, wenn ein Profil gewählt und der Schlüssel gültig ist.</li>
+<li><span class="ui">Weiter</span> ist erst aktiv, wenn ein Profil gewählt und bei einem verschlüsselten Zähler der
+Schlüssel gültig ist.</li>
 <li>Der Assistent wechselt zu <span class="ui">Abschluss</span> und prüft dort die Verbindung zum Zähler.</li>
 </ul>
 </section><section class="notes"><h3>Hinweise</h3><ul>
 <li>Der Schlüssel wird nur auf dem gPlug gespeichert und nie wieder angezeigt.</li>
+<li>Kann der gPlug noch nicht erkennen, ob der Zähler verschlüsselt, erscheint das Schlüsselfeld,
+darf aber leer bleiben.</li>
 <li>Erscheint nach einer halben Minute noch kein Signal, prüfen Sie das Kabel. Manche
 Netzbetreiber müssen die Kundenschnittstelle erst freischalten.</li>
 </ul>
-</section><p class="verified">Geprüft mit dem Gerätesimulator am 30. September 2026. Auf echter Hardware geprüft: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Die Einrichtungsprüfung verstehen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich am Ende der Einrichtung sehen, ob der Zähler wirklich gelesen
+</section><p class="verified">Geprüft mit dem Gerätesimulator am 13. Oktober 2026. Auf echter Hardware geprüft: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Die Einrichtungsprüfung verstehen</a></h2><section class="story"><h3>Worum es geht</h3><p>Als Besitzer eines gPlug möchte ich am Ende der Einrichtung sehen, ob der Zähler wirklich gelesen
 wird, damit ich einen Fehler behebe, solange ich noch im Assistenten bin.</p>
 </section><section class="steps"><h3>So geht's</h3><ol>
 <li>Im Schritt <span class="ui">Abschluss</span> zeigt die Karte <span class="ui">Verbindung zum Zähler</span> zuerst <span class="ui">Warte auf erste Daten vom Zähler…</span>. Das dauert je

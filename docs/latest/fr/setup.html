@@ -66,21 +66,25 @@ secondes, la carte <span class="ui">Détection du compteur</span> affiche <span 
 <li>Si un seul profil convient, il est déjà sélectionné. Si plusieurs conviennent, choisissez le
 profil de votre gestionnaire de réseau. <span class="ui">Choisir un autre profil</span> affiche d&#39;autres profils.</li>
 <li>Si le compteur envoie des données chiffrées, saisissez la clé (GUEK) sous <span class="ui">Clé (GUEK)</span> :
-32 caractères parmi 0–9 et A–F, comme dans la lettre de votre gestionnaire de réseau.
+32 caractères parmi 0–9 et A–F, comme dans la lettre de votre gestionnaire de réseau. S&#39;il
+envoie des données non chiffrées, l&#39;assistant ne demande pas de clé.
 <figure><img src="img/wizard-meter.png" alt="Compteur reconnu, profil proposé et champ de la clé" loading="lazy"><figcaption>Compteur reconnu, profil proposé et champ de la clé</figcaption></figure></li>
 <li><span class="ui">Valeurs</span> indique les valeurs que le profil lit.</li>
 <li>Touchez <span class="ui">Suivant</span>.</li>
 </ol>
 </section><section class="acceptance"><h3>Comment savoir que cela a fonctionné</h3><ul>
-<li><span class="ui">Suivant</span> ne devient actif qu&#39;une fois un profil choisi et la clé valide.</li>
+<li><span class="ui">Suivant</span> ne devient actif qu&#39;une fois un profil choisi et, pour un compteur chiffré, la clé
+valide.</li>
 <li>L&#39;assistant passe à <span class="ui">Fin</span> et y vérifie la liaison avec le compteur.</li>
 </ul>
 </section><section class="notes"><h3>Remarques</h3><ul>
 <li>La clé est enregistrée uniquement sur le gPlug et n&#39;est plus jamais affichée.</li>
+<li>Si le gPlug ne peut pas encore reconnaître si le compteur chiffre ses données, le champ de la
+clé s&#39;affiche mais peut rester vide.</li>
 <li>Si aucun signal n&#39;arrive après une demi-minute, vérifiez le câble. Certains gestionnaires de
 réseau doivent d&#39;abord activer l&#39;interface client.</li>
 </ul>
-</section><p class="verified">Vérifié avec le simulateur d'appareil le 30 septembre 2026. Vérifié sur du matériel réel : gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Comprendre le contrôle de la configuration</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug, je veux voir à la fin de la configuration si le compteur est
+</section><p class="verified">Vérifié avec le simulateur d'appareil le 13 octobre 2026. Vérifié sur du matériel réel : gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Comprendre le contrôle de la configuration</a></h2><section class="story"><h3>De quoi il s'agit</h3><p>En tant que propriétaire d&#39;un gPlug, je veux voir à la fin de la configuration si le compteur est
 vraiment lu, afin de corriger une erreur tant que je suis encore dans l&#39;assistant.</p>
 </section><section class="steps"><h3>Comment faire</h3><ol>
 <li>À l&#39;étape <span class="ui">Fin</span>, la carte <span class="ui">Liaison avec le compteur</span> affiche d&#39;abord <span class="ui">En attente des premières données du compteur…</span>. Selon le

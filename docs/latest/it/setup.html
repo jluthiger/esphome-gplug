@@ -66,21 +66,25 @@ scheda <span class="ui">Riconoscimento del contatore</span> mostra <span class="
 <li>Se un solo profilo è adatto, è già selezionato. Se ce ne sono diversi, scegliete il profilo del
 vostro gestore di rete. <span class="ui">Scegliere un altro profilo</span> mostra altri profili.</li>
 <li>Se il contatore invia dati cifrati, inserite la chiave (GUEK) sotto <span class="ui">Chiave (GUEK)</span>: 32 caratteri tra
-0–9 e A–F, come nella lettera del gestore di rete.
+0–9 e A–F, come nella lettera del gestore di rete. Se invia dati non cifrati, la procedura non
+chiede alcuna chiave.
 <figure><img src="img/wizard-meter.png" alt="Contatore riconosciuto, profilo proposto e campo della chiave" loading="lazy"><figcaption>Contatore riconosciuto, profilo proposto e campo della chiave</figcaption></figure></li>
 <li><span class="ui">Valori</span> elenca i valori che il profilo legge.</li>
 <li>Toccate <span class="ui">Avanti</span>.</li>
 </ol>
 </section><section class="acceptance"><h3>Come capire che ha funzionato</h3><ul>
-<li><span class="ui">Avanti</span> diventa attivo solo quando è scelto un profilo e la chiave è valida.</li>
+<li><span class="ui">Avanti</span> diventa attivo solo quando è scelto un profilo e, per un contatore cifrato, la chiave
+è valida.</li>
 <li>La procedura passa a <span class="ui">Fine</span> e lì verifica il collegamento con il contatore.</li>
 </ul>
 </section><section class="notes"><h3>Note</h3><ul>
 <li>La chiave è salvata solo sul gPlug e non viene più mostrata.</li>
+<li>Se il gPlug non riesce ancora a riconoscere se il contatore cifra i dati, il campo della chiave
+compare ma può restare vuoto.</li>
 <li>Se dopo mezzo minuto non arriva ancora nessun segnale, verificate il cavo. Alcuni gestori di rete
 devono prima attivare l&#39;interfaccia cliente.</li>
 </ul>
-</section><p class="verified">Verificato con il simulatore del dispositivo il 30 settembre 2026. Verificato su hardware reale: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Capire la verifica della configurazione</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio vedere alla fine della configurazione se il contatore viene
+</section><p class="verified">Verificato con il simulatore del dispositivo il 13 ottobre 2026. Verificato su hardware reale: gPlugK 2026-09-14.</p></article><article id="setup-check"><h2><a href="#setup-check">Capire la verifica della configurazione</a></h2><section class="story"><h3>Di cosa si tratta</h3><p>Come proprietario di un gPlug voglio vedere alla fine della configurazione se il contatore viene
 davvero letto, per correggere un errore mentre sono ancora nella procedura.</p>
 </section><section class="steps"><h3>Come fare</h3><ol>
 <li>Nel passo <span class="ui">Fine</span> la scheda <span class="ui">Collegamento con il contatore</span> mostra prima <span class="ui">In attesa dei primi dati dal contatore…</span>. A seconda del
