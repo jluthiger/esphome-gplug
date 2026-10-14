@@ -10,6 +10,12 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+
+- The README, the user manual, the migration guide and the web installer now say what to do when the
+  Wi-Fi setup page does not open by itself after joining `gPlug-Setup`, as on Linux Mint: use
+  Firefox's bar to log in to the network, or open `http://192.168.4.1/`.
+
 ## [0.10.0] – 2026-10-13
 
 ### Added

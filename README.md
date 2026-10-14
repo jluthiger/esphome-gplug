@@ -64,8 +64,9 @@ device yet – if you have one, [your report](https://github.com/jluthiger/espho
    *Install METER firmware*.
 2. **Connect it to your Wi-Fi.** Plug the gPlug into your meter. On your phone, join the network
    `gPlug-Setup`; a page opens where you choose your home Wi-Fi. If no page opens by itself, open
-   `http://192.168.4.1/` in the browser. Note the address the page shows,
-   `http://gplug-xxxxxx.local/`.
+   `http://192.168.4.1/` in the browser. On a Linux computer (for example Linux Mint) the page often
+   does not open by itself; Firefox shows a bar to log in to the network, which leads there too.
+   Note the address the page shows, `http://gplug-xxxxxx.local/`.
 3. **Set it up.** Open that address. The assistant takes you through model, meter profile and – for
    an encrypted meter – the key from your grid operator's letter, and checks that data arrives.
 
