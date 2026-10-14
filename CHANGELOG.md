@@ -10,6 +10,14 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Changed
+
+- A gPlugK now runs Wi-Fi in a power-saving mode with reduced transmit power, to stay within the
+  current a meter's module slot can supply (Kamstrup OMNIPOWER: 75 mA). It switches on by itself
+  once the setup's hardware step says gPlugK. The app and Home Assistant may answer a little
+  later; if the Wi-Fi signal in the meter cabinet becomes too weak, please report it. The other
+  gPlugs are unchanged.
+
 ## [0.10.0] – 2026-10-13
 
 ### Added

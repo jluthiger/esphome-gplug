@@ -378,7 +378,7 @@ by design: one setter, one call-site swap).
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
-| GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd, stack_mqtt?, sample?}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop, httpd and, once MQTT has run, esp-mqtt tasks; `sample` is the newest `/api/heap` sample `[up_s, free_kb, min_kb, largest_kb, sockets]`, present from the second sample on, for the closed Memory card: `free` is read mid-request and ran 4 kB below it on the gPlugK, 2026-10-13), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present), `mqtt:{state: off\|connecting\|connected\|error, error: ""\|tcp\|refused\|auth\|tpl_unknown\|tpl_overflow, sent, dropped, skipped, last_ago}` (counters since boot; `error` state = the templates stopped compiling after a meter-profile change, see "MQTT") |
+| GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd, stack_mqtt?, sample?}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop, httpd and, once MQTT has run, esp-mqtt tasks; `sample` is the newest `/api/heap` sample `[up_s, free_kb, min_kb, largest_kb, sockets]`, present from the second sample on, for the closed Memory card: `free` is read mid-request and ran 4 kB below it on the gPlugK, 2026-10-13), `wifi:{connected, ssid?, ip?, rssi?, low_power}` (`low_power` true while the gPlugK power profile runs, see "Power profile (gPlugK)"; absent before 0.11.0), hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present), `mqtt:{state: off\|connecting\|connected\|error, error: ""\|tcp\|refused\|auth\|tpl_unknown\|tpl_overflow, sent, dropped, skipped, last_ago}` (counters since boot; `error` state = the templates stopped compiling after a meter-profile change, see "MQTT") |
 | GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, sockets_max, samples:[[up_s, free_kb, min_kb, largest_kb, sockets],…]}`, oldest first, up to 288 samples (24 h); `sockets` = open lwIP sockets of `sockets_max` (`CONFIG_LWIP_MAX_SOCKETS`). See "Heap monitoring" and "Socket pool" below |
@@ -815,6 +815,39 @@ Measured on the gPlugK 2026-09-27, 15 s after an OTA boot: 14 of 19 open -- the 
 UDP, the MQTT connection, one Home Assistant API client, **4 HTTP keep-alive sessions from a
 single browser with the SPA open**, and 3 from the machine running the probe. The steady state of
 11-12 was the whole old pool; the old build had no headroom in normal use.
+
+### Power profile (gPlugK)
+
+The gPlugK is powered from the meter's module slot, and Kamstrup's OMNIPOWER allows a module
+75 mA. Kamstrup measured a gPlugK (an older revision, most likely on Tasmota) well above that
+(issue #46). The ESP32-C3 datasheet puts Wi-Fi listening without power save at ~80-90 mA, modem
+sleep at ~15-30 mA, and TX bursts at 300+ mA for milliseconds. Firmware can lower the average; the
+peaks need a hardware buffer (on the V3.1 board possibly C5, not identified yet).
+
+Once the hardware step stores variant `gplugk` (at boot from NVS, or on `POST /api/config/hardware`),
+`apply_power_profile_()` switches, on the loop task and without a reboot:
+
+| Setting | Image default (all variants) | gPlugK |
+|---|---|---|
+| Wi-Fi power save | `light` (`WIFI_PS_MIN_MODEM`) | `high` (`WIFI_PS_MAX_MODEM`): the radio wakes every listen interval (IDF default 3 beacons, ~300 ms), not every DTIM |
+| TX power | IDF default, 20 dBm | 11 dBm |
+
+Both are also handed to the wifi component's setters. It re-applies power save at every STA start,
+the TX power only in `WiFiComponent::start()` and not after its adapter restart, so every
+reconnect also checks the cap and sets it again if it moved. The cap is global: the AP fallback
+and the `gPlug-Setup` AP run at 11 dBm too once the hardware step has said gPlugK, which can be
+mid-wizard.
+`/api/status` reports `wifi.low_power`; the log says `power profile low (gPlugK)`. Selecting another
+variant restores `light` and 20 dBm until the next boot, which then applies the YAML's settings
+(an adopting config's own `power_save_mode`/`output_power` included). Other variants never touch
+the settings. Not switched: the CPU clock (160 MHz; a runtime change needs `CONFIG_PM_ENABLE` and
+PM locks around the meter UART), auto light sleep (drops UART bytes), and the AP fallback (needed
+for setup; runs only while no known network is reachable, without power save).
+
+Expected cost: incoming requests (app, Home Assistant API) wait up to one listen interval before the
+radio hears them, and range shrinks with 9 dB less TX power (check in a metal meter cabinet).
+**Not measured yet** (2026-10-14: compiled only, not run on a gPlugK): current before and after,
+latency, and range. The measurement plan is in issue #46.
 
 ### Known gaps (PoC)
 
