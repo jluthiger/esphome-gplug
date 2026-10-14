@@ -846,8 +846,12 @@ for setup; runs only while no known network is reachable, without power save).
 
 Expected cost: incoming requests (app, Home Assistant API) wait up to one listen interval before the
 radio hears them, and range shrinks with 9 dB less TX power (check in a metal meter cabinet).
-**Not measured yet** (2026-10-14: compiled only, not run on a gPlugK): current before and after,
-latency, and range. The measurement plan is in issue #46.
+Verified on a gPlugK 2026-10-14 (OTA from 0.10.0, RSSI -44 dBm, same LAN): `low_power: true`
+right after boot; meter data decoded throughout a 2-minute poll every 5 s (`diag: ok`, frame age
+never above 9 s, no failed request); ping 3/53/114 ms min/avg/max before, 16/165/312 ms after;
+`/api/live` median 73 ms before, 170 ms after (max 98 -> 319 ms); the SPA (60 kB) loads in 0.23 s.
+**Not measured yet**: current draw before and after, range at 11 dBm in a meter cabinet, and
+Home Assistant over a longer run. The measurement plan is in issue #46.
 
 ### Known gaps (PoC)
 
