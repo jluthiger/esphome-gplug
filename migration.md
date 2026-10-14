@@ -213,7 +213,9 @@ meter settings along with everything else. Later updates go through the app or o
 The device has no Wi-Fi credentials yet, so it opens its own access point called **gPlug-Setup**.
 
 1. Join that network from a phone or laptop. A setup page opens by itself. If it does not, browse
-   to `http://192.168.4.1/`.
+   to `http://192.168.4.1/`. On a Linux laptop (for example Linux Mint with Cinnamon) the page often
+   does not open by itself; Firefox shows a bar to log in to the network, which leads there too.
+   `nmcli networking connectivity check` prints `portal` while the laptop is on **gPlug-Setup**.
 2. Note the address the page shows, `http://gplug-xxxxxx.local/` (the last six hex digits of the
    MAC address): copy it or take a screenshot, the page closes once the phone leaves the access
    point. Enter your home Wi-Fi and save. The device restarts and joins it.
