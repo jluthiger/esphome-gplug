@@ -13,6 +13,7 @@
 #include <esp_app_desc.h>
 #include <esp_system.h>
 #include <esp_timer.h>
+#include <esp_wifi.h>
 #include <esp_http_server.h>
 #include <mbedtls/sha256.h>
 #include <esp_heap_caps.h>
@@ -532,6 +533,9 @@ bool GplugSmi::apply_hw_json_(const std::string &json, std::string &err) {
   led_blue_pin_num_ = (int8_t) blue;
   if (button_changed) this->apply_button_pin_();
   if (leds_changed) this->apply_led_pins_();
+  // Wi-Fi calls belong on the loop task; this also runs on the httpd task for a hardware POST.
+  bool low = strcmp(doc["variant"] | "", "gplugk") == 0;
+  this->defer([this, low]() { this->apply_power_profile_(low); });
   return true;
 }
 
@@ -637,6 +641,53 @@ void GplugSmi::apply_led_pins_() {
   led_blink_last_ms_ = 0;
   led_pending_mode_ = -1;
   led_pending_since_ms_ = 0;
+}
+
+// Low-power profile for the gPlugK (issue #46, DECISIONS.md 2026-10-14). The gPlugK draws its
+// supply from the meter's module slot, and Kamstrup's OMNIPOWER allows a module 75 mA; Wi-Fi
+// listening without power save is already ~80-90 mA on an ESP32-C3 (datasheet, not measured on a
+// gPlugK). The other variants are powered from USB or the P1 port's 5 V and keep the image's
+// settings. One image serves every variant, so this is switched at runtime from the hardware
+// step instead of building a second image.
+//   - Wi-Fi power save `high` (WIFI_PS_MAX_MODEM): the radio sleeps between DTIMs per the listen
+//     interval instead of waking for every one. Costs latency on incoming requests (~300 ms with
+//     the IDF default listen interval of 3 beacons), not throughput once a transfer runs.
+//   - TX power capped at 11 dBm: lowers the peak of each transmit burst, the part an input
+//     current limiter sees first. The PHY still calibrates at boot with the image's maximum
+//     (CONFIG_ESP_PHY_MAX_WIFI_TX_POWER is compile-time).
+// Both go through the wifi component's setters too: it re-applies power save at every STA start,
+// but the TX power only in WiFiComponent::start(), not after its adapter restart (esp_wifi_stop()
+// and start again), and IDF does not document that the cap survives that. So every reconnect
+// checks the cap (reapply_tx_cap_()). The cap is global, so the AP fallback and the setup AP run
+// at 11 dBm too once the hardware step has said gPlugK. Deliberately not here: the CPU clock (switching it
+// at runtime needs CONFIG_PM_ENABLE and power-management locks around the meter UART for every
+// image; not worth the risk before a measurement shows power save alone is not enough), and the
+// AP fallback, which setup needs and which only runs while no known network is reachable.
+// Leaving the gPlugK restores the image's `light` and the IDF default TX power until the next
+// boot, which re-applies whatever an adopting config set.
+static constexpr float LOW_POWER_TX_DBM = 11.0f;
+static constexpr float DEFAULT_TX_DBM = 20.0f;   // CONFIG_ESP_PHY_MAX_WIFI_TX_POWER default
+void GplugSmi::apply_power_profile_(bool low) {
+  if (low == low_power_.load()) return;   // other variants never touch the configured settings
+  auto *w = wifi::global_wifi_component;
+  w->set_power_save_mode(low ? wifi::WIFI_POWER_SAVE_HIGH : wifi::WIFI_POWER_SAVE_LIGHT);
+  w->set_output_power(low ? LOW_POWER_TX_DBM : NAN);
+  // Applied directly as well: the setters only take effect at the next STA start. This runs after
+  // WiFiComponent::start() (AFTER_WIFI, deferred), so the calls fail only with `enable_on_boot:
+  // false`, and the wifi component then applies the setters when it starts.
+  bool ps_ok = esp_wifi_set_ps(low ? WIFI_PS_MAX_MODEM : WIFI_PS_MIN_MODEM) == ESP_OK;
+  bool tx_ok = esp_wifi_set_max_tx_power((int8_t) ((low ? LOW_POWER_TX_DBM : DEFAULT_TX_DBM) * 4)) == ESP_OK;
+  low_power_ = low;
+  ESP_LOGI(TAG, "power profile %s (power save %s, TX %.1f dBm)%s", low ? "low (gPlugK)" : "normal",
+           low ? "high" : "light", low ? LOW_POWER_TX_DBM : DEFAULT_TX_DBM,
+           ps_ok && tx_ok ? "" : ", applied at next Wi-Fi start");
+}
+
+void GplugSmi::reapply_tx_cap_() {
+  int8_t want = (int8_t) (LOW_POWER_TX_DBM * 4), cur = 0;
+  if (esp_wifi_get_max_tx_power(&cur) != ESP_OK || cur == want) return;
+  ESP_LOGI(TAG, "TX power back at %.2f dBm after a Wi-Fi restart, capping at %.1f", cur / 4.0f, LOW_POWER_TX_DBM);
+  esp_wifi_set_max_tx_power(want);
 }
 
 static const char *led_mode_name_(int8_t mode) {
@@ -1015,6 +1066,7 @@ std::string GplugSmi::json_status_() {
     s += ",\"ssid\":\""; json_escape(s, w->wifi_ssid_to(ssid_buf)); s += "\"";
     s += ",\"ip\":\"" + ip + "\",\"rssi\":" + std::to_string(w->wifi_rssi());
   }
+  s += ",\"low_power\":" + std::string(low_power_ ? "true" : "false");
   s += "},\"hardware\":" + hw_json_;
   s += ",\"meter\":{\"preset\":\""; json_escape(s, desc_.preset.c_str()); s += "\"";
   s += ",\"protocol\":" + std::to_string(desc_.protocol) + ",\"obis\":" + std::to_string(desc_.n);
@@ -1272,6 +1324,7 @@ void GplugSmi::log_service_() {
     if (rssi < -255) rssi = -255;
     this->log_event_(up ? ::gplug_log::EV_WIFI_UP : ::gplug_log::EV_WIFI_LOST, 0,
                      (uint8_t) (up ? -rssi : 0));
+    if (up && low_power_) this->reapply_tx_cap_();
   }
 
   // The meter going quiet (and coming back) is the single most common support question, and diag_

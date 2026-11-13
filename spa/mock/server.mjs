@@ -499,6 +499,8 @@ function mqttPost(b) {
 const routes = {
   "GET /api/status": () => ({ ...state, hardware: state.hardware || {}, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
     heap: heapStatus().free, mem: { ...heapStatus(), ...(mqtt.cfg.enabled && { stack_mqtt: 1650 }) },
+    // The firmware's gPlugK power profile follows the stored hardware variant (issue #46).
+    wifi: { ...state.wifi, low_power: state.hardware?.variant === "gplugk" },
     time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta(), mqtt: mqttStatus() }),
   "GET /api/config/mqtt": () => ({ ...mqtt.cfg, password_set: !!mqtt.password, status_sample: mqttStatusSample(),
     ...mqttCtx() }),

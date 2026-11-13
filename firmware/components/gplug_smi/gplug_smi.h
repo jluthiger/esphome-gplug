@@ -202,6 +202,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void release_pin_(uint8_t num);
   void poll_button_();
   void apply_led_pins_();
+  void apply_power_profile_(bool low);
+  void reapply_tx_cap_();
   void update_led_();
   const char *diag_(uint32_t now) const;
   bool merge_stored_keys_(std::string &body, std::string &err);
@@ -284,6 +286,8 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
 
   Descriptor desc_;
   std::string hw_json_{"{}"};
+  // gPlugK power profile (issue #46): set on the loop task, read by /api/status on the httpd task.
+  std::atomic<bool> low_power_{false};
   // Pin objects are members and reconfigured in place: a hw or meter POST re-applies them, and a
   // fresh `new` per call leaked one object per pin and wizard run (nothing ever freed the old one).
   esp32::ESP32InternalGPIOPin uart_rx_pin_;
