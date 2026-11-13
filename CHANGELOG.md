@@ -17,6 +17,9 @@ answer three questions whenever the answer is not "nothing to do": does it need 
   once the setup's hardware step says gPlugK. The app and Home Assistant may answer a little
   later; if the Wi-Fi signal in the meter cabinet becomes too weak, please report it. The other
   gPlugs are unchanged.
+- The README, the user manual, the migration guide and the web installer now say what to do when the
+  Wi-Fi setup page does not open by itself after joining `gPlug-Setup`, as on Linux Mint: use
+  Firefox's bar to log in to the network, or open `http://192.168.4.1/`.
 
 ## [0.10.0] – 2026-10-13
 

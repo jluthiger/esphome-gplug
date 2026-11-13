@@ -15,7 +15,9 @@ browser.
 1. Plug the gPlug into the meter's customer interface. As long as it knows no Wi-Fi, it opens a
    network of its own called `gPlug-Setup`.
 2. Connect your phone to `gPlug-Setup`. The phone opens the setup page by itself; if it does not,
-   open `http://192.168.4.1/` in the browser.
+   open `http://192.168.4.1/` in the browser. On a Linux computer (for example Linux Mint) the page
+   often does not open by itself; Firefox shows a bar to log in to the network, which leads there
+   too.
 3. Tap your home network in the list and enter its password under {{C.set}}.
    {{img:captive|Setup page with the networks found}}
 4. Note the address under {{C.addr}} – or tap {{C.copy}}. It looks like

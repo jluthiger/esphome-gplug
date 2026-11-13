@@ -15,7 +15,9 @@ browser.
 1. Inserite il gPlug nell'interfaccia cliente del contatore. Finché non conosce nessun Wi-Fi, apre
    una propria rete chiamata `gPlug-Setup`.
 2. Collegate il telefono a `gPlug-Setup`. Il telefono apre da solo la pagina di configurazione; se
-   non lo fa, aprite `http://192.168.4.1/` nel browser.
+   non lo fa, aprite `http://192.168.4.1/` nel browser. Su un computer Linux (per esempio Linux
+   Mint) la pagina spesso non si apre da sola; Firefox mostra allora una barra per accedere alla
+   rete, che porta anch'essa lì.
 3. Toccate la vostra rete di casa nell'elenco e inserite la password sotto {{C.set}}.
    {{img:captive|Pagina di configurazione con le reti trovate}}
 4. Annotate l'indirizzo sotto {{C.addr}} – oppure toccate {{C.copy}}. Ha la forma

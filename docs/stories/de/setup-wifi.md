@@ -15,7 +15,9 @@ damit ich seine App im Browser öffnen kann.
 1. Stecken Sie den gPlug an die Kundenschnittstelle des Zählers. Solange er kein WLAN kennt, öffnet
    er ein eigenes Netz namens `gPlug-Setup`.
 2. Verbinden Sie Ihr Telefon mit `gPlug-Setup`. Das Telefon öffnet die Einrichtungsseite von selbst;
-   falls nicht, öffnen Sie im Browser `http://192.168.4.1/`.
+   falls nicht, öffnen Sie im Browser `http://192.168.4.1/`. Auf einem Linux-Computer (etwa Linux
+   Mint) öffnet sich die Seite oft nicht von selbst; Firefox zeigt dann eine Leiste zum Anmelden im
+   Netzwerk, die ebenfalls dorthin führt.
 3. Tippen Sie in der Liste auf Ihr Heimnetz und geben Sie unter {{C.set}} das Passwort ein.
    {{img:captive|Einrichtungsseite mit den gefundenen Netzen}}
 4. Notieren Sie die Adresse unter {{C.addr}} – oder tippen Sie auf {{C.copy}}. Sie hat die Form

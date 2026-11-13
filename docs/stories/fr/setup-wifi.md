@@ -15,7 +15,9 @@ pouvoir ouvrir son application dans un navigateur.
 1. Branchez le gPlug sur l'interface client du compteur. Tant qu'il ne connaît aucun Wi-Fi, il ouvre
    son propre réseau nommé `gPlug-Setup`.
 2. Connectez votre téléphone à `gPlug-Setup`. Le téléphone ouvre la page de configuration de
-   lui-même ; sinon, ouvrez `http://192.168.4.1/` dans le navigateur.
+   lui-même ; sinon, ouvrez `http://192.168.4.1/` dans le navigateur. Sur un ordinateur Linux (par
+   exemple Linux Mint), la page ne s'ouvre souvent pas d'elle-même ; Firefox affiche alors une barre
+   pour se connecter au réseau, qui y mène aussi.
 3. Touchez votre réseau domestique dans la liste et saisissez son mot de passe sous {{C.set}}.
    {{img:captive|Page de configuration avec les réseaux trouvés}}
 4. Notez l'adresse sous {{C.addr}} – ou touchez {{C.copy}}. Elle a la forme
