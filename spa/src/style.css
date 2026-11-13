@@ -197,6 +197,20 @@ details summary { cursor: pointer; color: var(--muted); font-size: .9rem; margin
 .hist .up { fill: var(--import); }     /* above zero: drawn from the grid */
 .hist .down { fill: var(--export); }   /* below zero: fed back into it */
 .hist .gap { fill: var(--border2); opacity: .5; }   /* device was off, or the meter sent nothing */
+/* Tariff card: the price as a step line over the quarter-hour energy bars; a negative price shades
+   its column in the import colour: in that quarter hour, feeding in costs money. */
+.tday { align-items: center; margin: 4px 0 2px; }
+.tnav { padding: 4px 14px; font-size: 1rem; line-height: 1; }
+.hist .price { fill: none; stroke: var(--fg); stroke-width: 1.5; }
+.hist .neg, .negkey { fill: var(--import); opacity: .14; }
+.negkey { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--import); vertical-align: -1px; }
+.hist.on .price { opacity: .6; }
+/* Live tab: the running quarter hour's tariff under the power figure. */
+.tnow { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--track); }
+.tnow .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tnow .v.neg, .tnow .v.imp { color: var(--import); }
+.tnow .v.exp { color: var(--export); }
+.tnow .hint { margin: 0; width: 100%; }
 .hsum { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--track); }
 .hsum .stat .v { font-size: 1.05rem; margin-top: 3px; }
 .reg { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--track); }

@@ -15,6 +15,7 @@
 #include "heap_monitor.h"
 #include "mqtt_template.h"
 #include "mqtt_status.h"
+#include "tariff_parser.h"
 #include "esphome/core/defines.h"
 #ifdef USE_SENSOR
 #include "esphome/components/sensor/sensor.h"
@@ -56,6 +57,8 @@ using FrameLog = ::gplug_framelog::FrameLog<FRAME_LOG_LEN, FRAME_LOG_RAW_CAP, FR
 static constexpr uint32_t HIST_INTERVAL_S = ::gplug_hist::HIST_INTERVAL_S;
 static constexpr uint32_t HIST_TICKS_PER_INTERVAL = HIST_INTERVAL_S * 1000 / RING_PERIOD_MS;
 using HistoryStore = ::gplug_hist::HistoryStore<PartitionFlash>;
+// GET /api/history?from&to: one local day is at most 100 quarter hours; a little more for margin.
+static constexpr uint32_t HIST_WINDOW_MAX = 192;
 
 struct ObisEntry {
   char obis[24];
@@ -136,6 +139,33 @@ struct MqttRun {
   char status_topic[::gplug_mqtt::TOPIC_BUF];
   char avail_topic[::gplug_mqtt::TOPIC_BUF];
 };
+
+// Dynamic tariffs (issue 51, tariff.cpp). Five local days -- three back, today, tomorrow -- of at
+// most 100 quarter hours each (a 25 h day). 2 kB of int32 prices, allocated only while a provider is
+// chosen; RAM only, fetched again after a restart.
+static constexpr int TARIFF_DAYS_BACK = 3;
+static constexpr size_t TARIFF_SLOTS = (TARIFF_DAYS_BACK + 2) * 100;
+struct TariffState {
+  ::gplug_tariff::Provider provider{::gplug_tariff::P_OFF};
+  // Swiss Tariff Hub only: the tariff and the account key. The key never leaves the device again
+  // (GET /api/tariff says only whether one is set), like the meter key.
+  char sth_id[::gplug_tariff::STH_ID_MAX + 1]{};
+  char sth_key[::gplug_tariff::STH_KEY_MAX + 1]{};
+  ::gplug_tariff::TariffTable<TARIFF_SLOTS> table;
+  char publication[28]{};
+  bool fetching{false};
+  uint8_t error{0};            // TE_* in tariff.cpp, of the last attempt
+  int16_t http{0};             // HTTP status of the last attempt, 0 = none
+  uint32_t ok_ms{0};           // millis() | 1 of the last fetch that brought prices, 0 = none
+  uint32_t try_ms{0};          // millis() | 1 of the last attempt
+  uint16_t last_count{0}, last_dropped{0}, last_bad{0};
+  uint32_t stack_free{0};      // fetch task's stack high-water mark, bytes (measurement aid)
+  uint32_t heap_before{0};     // largest free block when the last fetch started
+  // Scheduler bookkeeping per local day of the window: when it was last asked for, and whether a
+  // past day already got its answer (past days are asked once per boot).
+  struct Day { uint32_t qh; uint32_t try_ms; bool done; bool failed; } days[TARIFF_DAYS_BACK + 2]{};
+};
+struct TariffJob;            // tariff.cpp
 
 struct MqttStopArg;          // mqtt.cpp
 struct MqttStatusBufs;       // mqtt.cpp
@@ -238,7 +268,7 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::string json_ring_();
   std::string json_frames_();
   void handle_frame_detail_(AsyncWebServerRequest *req, const char *url);
-  std::string json_history_(const char *range);
+  std::string json_history_(const char *range, uint32_t win_from = 0, uint32_t win_to = 0);
   std::string json_log_();
   void handle_heap_(AsyncWebServerRequest *req);
   std::string json_sockets_();
@@ -269,6 +299,14 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void handle_mqtt_post_(AsyncWebServerRequest *req, const std::string &body);
   void json_mqtt_status_(std::string &s);
   static void mqtt_event_(void *arg, const char *base, int32_t id, void *data);
+  // Dynamic tariffs (tariff.cpp)
+  void tariff_setup_();
+  void tariff_service_();
+  void tariff_start_(::gplug_tariff::Provider p, uint32_t day_qh, int64_t day_utc, const char *sth_id, const char *sth_key);
+  void tariff_collect_();
+  std::string json_tariff_();
+  void json_tariff_live_(std::string &s);
+  void handle_tariff_post_(AsyncWebServerRequest *req, const std::string &body);
 
   web_server_base::WebServerBase *base_;
   // The httpd task's stack is ESPHome's 4096 + 256 B and measured 784 B unused on the gPlugK
@@ -451,6 +489,15 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   std::atomic<uint32_t> mqtt_sent_{0}, mqtt_dropped_{0}, mqtt_skipped_{0};
   std::atomic<uint32_t> mqtt_pub_ms_{0};        // millis() of the last message handed to the client
   std::atomic<uint32_t> mqtt_stack_free_{0};    // esp-mqtt task's stack high-water mark
+
+  // Dynamic tariffs. The httpd task renders and replaces tariff_ under tariff_mutex_; the loop task
+  // schedules fetches and merges their result. The fetch task touches only its TariffJob and sets
+  // tariff_job_done_ when it is finished with it.
+  mutable std::mutex tariff_mutex_;
+  std::unique_ptr<TariffState> tariff_;         // null while no provider is chosen
+  TariffJob *tariff_job_{nullptr};              // loop task only; owned by the fetch task until done
+  std::atomic<bool> tariff_job_done_{false};
+  uint32_t tariff_check_ms_{0};                 // loop task only
 
   bool upd_checking_{false};      // loop task only
   bool upd_installing_{false};    // loop task only

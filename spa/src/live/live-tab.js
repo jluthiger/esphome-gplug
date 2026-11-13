@@ -1,7 +1,7 @@
 import { useRef } from "preact/hooks";
 import { html } from "../h.js";
 import { S } from "../strings.js";
-import { num, clockAt } from "../fmt.js";
+import { num, clockAt, clock, qhDate } from "../fmt.js";
 import { DiagCard, diagInfo, diagOf } from "../diag.js";
 import { lastHour } from "../hour.js";
 import { useBox } from "../box.js";
@@ -41,7 +41,8 @@ export function LiveTab({ live, ring, day, wide }) {
   const powerHead = html`
     <div class="between"><span class="lbl">${S.activePower}</span><span class="num" style="font-size:.7rem;color:var(--sub)">−${age} s</span></div>
     <div class="big"><span class="v ${net >= 0 ? "imp" : "exp"}">${num(Math.abs(net), 2)}</span><span class="u">kW</span></div>
-    <div class="dir ${net >= 0 ? "imp" : "exp"}">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>`;
+    <div class="dir ${net >= 0 ? "imp" : "exp"}">${net >= 0 ? S.drawFromGrid : S.feedToGrid}</div>
+    ${live.tariff && html`<${TariffNow} t=${live.tariff} net=${net} />`}`;
   const hourChart = known.length >= 2 && html`
     <${Chart} hour=${hour} />
     <div class="axis"><span>${S.ago60}</span><span>${num(max / 1000, 1)} kW ${S.max}</span><span>${S.now}</span></div>
@@ -139,4 +140,23 @@ function Chart({ hour }) {
       ${i !== null && html`<line x1=${X(i).toFixed(1)} y1="0" x2=${X(i).toFixed(1)} y2=${h} class="guide" />`}
       ${sel !== null && html`<circle cx=${X(i).toFixed(1)} cy=${Y(sel).toFixed(1)} r="3.5" class="dot" />`}
     </svg>`;
+}
+
+// The running quarter hour's dynamic tariff (`tariff` in /api/live, only while a provider is chosen
+// and the device has a price for now), and what the power flowing right now earns or costs at it:
+// export at a feed-in price (BKW), import at a grid or total price (CKW, Swiss Tariff Hub). The other
+// direction has no price here, so no rate is shown for it.
+function TariffNow({ t, net }) {
+  const rp = (v) => `${num(v / 1e4, 2)} Rp/kWh`;
+  const feed = t.kind === "feed_in";
+  const kw = feed ? -net : net;   // kW in the direction this tariff prices
+  // CHF per hour from your point of view: feeding in earns (negative when the price is), drawing costs.
+  const chf = kw > 0 ? ((feed ? 1 : -1) * kw * t.now) / 1e6 : null;
+  return html`
+    <div class="tnow">
+      <span class="lbl">${S.tariffLive}</span>
+      <span class=${t.now < 0 ? "v neg" : "v"}>${rp(t.now)}</span>
+      ${chf != null && html`<span class="v ${chf >= 0 ? "exp" : "imp"}">${chf >= 0 ? "+" : "−"}${num(Math.abs(chf), 2)} CHF/h</span>`}
+      ${t.next != null && html`<span class="hint">${S.tariffUntil(clock(qhDate(t.until_qh)), rp(t.next))}</span>`}
+    </div>`;
 }

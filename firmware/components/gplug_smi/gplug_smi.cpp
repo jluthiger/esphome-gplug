@@ -63,6 +63,7 @@ void GplugSmi::setup() {
     if (!this->apply_meter_json_(s, err)) ESP_LOGW(TAG, "stored meter config invalid: %s", err.c_str());
   }
   this->mqtt_setup_();   // after the meter: templates compile against its profile
+  this->tariff_setup_();
   // apply_meter_json_() flags the next record HF_CONFIG_CHANGE because a *replaced* config may map
   // another register to "Ei" or belong to a swapped meter. At boot the config is the same one the
   // last record was written with and the meter's counters are absolute, so the chain is intact: a
@@ -205,6 +206,7 @@ void GplugSmi::loop() {
   this->mem_service_();
   this->update_service_();
   this->mqtt_service_();
+  this->tariff_service_();
 }
 
 // ---------------------------------------------------------------- decoding
@@ -828,9 +830,19 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (url == "/api/frames") return send_json_(req, 200, json_frames_());
     // url_to() strips the query string, so the literal compare still matches /api/history?range=...
     if (url == "/api/history") {
+      // ?from=<qh>&to=<qh>: native quarter hours of one window (the History tab's tariff card asks
+      // for one local day); otherwise a named range.
+      auto *f = req->getParam("from");
+      auto *t = req->getParam("to");
+      if (f && t) {
+        uint32_t from = strtoul(f->value().c_str(), nullptr, 10), to = strtoul(t->value().c_str(), nullptr, 10);
+        if (!from || to <= from || to - from > HIST_WINDOW_MAX) return send_json_(req, 400, "{\"error\":\"window\"}");
+        return send_json_(req, 200, json_history_("window", from, to));
+      }
       auto *p = req->getParam("range");
       return send_json_(req, 200, json_history_(p ? p->value().c_str() : "day"));
     }
+    if (url == "/api/tariff") return send_json_(req, 200, json_tariff_());
     if (url == "/api/history.csv") return handle_history_csv_(req);
     if (url == "/api/log") return send_json_(req, 200, json_log_());
     if (url == "/api/heap") return handle_heap_(req);
@@ -882,6 +894,7 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     return send_json_(req, 200, "{\"ok\":true}");
   }
   if (url == "/api/config/mqtt") return handle_mqtt_post_(req, body);
+  if (url == "/api/config/tariff") return handle_tariff_post_(req, body);
   // {"key":"32hex"} -> {"match":bool}: lets the user check the stored GUEK against the grid
   // operator's letter. Only a yes/no leaves the device, so nothing of the key is learnt unless all
   // 128 bits were already known. Compared against the live descriptor, not NVS: it is what decrypts,
@@ -1040,6 +1053,14 @@ std::string GplugSmi::json_status_() {
     s += ",\"crc_errors\":" + std::to_string(m.crc_errors) + "}";
   }
   this->json_mqtt_status_(s);
+  // The chosen tariff provider: tells the SPA whether to show the tariff chart and what the closed
+  // Device-tab card says, without a request of its own.
+  {
+    std::lock_guard<std::mutex> lock(tariff_mutex_);
+    s += ",\"tariff\":\"";
+    s += ::gplug_tariff::provider_id(tariff_ ? tariff_->provider : ::gplug_tariff::P_OFF);
+    s += "\"";
+  }
   s += "}";
   return s;
 }
@@ -1098,7 +1119,11 @@ std::string GplugSmi::json_live_() {
     s += "\""; json_escape(s, desc_.obis[i].name); s += "\":";
     append_num(s, qh_values_[i], desc_.obis[i].precision);
   }
-  s += "}}}";
+  s += "}}";
+  // The price of the running quarter hour, for the Live tab. tariff_mutex_ is taken inside mutex_
+  // here and never the other way round.
+  this->json_tariff_live_(s);
+  s += "}";
   return s;
 }
 
@@ -1580,9 +1605,11 @@ void GplugSmi::hist_service_() {
 
 // Downsampled history. One streaming pass, no array of records in RAM, response bounded to a few
 // hundred points regardless of range.
-std::string GplugSmi::json_history_(const char *range) {
+std::string GplugSmi::json_history_(const char *range, uint32_t win_from, uint32_t win_to) {
   uint32_t bucket = 1, span = 96;   // day: native 15 min resolution, 24 h
-  if (!strcmp(range, "week")) { bucket = 4; span = 672; }
+  const bool window = win_to != 0;  // explicit [win_from, win_to), native resolution, timed records only
+  if (window) { span = win_to - win_from; range = "window"; }
+  else if (!strcmp(range, "week")) { bucket = 4; span = 672; }
   else if (!strcmp(range, "month")) { bucket = 24; span = 2880; }
   else if (!strcmp(range, "year")) { bucket = 96; span = 35040; }
   else range = "day";
@@ -1608,7 +1635,7 @@ std::string GplugSmi::json_history_(const char *range) {
 
   // from_qh 0 means "no sector skipping"; when the clock has never synced there is nothing to skip
   // by, so records are windowed by position instead.
-  uint32_t from_qh = (now_qh > span) ? now_qh - span : (now_qh ? 1 : 0);
+  uint32_t from_qh = window ? win_from : (now_qh > span) ? now_qh - span : (now_qh ? 1 : 0);
   uint32_t idx_from = (!now_qh && m.count > span) ? m.count - span : 0;
   const uint32_t max_delta_wh = bucket * 7500;   // >30 kW average over a quarter hour: not real
 
@@ -1640,8 +1667,11 @@ std::string GplugSmi::json_history_(const char *range) {
   hist_.for_each(hist_buf_, sizeof hist_buf_, from_qh,
                  [&](const ::gplug_hist::HistRecord &r, uint32_t qh, bool have_qh) {
     uint32_t i = idx++;
-    bool in_window = have_qh ? (qh >= from_qh) : (i >= idx_from);
+    // A window has fixed ends, so a record without a time cannot be placed in it.
+    bool in_window = window ? (have_qh && qh >= from_qh && qh < win_to)
+                            : have_qh ? (qh >= from_qh) : (i >= idx_from);
     if (!in_window) {   // still useful: carries the counter the first delta is measured against
+      if (window && (!have_qh || qh >= win_to)) return;   // ...but only from before the window
       if (r.ei_wh != ::gplug_hist::WH_ABSENT) prev_ei = r.ei_wh;
       if (r.eo_wh != ::gplug_hist::WH_ABSENT) prev_eo = r.eo_wh;
       return;

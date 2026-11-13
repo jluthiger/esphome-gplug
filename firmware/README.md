@@ -379,7 +379,7 @@ by design: one setter, one call-site swap).
 |---|---|---|
 | GET | `/` and any non-`/api` path | SPA (gzip) |
 | GET | `/api/status` | version (the ESPHome release), `fw` (the gPlug release, `ESPHOME_PROJECT_VERSION` = `gplug.yaml` `version`), hostname, uptime, build, `app` (first 16 hex digits of the running image's ELF SHA-256, see the OTA section), ota_auth, heap (free bytes, kept for older SPAs), `mem:{free, min_free, largest, stack_loop, stack_httpd, stack_mqtt?, sample?}` (bytes: free internal heap, its minimum since boot, largest free block, and the stack high-water marks of the loop, httpd and, once MQTT has run, esp-mqtt tasks; `sample` is the newest `/api/heap` sample `[up_s, free_kb, min_kb, largest_kb, sockets]`, present from the second sample on, for the closed Memory card: `free` is read mid-request and ran 4 kB below it on the gPlugK, 2026-10-13), wifi, hardware (the stored hardware JSON, `{}` until set), meter (`preset`, `protocol` 0 none / 1 DSMR / 2 DLMS, `encrypted`, `key_hint` only when a GUEK is stored: the first 4 hex digits of SHA-256 over the key's 16 bytes, uppercase, never key material; counters; always present), `mqtt:{state: off\|connecting\|connected\|error, error: ""\|tcp\|refused\|auth\|tpl_unknown\|tpl_overflow, sent, dropped, skipped, last_ago}` (counters since boot; `error` state = the templates stopped compiling after a meter-profile change, see "MQTT") |
-| GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one |
+| GET | `/api/live` | `{age, no_data, key_invalid, diag, rx_bytes, rx_age, detect:{protocol, encrypted, hits, age}, smid, p (kW net), pi, po (W), ei, eo (kWh), values{name:value}}`. `detect` is the header sniffer's verdict (below), available before any profile is configured: `protocol` `"dsmr"`/`"dlms"`/null, `encrypted` true/false/null (null = DLMS tag not seen yet), `hits` = header hits behind the verdict, `age` = seconds since the last one `tariff:{kind, now, until_qh, next}` (since 0.11.0, only while a tariff provider is chosen and the running quarter hour has a price): the price now in micro-CHF/kWh, the first quarter hour with a different price and that price (`null` past the end of the table); the Live tab's "tariff now" line, without polling `/api/tariff`. |
 | GET | `/api/ring` | `{period:10, samples:[[pi,po,p1,p2,p3],…]}` |
 | GET | `/api/heap` | heap trend, RAM only (lost on reboot): `{period:300, uptime, sockets_max, samples:[[up_s, free_kb, min_kb, largest_kb, sockets],…]}`, oldest first, up to 288 samples (24 h); `sockets` = open lwIP sockets of `sockets_max` (`CONFIG_LWIP_MAX_SOCKETS`). See "Heap monitoring" and "Socket pool" below |
 | GET | `/api/sockets` | lwIP's socket table right now, for finding out who fills it: `{max, sockets:[{fd, type:"tcp"\|"udp"\|"raw", listen, port, peer:"ip:port"\|""}]}` -- the local port, and for a connected TCP socket the peer; the request's own session is in the list. The TCP state is not readable through the socket API, so a dead peer looks like a live one. Not used by the SPA; the same list goes to the log when `EV_SOCKETS` fires |
@@ -397,6 +397,9 @@ by design: one setter, one call-site swap).
 | POST | `/api/reboot` | no body; answers `{ok:true}`, then on the loop task logs `EV_RESTART` (detail 1 = SPA), flushes the event log and calls `App.safe_reboot()`. The SPA's firmware card uses it for "restart device" |
 | GET | `/api/log` | the persistent event log: `{now, uptime, cap, events:[{t, up, code, detail, value, repeat},…]}`, oldest first. `t` is 0 for a record written before the clock had ever synced, which is what `up` (uptime in seconds) is for. Codes and details are numbers, deliberately: the SPA renders them in the user's language (see below) |
 | GET | `/api/history.csv?from=<qh>&to=<qh>` | Load-profile download: every stored 15-min record at native resolution, `text/csv`, `Content-Disposition: attachment`. `from` inclusive / `to` exclusive quarter-hour indices, none = everything including undated records. Field names are the implementation's own (German). Columns and the rules for empty cells: `history_csv.h`; streamed sector by sector (below) |
+| GET | `/api/history?from=<qh>&to=<qh>` | one window of native quarter hours, `to - from` ≤ 192, dated records only (`range:"window"`, `bucket:1`, otherwise the shape of `?range=`); 400 `window` for an empty or longer one. The History tab's tariff card reads one local day with it |
+| GET | `/api/tariff` | dynamic tariff (issue #51): `{provider:"off"}` while none is chosen, else `{provider: bkw\|ckw\|sth, kind: feed_in\|grid\|total, tariff_id?, key_set?, fetching, error: null\|net\|http\|format\|empty\|memory\|auth, http, fetched_ago, tried_ago, publication, last:{count, dropped, bad}, stack_free, heap_before, scale:1000000, first_qh, prices:[…]}`. `prices` holds one integer per quarter hour from `first_qh` (same index as `/api/history`), micro-CHF per kWh (`/ scale` = CHF/kWh), `null` where the provider sent none; at most five local days (three back, today, tomorrow), RAM only. `error` and `http` belong to the last attempt, `fetched_ago`/`tried_ago` are seconds or `null`; `last` counts the last response's slots (kept / dropped as out of order / unusable); `stack_free` (fetch task's stack high-water mark, bytes) and `heap_before` (largest free block when the last fetch started) are there to measure the fetch on a device. `publication` is the provider's own string, verbatim (empty for the hub, which sends none). For `sth`, `tariff_id` and `key_set` instead of the key, which never leaves the device; `auth` = the hub answered 401/403, and nothing is fetched again until the settings change |
+| POST | `/api/config/tariff` | `{provider: off\|bkw\|ckw\|sth, tariff_id?, key?}` → `{ok:true}`; 400 `provider` otherwise. `sth` needs `tariff_id` (≤ 48) and `key` (≤ 64), both `[A-Za-z0-9_-]`, else 400 `tariff_id` / `key`; `key` left out keeps the stored one. NVS holds `sth <tariff_id> <key>`. 503 `memory` when the 2 kB table cannot be allocated. A different provider starts with an empty table and fetches within 5 s; the choice is written to NVS key `tariff` (deferred to the loop) and logged as `EV_CONFIG` detail 5. Off by default |
 
 **Setup diagnosis (`diag` in `/api/live`, `GplugSmi::diag_`)** says why there are no values, so
 the SPA can send the user to the wizard step that fixes it. Three timestamps feed it: any byte on
@@ -517,7 +520,7 @@ several causes, so the ones worth telling apart get a record of their own next t
 after a boot into a new image, and `EV_RESTART` (code 11, detail 1 = from the SPA via `/api/reboot`),
 written and flushed just before the restart. Alongside that: Wi-Fi up and down with
 the RSSI, the meter going quiet and coming back (with the `diag` verdict that says why), config
-changes (code 7, detail 1 hardware / 2 meter / 3 Wi-Fi / 4 MQTT), history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
+changes (code 7, detail 1 hardware / 2 meter / 3 Wi-Fi / 4 MQTT / 5 tariff provider), history-store failures, the AP button erasing the Wi-Fi credentials, and low heap
 (code 10, detail 1 = free heap / 2 = largest block, value in kB; see "Heap monitoring"), and the
 lwIP socket table nearly full (code 12, value = open sockets, detail = table size; see "Socket pool").
 
@@ -815,6 +818,44 @@ Measured on the gPlugK 2026-09-27, 15 s after an OTA boot: 14 of 19 open -- the 
 UDP, the MQTT connection, one Home Assistant API client, **4 HTTP keep-alive sessions from a
 single browser with the SPA open**, and 3 from the machine running the probe. The steady state of
 11-12 was the whole old pool; the old build had no headroom in normal use.
+
+### Dynamic tariffs (`tariff_parser.h`, `tariff.cpp`, `/api/tariff`)
+
+Issue #51. The device fetches the price per quarter hour from a Swiss utility and serves it to the
+SPA, which draws it over the measured energy (History tab). The browser cannot fetch it itself:
+neither API sends CORS headers. Off by default; chosen on the Device tab.
+
+| Provider | Endpoint | Tariff | Format (checked 2026-11-13) |
+|---|---|---|---|
+| `bkw` | `api.bkw.ch/api/dyntariffs/v1/Tariffs/energyreturn` | feed-in remuneration | UTC ISO timestamps, numeric value; today's local day only, any query parameter is refused with 400; ~21 kB |
+| `sth` | `swisstariffhub.ch/api/v1/prices?tariff_id=<id>&start_time=<local midnight, UTC>`, header `X-API-Key` | the sum of `energy_price_utc`, `grid_price_utc` and `residual_price_utc` per quarter hour | Swiss Tariff Hub, a third party: UTC keys (`…+00:00`) mapping to a number, three arrays of 96; ~10.6 kB. Free key: one tariff (the account's), 100 requests a day, the last 7 days; its `residual` equals CKW's own value. Checked with a free key 2026-11-13, CKW Home dynamic only |
+| `ckw` | `www.ckw.ch/api/network/tariff?start=YYYY-MM-DD&tariffType=grid_usage&tariffName=home_dynamic` | grid usage (no energy price) | Europe/Zurich wall time `DD.MM.YYYY HH:MM:SS`, value as a string; one local day per request, past days answer, tomorrow from ~10:20, later days `{"data":[]}`; ~12 kB |
+
+- **Parsing** streams: the fetch task hands every 512 B read to `TariffParser`, which keeps the
+  current key, one scalar and the slot being assembled, never the body. A response is collected
+  into its own slot list first (≤ 128) and merged only if it parsed cleanly, so a cut-off answer
+  leaves the prices the device had. Prices are micro-CHF/kWh in an `int32`, slots the history's
+  quarter-hour index.
+- **CKW's DST days** carry 96 slots on a naive local grid (its 2026-03-29 and 2026-10-25 answers,
+  saved in `test/tariff/`): in spring the 03:xx hour twice and 02:xx not at all, in autumn 02:xx
+  once. Each slot is placed at the UTC time its wall time means; a repeat is dropped (`last.dropped`),
+  and the autumn hour CKW never sends stays without a price.
+- **Schedule** (loop task, every 5 s, cheap): only with a provider, Wi-Fi and a set clock. Each
+  local day of the window is asked for until it holds a price for all but 4 of its quarter hours --
+  CKW per day, past days once per boot; BKW only today (its one URL), and tomorrow, which it had not
+  published by 16:00 on 2026-11-13. Tomorrow from 11:00 local. Incomplete: again after
+  1 h; network, HTTP, format or memory error: after 15 min (the hub: after 1 h too, its free plan
+  allows 100 requests a day); the hub refusing the key: never, until the settings change. So at most
+  one fetch an hour while a provider is late, none once the window is complete. The hub is asked
+  per day like CKW.
+- **Cost**: one TLS session at a time with the update check (a fetch waits while a check or install
+  runs), refused below a 40 kB largest free block. The fetch task has 8 kB of stack like ESPHome's
+  `update_task`; neither its high-water mark nor the heap peak is measured on a device yet, which
+  is what `stack_free` and `heap_before` in `/api/tariff` are for. No flash writes besides the
+  provider choice; prices live in RAM and are fetched again after a restart.
+- **Host test** `test/test_tariff.cpp`: all three providers' saved answers in every chunking from 1 B
+  up, the two DST days, the calendar (switch instants, 23 and 25 h days), malformed and empty
+  answers. Not verified on hardware: everything above runs on the host and against the mock only.
 
 ### Known gaps (PoC)
 

@@ -22,6 +22,10 @@ einspeise, damit ich meinen Verbrauch verstehe.
 5. Bei dreiphasigen Profilen zeigt {{S.phases}} Leistung, Spannung und Strom pro Phase.
    {{img:live|Live-Ansicht mit Leistung, Zählerständen und Phasen}}
 
+6. Ist ein dynamischer Tarif gewählt, steht unter der Leistung {{S.tariffLive}} mit dem Preis der
+   laufenden Viertelstunde, „{{S.tariffUntil("13:00", "12.40 Rp/kWh")}}“ und, wenn Strom in die
+   bepreiste Richtung fliesst, was das pro Stunde einbringt oder kostet (CHF/h).
+
 ## Acceptance
 - Oben rechts steht {{S.dataOk}}; die Werte erneuern sich alle paar Sekunden.
 - Die Zählerstände stimmen mit der Anzeige am Zähler überein.

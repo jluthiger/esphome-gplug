@@ -4,29 +4,30 @@ What fits, what is left, and what to do when a change moves either. The summary 
 reading before a change; the collapsed sections below hold the tables it is drawn from and the
 history of how the image got here.
 
-Snapshot of the `dev.yaml` build from 2026-09-30 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
-4 MB flash), with the Home Assistant entities, the update-from-release components and MQTT. Sizes
+Snapshot of the `dev.yaml` build from 2026-11-13 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+4 MB flash), with the Home Assistant entities, the update-from-release components, MQTT and the
+dynamic tariffs. Sizes
 in kB = 1024 bytes. Numbers come from the linker map, not from a running device, except where noted.
 
-<!-- size-baseline image=1249850 dram=130510 gplug_smi_obj=25304 -->
+<!-- size-baseline image=1268106 dram=130526 gplug_smi_obj=25328 -->
 
 ## The four budgets
 
 | Budget | Used | Limit | Left |
 |---|---|---|---|
-| App image in the `app0` slot | 1221 kB (86.7 %) | 1408 kB | 187 kB |
+| App image in the `app0` slot | 1238 kB (88.0 %) | 1408 kB | 170 kB |
 | Static RAM (IRAM + DRAM at link time) | 127.5 kB (40.6 %) | 314 kB of SRAM | 186.3 kB for the heap at boot |
-| Free heap on a device | 197 kB idle, 83-101 kB at the worst minimum | >= 80 kB after 24 h (`DESIGN.md`) | the TLS update check is the peak, ~44 kB |
-| SPA, gzipped | 58.5 kB | 64 kB | 5.5 kB |
+| Free heap on a device | 197 kB idle, 83-101 kB at the worst minimum | >= 80 kB after 24 h (`DESIGN.md`) | a TLS session (update check, tariff fetch) is the peak, ~44 kB |
+| SPA, gzipped | 63.4 kB | 64 kB | 0.6 kB |
 
 The history partition (704 kB) holds ~374 days of 15-min records; every other partition is sized by
 ESPHome, see the partition table below.
 
 ## What costs what
 
-Of the 1221 kB image, 74 % is platform that no gPlug change touches (Wi-Fi 298 kB, ESP-IDF 242 kB,
-crypto 210 kB, networking 140 kB). gPlug's own share is about 142 kB: 72.9 kB `gplug_smi` code and
-69.3 kB embedded web files, of which the SPA alone is 58.5 kB. The remaining 96 kB of string
+Of the 1238 kB image, 73 % is platform that no gPlug change touches (Wi-Fi 298 kB, ESP-IDF 242 kB,
+crypto 210 kB, networking 140 kB). gPlug's own share is about 159 kB: 84.3 kB `gplug_smi` code and
+74.4 kB embedded web files, of which the SPA alone is 63.5 kB. The remaining 96 kB of string
 literals belong to all of the above together, which the by-owner section explains under
 "Misleading attribution".
 
@@ -35,14 +36,16 @@ half of which is the Datenstrom frame log.
 
 ## If memory gets tight
 
+- **SPA**: 0.6 kB below its 64 kB budget since the dynamic tariffs (2026-11-13), after shortening their texts. The next UI
+  feature needs room made first; the four language tables are the largest part of the bundle.
 - **Image**: the SPA and the HTTP layer are the only large parts that are ours to shrink -- the SPA
-  58.5 kB, the HTTP API 21.1 kB and the ArduinoJson it pulls in for the POST bodies 17.8 kB.
+  63.5 kB, the HTTP API 22.0 kB and the ArduinoJson it pulls in for the POST bodies 17.8 kB.
   Meter decoding, the reason the firmware exists, is 5.4 kB. Switching a whole feature off in the
   YAML (MQTT, update-from-release) frees far more than tuning code: the release install cost 128 kB.
 - **Static RAM**: `FRAME_LOG_LEN` and `FRAME_LOG_RAW_CAP` in `gplug_smi.h` are the first dials; the
   frame log is 10.0 kB of the 24.7 kB object.
-- **Heap**: the peak is an update check over TLS (~44 kB with `CONFIG_MBEDTLS_DYNAMIC_BUFFER`,
-  ~62 kB without), not steady-state operation.
+- **Heap**: the peak is a TLS session -- an update check or a tariff fetch, never both at once
+  (~44 kB with `CONFIG_MBEDTLS_DYNAMIC_BUFFER`, ~62 kB without), not steady-state operation.
 
 ## Keeping this file current
 
@@ -88,45 +91,45 @@ standard ESP-IDF layout.
 <details>
 <summary><b>Flash: the app image, by owner (*generated*)</b></summary>
 
-By section: 891 kB code run from flash, 258 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
-(those two are stored in flash *and* occupy RAM).
+By section: 903 kB code run from flash, 265 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.4 % |
-| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.9 kB | 19.8 % |
-| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 209.5 kB | 17.2 % |
-| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.5 % |
-| String literals from all code | 95.9 kB | 7.9 % |
-| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 6.9 % |
-| `gplug_smi` code | 72.9 kB | 6.0 % |
-| Embedded web files, gzipped except the PNG: SPA 58.5 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 69.3 kB | 5.7 % |
-| ESPHome-generated `main.cpp` setup code | 6.1 kB | 0.5 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.1 % |
+| ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.9 kB | 19.5 % |
+| Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 209.5 kB | 16.9 % |
+| Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.3 % |
+| String literals from all code | 97.2 kB | 7.8 % |
+| ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 6.8 % |
+| `gplug_smi` code | 84.3 kB | 6.8 % |
+| Embedded web files, gzipped except the PNG: SPA 63.5 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 74.4 kB | 6.0 % |
+| ESPHome-generated `main.cpp` setup code | 6.2 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
 
-The platform (Wi-Fi, ESP-IDF, crypto, networking) is 74 % of the image; gPlug's own code and web
-files, `gplug_smi` and the embedded web files together, about 12 %.
+The platform (Wi-Fi, ESP-IDF, crypto, networking) is 73 % of the image; gPlug's own code and web
+files, `gplug_smi` and the embedded web files together, about 13 %.
 
 ### Inside the `gplug_smi` row (*generated*)
 
-`esp_idf_size` stops at the object file, and the component is two of them (`gplug_smi.cpp`, with
-every header-only decoder, store and route handler inlined into it, and `mqtt.cpp`), so the row
+`esp_idf_size` stops at the object file, and the component is three of them (`gplug_smi.cpp`, with
+every header-only decoder, store and route handler inlined into it, `mqtt.cpp` and `tariff.cpp`), so the row
 above is one lump. This table splits it by the source file each function was compiled from, taken
 from the linker map's input sections and the DWARF line table; the rules are `GPLUG_PARTS` in
 `tools/size_report.py`, and a section the rules do not name lands in "Everything else".
 
-Inside `gplug_smi`: 80,800 B = 78.9 kB, of which 6.7 kB string literals that the image table counts in its "String literals" row, not in "`gplug_smi` code" (72.9 kB).
+Inside `gplug_smi`: 94,206 B = 92.0 kB, of which 8.3 kB string literals that the image table counts in its "String literals" row, not in "`gplug_smi` code" (84.3 kB).
 
 | Part of `gplug_smi` | Size | Of it literals | Share |
 |---|---|---|---|
-| HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`) | 21.1 kB | 3.1 kB | 26.8 % |
-| Everything else: lifecycle, config apply and NVS, Home Assistant entities, LED and button, update check, heap sampler, and the `std::string`/`std::vector` code inlined into them | 18.2 kB | 2.0 kB | 23.1 % |
-| ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, `/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings | 17.8 kB | 0.0 kB | 22.6 % |
-| MQTT: client, template compiler and renderer, status payload (`mqtt.cpp`, `mqtt_template.h`, `mqtt_status.h`) | 9.4 kB | 1.3 kB | 12.0 % |
-| History and event store: 15-min records on the `data` partition, CSV rows, event log in NVS | 6.9 kB | 0.3 kB | 8.7 % |
-| Meter decoding: HDLC + DLMS/COSEM, DSMR/P1, AES-GCM, protocol sniffing, frame log | 5.4 kB | 0.0 kB | 6.8 % |
+| HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`) | 22.0 kB | 3.2 kB | 23.9 % |
+| Everything else: lifecycle, config apply and NVS, Home Assistant entities, LED and button, update check, heap sampler, and the `std::string`/`std::vector` code inlined into them | 18.6 kB | 2.0 kB | 20.3 % |
+| ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, `/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings | 17.8 kB | 0.0 kB | 19.4 % |
+| Dynamic tariffs: HTTPS fetch task, schedule, provider JSON parser, `/api/tariff` (`tariff.cpp`, `tariff_parser.h`) | 11.8 kB | 1.5 kB | 12.9 % |
+| MQTT: client, template compiler and renderer, status payload (`mqtt.cpp`, `mqtt_template.h`, `mqtt_status.h`) | 9.4 kB | 1.3 kB | 10.3 % |
+| History and event store: 15-min records on the `data` partition, CSV rows, event log in NVS | 6.9 kB | 0.3 kB | 7.5 % |
+| Meter decoding: HDLC + DLMS/COSEM, DSMR/P1, AES-GCM, protocol sniffing, frame log | 5.4 kB | 0.0 kB | 5.8 % |
 
 Reading it: the HTTP surface is the biggest part of the component, more than three times the meter
 decoding it exists for, and ArduinoJson -- pulled in only to parse the POST bodies and to
@@ -145,8 +148,20 @@ that contributed. It is not API code.
 
 Newest first; each entry gives the image size it replaced and where the delta went.
 
-Image 1,249,850 B = 1221 kB in a 1408 kB slot: **86.7 % full, 187 kB headroom** (2026-09-30, with
-mbedTLS dynamic buffers and the MPI lock created at boot (issue #35): +3.6 kB, of which 3.0 kB
+Image 1,268,106 B = 1238 kB in a 1408 kB slot: **88.0 % full, 170 kB headroom** (2026-11-13, with
+the dynamic tariffs (issue #51): +17.6 kB against `main` at 1,250,542 B (measured from a clean build
+of `main` the same day; the 0.7 kB between that and the previous entry is the SPA growing on `main`
+since 2026-09-30). Of the 17.6 kB, 11.1 kB is `gplug_smi` code, almost all of it the new "Dynamic
+tariffs" row below (the fetch task, the schedule, the streaming parser for three providers,
+`/api/tariff`), the rest the `/api/history` day window and the routes; 4.8 kB SPA (58.7 -> 63.5 kB:
+the settings card with the Swiss Tariff Hub form, the chart card and 37 strings in four languages),
+1.2 kB strings and 0.5 kB generated setup code and padding. Swiss Tariff Hub as third provider was
+3.2 kB of it (2.1 kB code, 1.0 kB SPA). `esp_http_client`, esp-tls and the certificate bundle cost
+nothing new: the update check already links them. Reading the POST fields without ArduinoJson saved
+1.1 kB, since `tariff.cpp` is a translation unit of its own and instantiated the parser again.
+Static RAM +16 B; the 2.2 kB price table and settings are heap, allocated only while a provider is
+chosen. 1,249,850 B = 86.7 % before, 2026-09-30,
+with mbedTLS dynamic buffers and the MPI lock created at boot (issue #35): +3.6 kB, of which 3.0 kB
 mbedTLS (the per-record buffer paths and freeing the config data after the handshake), 0.3 kB
 SPA already on `main` since the last snapshot, 0.2 kB strings and 0.1 kB `gplug_smi` code; static
 RAM unchanged. The heap effect is under "RAM: heap at runtime". 1,246,132 B = 86.4 % before,
@@ -257,6 +272,8 @@ These are configured sizes from `sdkconfig.gplug` and the code, not measurements
 | GET `/api/config/mqtt`: `MqttSettings` copy plus the status sample (`STATUS_WORST` + 1 B buffer and the Wi-Fi strings) | ~1.9 kB, transient |
 | `mqtt_stop` task, only while an old client is torn down after a reconnecting save: 3 kB stack, and the old client's 4 kB task + buffers until it exits (up to ~10 s) | ~9 kB |
 | `update_task` stack, only while a manifest check runs (ESPHome's `xTaskCreate(..., 8192, ...)`) | 8 kB |
+| Dynamic tariffs, only while a provider is chosen: `TariffState` (500 prices x 4 B, the Swiss Tariff Hub id and key, bookkeeping) | ~2.2 kB |
+| Tariff fetch, only while one runs (at most one TLS session at a time with the update check): `tariff` task stack 8 kB, `TariffJob` (parser with 128 collected slots, 512 B read buffer) ~1.6 kB, esp_http_client buffers 1 + 0.5 kB, plus the TLS session above. Refused below a 40 kB largest block. Not measured on a device yet: `/api/tariff` reports `stack_free` and `heap_before` for that | ~11 kB + TLS |
 | Manifest body during a check (`content_length`, ~0.5 kB) | <1 kB |
 
 Last device reading: **197 kB free heap** with Wi-Fi joined and the SPA loaded (2026-09-10, older

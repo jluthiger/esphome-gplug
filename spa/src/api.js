@@ -9,6 +9,9 @@ const BASE = "";
 // verbatim after the localized "error from the device" prefix -- better a technical token than a
 // wrong translation. The few a user can genuinely hit get a real sentence in their own language.
 const DEVICE_ERRORS = {
+  // POST /api/config/tariff, Swiss Tariff Hub settings
+  "tariff_id": "tariffErrInput",
+  "key": "tariffErrInput",
   "no stored key": "errNoStoredKey",
   "key must be 32 hex chars": "keyInvalid",
   "auth_key must be 32 hex chars": "keyInvalid",
@@ -73,6 +76,11 @@ export const api = {
   // Bulk read of the flash history; range=year scans the whole partition on the device, so it gets
   // a longer timeout than the polled endpoints.
   history: (range) => req("GET", "/api/history?range=" + range, null, 10000),
+  // One window of native quarter hours [from, to) (the tariff card's day); same shape as above.
+  historyWindow: (from, to) => req("GET", `/api/history?from=${from}&to=${to}`, null, 10000),
+  // Dynamic tariffs: prices the device fetched from the chosen utility, and the choice itself.
+  tariff: () => req("GET", "/api/tariff", null, 4000),
+  setTariff: (body) => req("POST", "/api/config/tariff", body),
   // Full-resolution CSV download (Content-Disposition: attachment): navigated to, not fetched, so
   // the browser streams it straight to a file. from/to are quarter-hour indices, both optional --
   // leaving them out is the only way to get records that never got a timestamp.

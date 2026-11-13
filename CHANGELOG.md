@@ -10,6 +10,17 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+### Added
+
+- Dynamic tariffs (BKW feed-in remuneration, CKW grid usage): choose your utility on the Device tab,
+  and the History tab shows the price of every quarter hour next to your energy, with negative
+  prices shaded and what the day earned or cost in grid fees. Off until you choose; the gPlug then
+  fetches the published prices from the internet itself and keeps them until the next restart.
+  With a key from [Swiss Tariff Hub](https://swisstariffhub.ch/) it can also show the total price
+  (energy, grid and levies) of the tariff your hub account is for.
+  The Live tab shows the price of the running quarter hour, until when it holds, and what the
+  power flowing right now earns or costs per hour.
+
 ## [0.10.0] – 2026-10-13
 
 ### Added

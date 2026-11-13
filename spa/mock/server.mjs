@@ -26,6 +26,14 @@ const OTA_ROLLBACK = process.env.MOCK_OTA_ROLLBACK === "1";
 const MOCK_UPDATE = process.env.MOCK_UPDATE || "";
 const UPDATE_FAIL = process.env.MOCK_UPDATE_FAIL === "1";
 
+// Dynamic tariffs (/api/tariff, /api/config/tariff). MOCK_TARIFF=bkw|ckw|sth starts with that
+// provider chosen (default off, like the device; sth with tariff ckw_home_dynamic and a key);
+// MOCK_TARIFF_ERR=net|http|format|empty|memory makes every fetch fail that way. A hub key starting
+// with "bad" is refused (error auth), like a wrong key at swisstariffhub.ch.
+const tariff = { provider: process.env.MOCK_TARIFF || "off", setAt: Date.now() - 60000,
+  sthId: "ckw_home_dynamic", sthKey: process.env.MOCK_TARIFF === "sth" ? "stk_mock" : "" };
+const TARIFF_ERR = process.env.MOCK_TARIFF_ERR || "";
+
 const state = {
   version: "0.1.0-mock", fw: "0.6.0", hostname: "gplug-a1b2c3", build: Math.floor(Date.now() / 1000) - 86400,
   // Like the device's `app`: the first 16 hex digits of the running image's ELF SHA-256. The
@@ -153,6 +161,76 @@ function ring() {
 const QH_EPOCH = 1577836800;
 const HF_BOOT = 4, HF_CONFIG = 8, HF_NO_DATA = 16;
 const RANGE_SPEC = { day: [1, 96], week: [4, 168], month: [24, 120], year: [96, 365] };
+
+// Mirrors /api/history?from=<qh>&to=<qh>: native quarter hours of one window, dated records only,
+// nothing after now. Same curve as below.
+function historyWindow(from, to) {
+  const nowQh = Math.floor((Date.now() / 1000 - QH_EPOCH) / 900);
+  if (!from || to <= from || to - from > 192) return { __status: 400, error: "window" };
+  const pts = [];
+  if (state.meter) {
+    for (let qh = from; qh < to && qh < nowQh; qh++) {
+      const load = 1400 + 900 * Math.sin(qh / 9) + 300 * Math.sin(qh / 2.3);
+      const pv = Math.max(0, 2600 * Math.sin(((qh % 96) / 96) * Math.PI));
+      const net = Math.round(load - pv);
+      pts.push([qh, Math.round(Math.max(0, net) / 4), Math.round(Math.max(0, -net) / 4), net - 400, net + 600, net, 0]);
+    }
+  }
+  return { period: 900, range: "window", bucket: 1, qh_epoch: QH_EPOCH, epoch_valid: true,
+    epoch: Math.floor(Date.now() / 1000), now_qh: nowQh, oldest_qh: nowQh - HIST_DAYS * 96, newest_qh: nowQh,
+    count: pts.length, ok: true, pts };
+}
+
+// GplugSmi::json_tariff_. BKW serves today only (the device keeps what it fetched earlier, so after
+// a few days of uptime the window holds those too: the mock pretends one earlier day); CKW is
+// backfilled three days and has tomorrow from 11:00. Prices follow the shapes of the 2026-11-13
+// answers, with a few negative feed-in quarter hours around noon.
+function tariffJson() {
+  if (tariff.provider === "off") return { provider: "off" };
+  const fetching = Date.now() - tariff.setAt < 3000;
+  const sth = tariff.provider === "sth";
+  const authErr = sth && tariff.sthKey.startsWith("bad");
+  const base = { provider: tariff.provider, kind: tariff.provider === "bkw" ? "feed_in" : sth ? "total" : "grid",
+    ...(sth && { tariff_id: tariff.sthId, key_set: !!tariff.sthKey }), fetching,
+    http: TARIFF_ERR === "http" ? 503 : fetching ? 0 : 200, stack_free: 3120, heap_before: 112640,
+    last: { count: 96, dropped: 0, bad: 0 }, scale: 1000000 };
+  if (authErr && !fetching) return { ...base, error: "auth", http: 401, fetched_ago: null, tried_ago: 2,
+    publication: "", first_qh: null, prices: [] };
+  if (fetching || TARIFF_ERR) return { ...base, error: fetching ? null : TARIFF_ERR, fetched_ago: null,
+    tried_ago: 2, publication: "", first_qh: null, prices: [] };
+  const now = new Date();
+  const mid = (o) => new Date(now.getFullYear(), now.getMonth(), now.getDate() + o);
+  const qh = (d) => Math.floor((d.getTime() / 1000 - QH_EPOCH) / 900);
+  const bkw = tariff.provider === "bkw";
+  const from = qh(mid(bkw ? -1 : -3));
+  const to = qh(mid(!bkw && now.getHours() >= 11 ? 2 : 1));
+  const prices = [];
+  for (let q = from; q < to; q++) {
+    const h = ((q % 96) + 96 + 4) % 96 / 4;   // local hour, near enough for a mock
+    const day = Math.floor((q - from) / 96);
+    const p = bkw ? 0.2 - 0.05 * Math.sin(((h - 6) / 12) * Math.PI) - (day === 1 && h >= 12 && h < 14 ? 0.24 : 0)
+                  : 0.035 + 0.09 * Math.max(0, Math.sin(((h - 7) / 14) * Math.PI)) + 0.02 * Math.sin(day + h / 3);
+    // The hub's total: CKW's dynamic grid part plus a flat energy price and a grid price.
+    prices.push(Math.round((p + (sth ? 0.12 + 0.065 : 0)) * 1e4) * 100);
+  }
+  return { ...base, error: null, fetched_ago: Math.floor((Date.now() - tariff.setAt) / 1000),
+    tried_ago: Math.floor((Date.now() - tariff.setAt) / 1000),
+    publication: bkw ? new Date(Date.now() - 3600e3).toISOString().slice(0, 17) + "00Z" : "12.11.2026 10:19:27",
+    first_qh: from, prices };
+}
+
+// Mirrors GplugSmi::json_tariff_live_: the running quarter hour's price from the same table.
+function tariffLive() {
+  const t = tariffJson();
+  if (!t.prices?.length) return {};
+  const q = Math.floor((Date.now() / 1000 - QH_EPOCH) / 900);
+  const at = (x) => (x >= t.first_qh && x < t.first_qh + t.prices.length ? t.prices[x - t.first_qh] : null);
+  const now = at(q);
+  if (now == null) return {};
+  let until = q + 1;
+  while (at(until) === now) until++;
+  return { tariff: { kind: t.kind, now, until_qh: until, next: at(until) } };
+}
 
 function history(range, noEpoch) {
   const [bucket, n] = RANGE_SPEC[range] || RANGE_SPEC.day;
@@ -499,7 +577,25 @@ function mqttPost(b) {
 const routes = {
   "GET /api/status": () => ({ ...state, hardware: state.hardware || {}, meter: statusMeter(), uptime: (Date.now() - state.t0) / 1000,
     heap: heapStatus().free, mem: { ...heapStatus(), ...(mqtt.cfg.enabled && { stack_mqtt: 1650 }) },
-    time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta(), mqtt: mqttStatus() }),
+    time: { valid: true, epoch: Math.floor(Date.now() / 1000) }, history: historyMeta(), mqtt: mqttStatus(),
+    tariff: tariff.provider }),
+  "GET /api/tariff": () => tariffJson(),
+  "POST /api/config/tariff": (b) => {
+    // Mirrors GplugSmi::handle_tariff_post_: the hub needs a tariff id and a key (left out = keep).
+    if (!["off", "bkw", "ckw", "sth"].includes(b?.provider)) return { __status: 400, error: "provider" };
+    const tok = (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(v);
+    if (b.provider === "sth") {
+      if (!tok(b.tariff_id) || b.tariff_id.length > 48) return { __status: 400, error: "tariff_id" };
+      if (b.key !== undefined && !tok(b.key)) return { __status: 400, error: "key" };
+      const key = b.key ?? (tariff.provider === "sth" ? tariff.sthKey : "");
+      if (!key) return { __status: 400, error: "key" };
+      if (tariff.provider !== "sth" || b.tariff_id !== tariff.sthId || key !== tariff.sthKey)
+        Object.assign(tariff, { provider: "sth", sthId: b.tariff_id, sthKey: key, setAt: Date.now() });
+      return { ok: true };
+    }
+    if (b.provider !== tariff.provider) Object.assign(tariff, { provider: b.provider, setAt: Date.now() });
+    return { ok: true };
+  },
   "GET /api/config/mqtt": () => ({ ...mqtt.cfg, password_set: !!mqtt.password, status_sample: mqttStatusSample(),
     ...mqttCtx() }),
   "POST /api/config/mqtt": (b) => mqttPost(b),
@@ -542,7 +638,7 @@ const routes = {
     if (!state.meter?.key) return { __status: 400, error: "no stored key" };
     return { match: b.key.toLowerCase() === state.meter.key.toLowerCase() };
   },
-  "GET /api/live": () => live(),
+  "GET /api/live": () => ({ ...live(), ...tariffLive() }),
   "GET /api/ring": () => ring(),
   "GET /api/update": () => ({ state: upd.state, current: state.fw, latest: upd.latest, newer: updNewer(),
     release_url: upd.release_url, progress: upd.progress,
@@ -602,6 +698,12 @@ createServer(async (req, res) => {
   // Query-param endpoint: the flat table below is keyed on the path alone.
   if (req.method === "GET" && path === "/api/history") {
     console.log(key, url.search);
+    if (url.searchParams.has("from") && url.searchParams.has("to")) {
+      const out = historyWindow(Number(url.searchParams.get("from")), Number(url.searchParams.get("to")));
+      res.writeHead(out.__status || 200, { "content-type": "application/json" });
+      delete out.__status;
+      return res.end(JSON.stringify(out));
+    }
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify(history(url.searchParams.get("range") || "day",
                                           url.searchParams.get("noepoch") === "1")));

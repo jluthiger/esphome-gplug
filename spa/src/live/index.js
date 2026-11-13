@@ -27,7 +27,11 @@ const POLL_MS = 10000;
 const HIST_MS = 300000;
 const TITLES = { live: "screenLive", hist: "screenHist", stream: "screenStream", setup: "screenSetup" };
 
-export function Live({ status, presets }) {
+export function Live({ status: loaded, presets }) {
+  // /api/status is read once per page load; a tariff provider saved on the Device tab is laid over
+  // it, so the History tab shows (or drops) the tariff card without a reload.
+  const [tariff, setTariff] = useState(null);
+  const status = tariff && loaded ? { ...loaded, tariff } : loaded;
   const [tab, setTab] = useState("live");
   const [live, setLive] = useState(null);
   const [ring, setRing] = useState(null);
@@ -97,7 +101,7 @@ export function Live({ status, presets }) {
     ${tab === "live" && html`<${LiveTab} live=${live} ring=${ring} day=${day} wide=${wide} />`}
     ${tab === "hist" && html`<${HistTab} live=${live} day=${day} status=${status} presets=${presets} wide=${wide} />`}
     ${tab === "stream" && html`<${StreamTab} wide=${wide} />`}
-    ${tab === "setup" && html`<${SetupTab} status=${status} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} wide=${wide} />`}`;
+    ${tab === "setup" && html`<${SetupTab} status=${status} onTariff=${setTariff} live=${live} presets=${presets} theme=${theme} onTheme=${pickTheme} wide=${wide} />`}`;
 
   // One tree for both layouts: the tab sits at the same place whether or not the rail is there, so
   // crossing the breakpoint (an iPad turned to landscape is exactly 1024 px) re-renders the tab

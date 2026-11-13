@@ -150,6 +150,12 @@ async def to_code(config):
         esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_BUFFER", True)
         esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA", True)
         esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT", True)
+        # Dynamic tariffs (tariff.cpp) fetch over HTTPS with ESP-IDF's client and the common-CA
+        # bundle -- the same two pieces http_request uses for the update check, so with gplug.yaml
+        # they are linked already. Requested here as well because `update_id` is optional and the
+        # tariff fetch must not depend on it.
+        esp32.include_builtin_idf_component("esp_http_client")
+        esp32.add_idf_sdkconfig_option("CONFIG_MBEDTLS_CERTIFICATE_BUNDLE", True)
 
     base = await cg.get_variable(config[CONF_WEB_SERVER_BASE_ID])
     var = cg.new_Pvariable(config[CONF_ID], base)

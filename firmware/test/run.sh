@@ -20,7 +20,7 @@ needs_capture() {
 }
 # capturelist is not listed here: it holds three independent captures and skips the ones whose files
 # are missing by itself, so it still checks whatever this machine has.
-ALL="dsmr aes dlms replay raw structure capturelist framelog history csv eventlog sniff ha heapmon version_cmp mqtt_template mqtt_status"
+ALL="dsmr aes dlms replay raw structure capturelist framelog history csv eventlog sniff ha heapmon version_cmp mqtt_template mqtt_status tariff"
 [ $# -gt 0 ] && set -- "$@" || set -- $ALL
 
 fail=0

@@ -119,19 +119,22 @@ def owner(archive, obj):
     return "idf"
 
 
-# Splitting the `gplug_smi` row. The component is two translation units -- gplug_smi.cpp, with every
-# header-only decoder, store and route handler inlined into it, and mqtt.cpp -- so esp_idf_size,
+# Splitting the `gplug_smi` row. The component is three translation units -- gplug_smi.cpp, with every
+# header-only decoder, store and route handler inlined into it, mqtt.cpp and tariff.cpp -- so esp_idf_size,
 # which stops at the object file, reports it as one lump. These rules split it finer: the linker map
 # lists one input section per function and per literal pool with its address and owning object, and
 # addr2line turns each address into the source file it was compiled from (the headers the function
 # was inlined from, which is what we want to group by). Each section is matched as
 # "<source file>|<demangled owner symbol>" against the patterns below, first match wins, so a
 # pattern can name either a header or the methods of gplug_smi.cpp that belong to a part.
-GPLUG_SECTION = re.compile(r"^\s+(0x[0-9a-f]{8,16})\s+(0x[0-9a-f]+)\s+\S*/gplug_smi/(gplug_smi|mqtt)\.cpp\.o$")
+GPLUG_SECTION = re.compile(r"^\s+(0x[0-9a-f]{8,16})\s+(0x[0-9a-f]+)\s+\S*/gplug_smi/(gplug_smi|mqtt|tariff)\.cpp\.o$")
 GPLUG_PARTS = [
     ("ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, "
      "`/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings",
      r"/ArduinoJson/"),
+    # Before the HTTP API: json_tariff_ and handle_tariff_post_ would match its json_/handle_ rule.
+    ("Dynamic tariffs: HTTPS fetch task, schedule, provider JSON parser, `/api/tariff` (`tariff.cpp`, `tariff_parser.h`)",
+     r"/tariff(_parser\.h|\.cpp)|gplug_tariff::|::(tariff_[a-z_0-9]*|json_tariff_|handle_tariff_post_)\b|TariffState"),
     ("HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`)",
      r"::(json_[a-z_0-9]*|handle_[a-z_0-9]*|send_gz_|send_json_|read_body_|canHandle|handleRequest"
      r"|isRequestHandlerTrivial|socket_json_|socket_count_|json_escape|append_num|bytes_to_hex)\b"),
@@ -149,7 +152,7 @@ GPLUG_REST = ("Everything else: lifecycle, config apply and NVS, Home Assistant 
 
 
 def gplug_sections():
-    """(address, size, owner symbol, is literal pool) of every image section of the two gplug_smi objects.
+    """(address, size, owner symbol, is literal pool) of every image section of the three gplug_smi objects.
 
     The map repeats the whole input-section list once under "Discarded input sections" (COMDAT
     duplicates the linker threw away), so parsing starts at the memory map proper.

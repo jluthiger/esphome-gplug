@@ -22,6 +22,10 @@ j'injecte en ce moment, afin de comprendre ma consommation.
 5. Avec les profils triphasés, {{S.phases}} affiche la puissance, la tension et le courant par phase.
    {{img:live|Vue en direct avec puissance, index et phases}}
 
+6. Si un tarif dynamique est choisi, {{S.tariffLive}} sous la puissance montre le prix du quart
+   d'heure en cours, « {{S.tariffUntil("13:00", "12.40 Rp/kWh")}} » et, quand le courant circule
+   dans le sens tarifé, ce qu'il rapporte ou coûte par heure (CHF/h).
+
 ## Acceptance
 - {{S.dataOk}} s'affiche en haut à droite ; les valeurs se mettent à jour toutes les quelques
   secondes.

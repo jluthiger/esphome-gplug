@@ -22,6 +22,10 @@ right now, so that I understand my consumption.
 5. With three-phase profiles, {{S.phases}} shows power, voltage and current per phase.
    {{img:live|Live view with power, meter readings and phases}}
 
+6. With a dynamic tariff chosen, {{S.tariffLive}} below the power shows the running quarter hour's
+   price, "{{S.tariffUntil("13:00", "12.40 Rp/kWh")}}" and, when power flows in the priced
+   direction, what it earns or costs per hour (CHF/h).
+
 ## Acceptance
 - {{S.dataOk}} is shown at the top right; the values update every few seconds.
 - The meter readings match the meter's display.

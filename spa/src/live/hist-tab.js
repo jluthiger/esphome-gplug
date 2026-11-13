@@ -6,6 +6,7 @@ import { num, bucketLabel, bucketWhen, dateShort, dateRange, qhDate, QH_EPOCH } 
 import { Collapsible } from "./collapsible.js";
 import { useBox } from "../box.js";
 import { useScrub, Readout } from "../scrub.js";
+import { TariffChart } from "./tariff-card.js";
 // Every range here comes from the flash history (/api/history), fetched per range and kept until
 // the store gains a record, so re-visiting one costs the device nothing; the scan reads flash,
 // which is why it is not on the 10 s poll. There is deliberately no "last hour" range: that is live data, not stored history,
@@ -83,15 +84,18 @@ export function HistTab({ live, day, status, presets, wide }) {
       </div>
     <//>`;
 
+  // Prices per quarter hour against the day's energy, only while a tariff provider is chosen.
+  const tariff = html`<${TariffChart} status=${status} day=${day} />`;
+
   // Wide screens: the chart and its figures take the width, the export and the register list sit
   // in a column beside them instead of below the fold.
   if (wide) return html`
     <div class="histgrid">
-      <div class="h-main">${chartPart}</div>
+      <div class="h-main">${chartPart}${tariff}</div>
       <aside class="h-side"><${ExportCard} status=${status} />${registers}</aside>
     </div>`;
 
-  return html`${chartPart}<${ExportCard} status=${status} />${registers}`;
+  return html`${chartPart}${tariff}<${ExportCard} status=${status} />${registers}`;
 }
 
 // History -> bars: energy per bucket (Wh, import positive / export negative) for every range. Day
