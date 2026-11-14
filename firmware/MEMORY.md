@@ -4,18 +4,18 @@ What fits, what is left, and what to do when a change moves either. The summary 
 reading before a change; the collapsed sections below hold the tables it is drawn from and the
 history of how the image got here.
 
-Snapshot of the `dev.yaml` build from 2026-11-13 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
-4 MB flash), with the Home Assistant entities, the update-from-release components, MQTT and the
-dynamic tariffs. Sizes
+Snapshot of the `dev.yaml` build from 2026-11-14 (ESPHome 2026.6.5, ESP-IDF 5.5.4, ESP32-C3,
+4 MB flash), with the Home Assistant entities, the update-from-release components, MQTT, the
+dynamic tariffs and the gPlugK power profile. Sizes
 in kB = 1024 bytes. Numbers come from the linker map, not from a running device, except where noted.
 
-<!-- size-baseline image=1268106 dram=130526 gplug_smi_obj=25328 -->
+<!-- size-baseline image=1269658 dram=130542 gplug_smi_obj=25336 -->
 
 ## The four budgets
 
 | Budget | Used | Limit | Left |
 |---|---|---|---|
-| App image in the `app0` slot | 1238 kB (88.0 %) | 1408 kB | 170 kB |
+| App image in the `app0` slot | 1240 kB (88.1 %) | 1408 kB | 168 kB |
 | Static RAM (IRAM + DRAM at link time) | 127.5 kB (40.6 %) | 314 kB of SRAM | 186.3 kB for the heap at boot |
 | Free heap on a device | 197 kB idle, 83-101 kB at the worst minimum | >= 80 kB after 24 h (`DESIGN.md`) | a TLS session (update check, tariff fetch) is the peak, ~44 kB |
 | SPA, gzipped | 63.4 kB | 64 kB | 0.6 kB |
@@ -25,9 +25,9 @@ ESPHome, see the partition table below.
 
 ## What costs what
 
-Of the 1238 kB image, 73 % is platform that no gPlug change touches (Wi-Fi 298 kB, ESP-IDF 242 kB,
-crypto 210 kB, networking 140 kB). gPlug's own share is about 159 kB: 84.3 kB `gplug_smi` code and
-74.4 kB embedded web files, of which the SPA alone is 63.5 kB. The remaining 96 kB of string
+Of the 1240 kB image, 73 % is platform that no gPlug change touches (Wi-Fi 298 kB, ESP-IDF 242 kB,
+crypto 210 kB, networking 140 kB). gPlug's own share is about 160 kB: 85.5 kB `gplug_smi` code and
+74.3 kB embedded web files, of which the SPA alone is 63.4 kB. The remaining 97 kB of string
 literals belong to all of the above together, which the by-owner section explains under
 "Misleading attribution".
 
@@ -39,7 +39,7 @@ half of which is the Datenstrom frame log.
 - **SPA**: 0.6 kB below its 64 kB budget since the dynamic tariffs (2026-11-13), after shortening their texts. The next UI
   feature needs room made first; the four language tables are the largest part of the bundle.
 - **Image**: the SPA and the HTTP layer are the only large parts that are ours to shrink -- the SPA
-  63.5 kB, the HTTP API 22.0 kB and the ArduinoJson it pulls in for the POST bodies 17.8 kB.
+  63.4 kB, the HTTP API 22.1 kB and the ArduinoJson it pulls in for the POST bodies 17.9 kB.
   Meter decoding, the reason the firmware exists, is 5.4 kB. Switching a whole feature off in the
   YAML (MQTT, update-from-release) frees far more than tuning code: the release install cost 128 kB.
 - **Static RAM**: `FRAME_LOG_LEN` and `FRAME_LOG_RAW_CAP` in `gplug_smi.h` are the first dials; the
@@ -91,20 +91,20 @@ standard ESP-IDF layout.
 <details>
 <summary><b>Flash: the app image, by owner (*generated*)</b></summary>
 
-By section: 903 kB code run from flash, 265 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
+By section: 904 kB code run from flash, 265 kB read-only data, 60 kB IRAM code and 11 kB `.data` initial values
 
 By owner (*generated*):
 
 | Part | Size | Share of image |
 |---|---|---|
-| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.2 kB | 24.1 % |
+| Wi-Fi driver, WPA supplicant, PHY (`libnet80211`, `libpp`, `libwpa_supplicant`, `libphy`) | 298.4 kB | 24.1 % |
 | ESP-IDF system (FreeRTOS, libc/printf, HAL, flash + NVS drivers, heap, UART, OTA, HTTP client + esp-tls, MQTT client) | 241.9 kB | 19.5 % |
 | Crypto (mbedTLS: AES-GCM, TLS + X.509 + CA bundle for the update check; Noise/Ed25519 for the encrypted API) | 209.5 kB | 16.9 % |
 | Networking (lwIP, ESP-IDF HTTP server + parser, mDNS) | 140.3 kB | 11.3 % |
-| String literals from all code | 97.2 kB | 7.8 % |
+| String literals from all code | 97.4 kB | 7.9 % |
 | ESPHome core and components (incl. the captive_portal fork) | 84.8 kB | 6.8 % |
-| `gplug_smi` code | 84.3 kB | 6.8 % |
-| Embedded web files, gzipped except the PNG: SPA 63.5 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 74.4 kB | 6.0 % |
+| `gplug_smi` code | 85.5 kB | 6.9 % |
+| Embedded web files, gzipped except the PNG: SPA 63.4 kB, captive page 4.9 kB, icon 3.6 kB, presets 1.6 kB, manifest 0.2 kB | 74.3 kB | 6.0 % |
 | ESPHome-generated `main.cpp` setup code | 6.2 kB | 0.5 % |
 | Linker alignment padding (no owning object) | 1.7 kB | 0.1 % |
 
@@ -119,16 +119,16 @@ above is one lump. This table splits it by the source file each function was com
 from the linker map's input sections and the DWARF line table; the rules are `GPLUG_PARTS` in
 `tools/size_report.py`, and a section the rules do not name lands in "Everything else".
 
-Inside `gplug_smi`: 94,206 B = 92.0 kB, of which 8.3 kB string literals that the image table counts in its "String literals" row, not in "`gplug_smi` code" (84.3 kB).
+Inside `gplug_smi`: 95,630 B = 93.4 kB, of which 8.6 kB string literals that the image table counts in its "String literals" row, not in "`gplug_smi` code" (85.5 kB).
 
 | Part of `gplug_smi` | Size | Of it literals | Share |
 |---|---|---|---|
-| HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`) | 22.0 kB | 3.2 kB | 23.9 % |
-| Everything else: lifecycle, config apply and NVS, Home Assistant entities, LED and button, update check, heap sampler, and the `std::string`/`std::vector` code inlined into them | 18.6 kB | 2.0 kB | 20.3 % |
-| ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, `/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings | 17.8 kB | 0.0 kB | 19.4 % |
-| Dynamic tariffs: HTTPS fetch task, schedule, provider JSON parser, `/api/tariff` (`tariff.cpp`, `tariff_parser.h`) | 11.8 kB | 1.5 kB | 12.9 % |
-| MQTT: client, template compiler and renderer, status payload (`mqtt.cpp`, `mqtt_template.h`, `mqtt_status.h`) | 9.4 kB | 1.3 kB | 10.3 % |
-| History and event store: 15-min records on the `data` partition, CSV rows, event log in NVS | 6.9 kB | 0.3 kB | 7.5 % |
+| HTTP API: route dispatch, the JSON bodies and the CSV export (`handleRequest`, `json_*`, `handle_*`) | 22.1 kB | 3.2 kB | 23.7 % |
+| Everything else: lifecycle, config apply and NVS, Home Assistant entities, LED and button, update check, heap sampler, and the `std::string`/`std::vector` code inlined into them | 19.4 kB | 2.2 kB | 20.8 % |
+| ArduinoJson, inlined where it parses the POST bodies (`/api/meter`, `/api/hw`, `/api/mqtt`, `/api/key/check`, `/api/wifi/scan`) and re-serializes the stored meter and MQTT settings | 17.9 kB | 0.0 kB | 19.2 % |
+| Dynamic tariffs: HTTPS fetch task, schedule, provider JSON parser, `/api/tariff` (`tariff.cpp`, `tariff_parser.h`) | 12.2 kB | 1.6 kB | 13.1 % |
+| MQTT: client, template compiler and renderer, status payload (`mqtt.cpp`, `mqtt_template.h`, `mqtt_status.h`) | 9.4 kB | 1.3 kB | 10.1 % |
+| History and event store: 15-min records on the `data` partition, CSV rows, event log in NVS | 6.9 kB | 0.3 kB | 7.4 % |
 | Meter decoding: HDLC + DLMS/COSEM, DSMR/P1, AES-GCM, protocol sniffing, frame log | 5.4 kB | 0.0 kB | 5.8 % |
 
 Reading it: the HTTP surface is the biggest part of the component, more than three times the meter
@@ -148,7 +148,12 @@ that contributed. It is not API code.
 
 Newest first; each entry gives the image size it replaced and where the delta went.
 
-Image 1,268,106 B = 1238 kB in a 1408 kB slot: **88.0 % full, 170 kB headroom** (2026-11-13, with
+Image 1,269,658 B = 1240 kB in a 1408 kB slot: **88.1 % full, 168 kB headroom** (2026-11-14, with
+`main`'s gPlugK low-power profile (issue #46) merged into the dynamic tariffs: +1.5 kB, of which
+1.2 kB `gplug_smi` code (the profile, its TX re-check and `wifi.low_power` in `/api/status`), 0.2 kB
+strings and 0.2 kB Wi-Fi driver; `main` had measured the profile at +1.8 kB on 2026-10-14
+(1,249,850 -> 1,251,696 B), part of that the 0.10.0 SPA already counted below. SPA unchanged.
+Static RAM +16 B, the `GplugSmi` object +8 B. 1,268,106 B = 88.0 % before, 2026-11-13, with
 the dynamic tariffs (issue #51): +17.6 kB against `main` at 1,250,542 B (measured from a clean build
 of `main` the same day; the 0.7 kB between that and the previous entry is the SPA growing on `main`
 since 2026-09-30). Of the 17.6 kB, 11.1 kB is `gplug_smi` code, almost all of it the new "Dynamic
