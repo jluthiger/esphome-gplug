@@ -6,9 +6,10 @@ import { FirmwareCard } from "./firmware-card.js";
 import { LogCard } from "./log-card.js";
 import { MemCard } from "./mem-card.js";
 import { MqttCard } from "./mqtt-card.js";
+import { TariffSetup } from "./tariff-card.js";
 import { Collapsible } from "./collapsible.js";
 
-export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
+export function SetupTab({ status, onTariff, live, presets, theme, onTheme, wide }) {
   const [showWifi, setShowWifi] = useState(false);
   // The MQTT card's loaded config and unsaved draft: kept here because a closed card unmounts.
   const [mqtt, setMqtt] = useState(null);
@@ -50,6 +51,7 @@ export function SetupTab({ status, live, presets, theme, onTheme, wide }) {
         <p class="hint" style="margin:8px 0 0">${S.keyNote}</p>
       <//>`}
     <${MqttCard} status=${status} live=${live} state=${mqtt} setState=${setMqtt} />
+    <${TariffSetup} status=${status} onSaved=${onTariff} />
     <${FirmwareCard} status=${status} />
     <${MemCard} status=${status} />`;
   const prefs = html`

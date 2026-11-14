@@ -36,6 +36,10 @@ account, no subscription – the app runs on the gPlug itself.
   Wi-Fi. Your settings and history stay.
 - **Your data stays at home.** Everything runs on the gPlug in your own network. The key from your
   grid operator is stored on the device and never shown or sent anywhere.
+- **Dynamic tariffs, if you want them.** In the BKW or CKW grid, the app can show the price of
+  every quarter hour next to your energy, and what a day earned or cost; with a free key from Swiss
+  Tariff Hub, the total price of other dynamic tariffs too. Off until you choose; the gPlug then
+  fetches the published prices from the internet itself.
 - **Works with what you already use.** Home Assistant picks the gPlug up through its ESPHome
   integration. Node-RED, ioBroker or InfluxDB get the values over MQTT, in the format you choose.
 - **In your language.** German, French, Italian and English, light or dark.

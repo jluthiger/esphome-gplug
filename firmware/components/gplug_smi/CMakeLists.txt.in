@@ -20,5 +20,8 @@
 # mqtt (esp-mqtt) is the client behind MQTT publishing (mqtt.cpp). ESPHome leaves that IDF component
 # out of the build unless its own `mqtt:` is configured, so __init__.py re-includes it, and it needs
 # REQUIRES here like the others.
+#
+# esp_http_client is the HTTPS client behind the dynamic-tariff fetch (tariff.cpp); its certificate
+# bundle (esp_crt_bundle.h) is part of mbedtls.
 FILE(GLOB_RECURSE app_sources ${CMAKE_SOURCE_DIR}/src/*.*)
-idf_component_register(SRCS ${app_sources} REQUIRES mbedtls esp_partition spi_flash mqtt)
+idf_component_register(SRCS ${app_sources} REQUIRES mbedtls esp_partition spi_flash mqtt esp_http_client)

@@ -26,3 +26,4 @@ test/test_heapmon
 test/test_version_cmp
 test/test_mqtt_template
 test/test_mqtt_status
+test/test_tariff

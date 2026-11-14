@@ -6,7 +6,7 @@
 | Status | draft |
 | Owner | juerg.luthiger@fhnw.ch |
 | Created | 2026-09-09 |
-| Updated | 2026-09-11 |
+| Updated | 2026-11-13 |
 
 ## Goal
 
@@ -64,7 +64,11 @@ optional and uses ESPHome's native API.
 - Compatibility with legacy Tasmota installations: no Tasmota MQTT topic scheme, no Tasmota HTTP API, no
   Tasmota partition layout. Firmware updates use ESPHome's own OTA only.
 - Cloud services, remote access, VPN.
-- Tariff / price calculation. Only raw HT/NT counters are stored and shown.
+- Tariff / price calculation. Only raw HT/NT counters are stored and shown. One exception since
+  2026-11-13 (issue #51, `DECISIONS.md`): published dynamic tariffs (BKW feed-in, CKW grid usage,
+  Swiss Tariff Hub's total price),
+  opt-in, fetched by the device and shown against the measured energy as an estimate, never as a
+  bill; nothing is stored or switched on the basis of a price.
 - More than one meter per device.
 - Authentication on the webservice in v1 (trusted LAN only).
 - Upstreaming to the ESPHome project. Delivered as an external component in its own repository.

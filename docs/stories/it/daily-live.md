@@ -21,6 +21,10 @@ immettendo in questo momento, per capire il mio consumo.
 5. Con i profili trifase, {{S.phases}} mostra potenza, tensione e corrente per fase.
    {{img:live|Vista in tempo reale con potenza, letture e fasi}}
 
+6. Se è scelta una tariffa dinamica, {{S.tariffLive}} sotto la potenza mostra il prezzo del quarto
+   d'ora in corso, «{{S.tariffUntil("13:00", "12.40 Rp/kWh")}}» e, quando la corrente scorre nella
+   direzione tariffata, quanto rende o costa all'ora (CHF/h).
+
 ## Acceptance
 - In alto a destra c'è {{S.dataOk}}; i valori si aggiornano ogni pochi secondi.
 - Le letture corrispondono al display del contatore.
