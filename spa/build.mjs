@@ -1,5 +1,6 @@
 // Bundles src/ into dist/index.html (single file, JS+CSS inlined) and dist/index.html.gz
-// for the mock dev server, plus the copy embedded by the ESPHome firmware.
+// for the mock dev server, plus the copy embedded by the ESPHome firmware; the non-German language
+// tables go next to it as dist/i18n/<lang>.js and firmware/components/gplug_smi/i18n/<lang>.js.gz.
 import { build } from "esbuild";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { gzipSync } from "node:zlib";
@@ -92,6 +93,29 @@ writeFileSync("dist/index.html.gz", gz);
 // The copy the firmware actually embeds (committed; see firmware/components/gplug_smi/__init__.py).
 const BUNDLED = "../firmware/components/gplug_smi/spa.html.gz";
 writeFileSync(BUNDLED, gz);
+// French, Italian and English, one script each, served by the firmware at /i18n/<lang>.js and
+// loaded by src/i18n/index.js when the page shows that language (issue #53; German is inline in
+// the bundle above). Each registers itself on `self.gplugI18n` instead of being an ES module: the
+// bundle is a classic es2018 script and loads them with a <script> element.
+const LANG_DIR = "../firmware/components/gplug_smi/i18n";
+mkdirSync("dist/i18n", { recursive: true });
+mkdirSync(LANG_DIR, { recursive: true });
+const langSizes = [];
+for (const code of ["en", "fr", "it"]) {
+  const out = await build({
+    stdin: {
+      contents: `import { ${code} } from "./src/i18n/${code}.js"; (self.gplugI18n = self.gplugI18n || {}).${code} = ${code};`,
+      resolveDir: ".",
+    },
+    bundle: true, minify: true, format: "iife", target: ["es2018"], write: false, legalComments: "none",
+  });
+  const text = out.outputFiles[0].text;
+  const tgz = gzipSync(Buffer.from(text), { level: 9 });
+  writeFileSync(`dist/i18n/${code}.js`, text);
+  writeFileSync(`${LANG_DIR}/${code}.js.gz`, tgz);
+  langSizes.push(`${code} ${(tgz.length / 1024).toFixed(1)}`);
+}
+
 // Home-screen shortcut assets, served by the firmware as /manifest.webmanifest and /icon.png.
 const manifest = Buffer.from(JSON.stringify(JSON.parse(readFileSync("src/manifest.webmanifest", "utf8"))));
 const icon = iconPng(512);
@@ -103,3 +127,4 @@ console.log(`icon.png            ${(icon.length / 1024).toFixed(1)} kB, manifest
 console.log(`css                ${(css.length / 1024).toFixed(1)} kB mobile + ${(cssDesktop.length / 1024).toFixed(1)} kB desktop + ${(cssWide.length / 1024).toFixed(1)} kB wide`);
 console.log(`dist/index.html     ${(html.length / 1024).toFixed(1)} kB`);
 console.log(`dist/index.html.gz  ${(gz.length / 1024).toFixed(1)} kB  -> ${BUNDLED}`);
+console.log(`i18n/*.js.gz        ${langSizes.join(" · ")} kB  -> ${LANG_DIR}/`);

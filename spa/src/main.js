@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { html } from "./h.js";
-import { S, onLangChange, applyLang } from "./strings.js";
+import { S, onLangChange, initLang } from "./strings.js";
 import { api } from "./api.js";
 import { Welcome } from "./steps/welcome.js";
 import { Hardware } from "./steps/hardware.js";
@@ -12,7 +12,6 @@ import { applyTheme, initialTheme } from "./theme.js";
 import { pageTitle } from "./fmt.js";
 
 applyTheme(initialTheme());   // before the first render, so no flash of the wrong theme
-applyLang();                  // <html lang> follows the picked/detected language, not index.html
 
 // No "wifi" step: this SPA is only ever reachable after the device has already joined WiFi
 // (the stock captive_portal handles that first join, before gplug_smi's own handler -- and
@@ -161,4 +160,6 @@ function toDescriptor(p, hw) {
   };
 }
 
-render(html`<${App} />`, document.getElementById("app"));
+// The page's language table loads before the first render (German is inline and resolves at
+// once), so a French user never sees German text flash up first. <html lang> is set there too.
+initLang().then(() => render(html`<${App} />`, document.getElementById("app")));

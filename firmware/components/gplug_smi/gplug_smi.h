@@ -190,6 +190,11 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   void set_home_screen(const uint8_t *manifest_gz, size_t manifest_len, const uint8_t *icon_png, size_t icon_len) {
     manifest_ = manifest_gz; manifest_len_ = manifest_len; icon_ = icon_png; icon_len_ = icon_len;
   }
+  // Non-German UI language tables, gzipped scripts served at /i18n/<code>.js (issue #53). German is
+  // inside the SPA itself. `code` is a two-letter literal from the generated main.cpp.
+  void add_lang(const char *code, const uint8_t *data, size_t len) {
+    if (n_langs_ < MAX_LANGS) langs_[n_langs_++] = {code, data, len};
+  }
   void set_ota_auth(bool on) { ota_auth_ = on; }
   void set_ota_password(const char *pw) { ota_password_ = pw; }
 #ifdef USE_UPDATE
@@ -321,6 +326,10 @@ class GplugSmi : public Component, public uart::UARTDevice, public AsyncWebHandl
   const uint8_t *presets_{nullptr}; size_t presets_len_{0};
   const uint8_t *manifest_{nullptr}; size_t manifest_len_{0};
   const uint8_t *icon_{nullptr}; size_t icon_len_{0};
+  struct LangTable { const char *code; const uint8_t *data; size_t len; };
+  static constexpr uint8_t MAX_LANGS = 3;   // en, fr, it
+  LangTable langs_[MAX_LANGS]{};
+  uint8_t n_langs_{0};
 
   Descriptor desc_;
   std::string hw_json_{"{}"};

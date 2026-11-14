@@ -12,7 +12,7 @@ import esphome.config_validation as cv
 from esphome.components import esp32, socket, uart, web_server_base
 from esphome.components.web_server_base import CONF_WEB_SERVER_BASE_ID
 from esphome.const import CONF_ID
-from esphome.core import CORE
+from esphome.core import CORE, EsphomeError
 
 # ota.web_server: the POST /update handler the SPA's firmware card uploads to. The captive portal
 # fork auto-loads it too, but the card must not depend on that.
@@ -26,6 +26,7 @@ CONF_SPA_RAW_ID = "spa_raw_id"
 CONF_PRESETS_RAW_ID = "presets_raw_id"
 CONF_MANIFEST_RAW_ID = "manifest_raw_id"
 CONF_ICON_RAW_ID = "icon_raw_id"
+CONF_LANG_RAW_IDS = {code: f"i18n_{code}_raw_id" for code in ("en", "fr", "it")}
 CONF_OTA_PASSWORD = "ota_password"
 CONF_UPDATE_ID = "update_id"
 # Referenced by the sensor/text_sensor platforms to find the component.
@@ -46,6 +47,9 @@ BUNDLED_PRESETS = Path(__file__).parent / "presets.json"
 # Home-screen shortcut (manifest + icon), also written by `npm run build`; not user-overridable.
 BUNDLED_MANIFEST = Path(__file__).parent / "manifest.webmanifest"
 BUNDLED_ICON = Path(__file__).parent / "icon.png"
+# UI language tables other than German (which is inside the SPA), gzipped by `npm run build` and
+# served at /i18n/<code>.js (issue #53); not user-overridable either.
+BUNDLED_LANG_DIR = Path(__file__).parent / "i18n"
 
 
 def _file(value):
@@ -89,6 +93,7 @@ CONFIG_SCHEMA = cv.All(
             cv.GenerateID(CONF_PRESETS_RAW_ID): cv.declare_id(cg.uint8),
             cv.GenerateID(CONF_MANIFEST_RAW_ID): cv.declare_id(cg.uint8),
             cv.GenerateID(CONF_ICON_RAW_ID): cv.declare_id(cg.uint8),
+            **{cv.GenerateID(key): cv.declare_id(cg.uint8) for key in CONF_LANG_RAW_IDS.values()},
             cv.Optional(CONF_SPA, default=None): _bundled(BUNDLED_SPA),
             cv.Optional(CONF_PRESETS, default=None): _bundled(BUNDLED_PRESETS),
             # Optional: protects the browser upload (`POST /update`, ota.web_server, used by the
@@ -177,6 +182,14 @@ async def to_code(config):
     icon = BUNDLED_ICON.read_bytes()   # PNG is already deflated; gzip would not shrink it
     icon_arr = cg.static_const_array(config[CONF_ICON_RAW_ID], cg.ArrayInitializer(*icon))
     cg.add(var.set_home_screen(manifest_arr, len(manifest), icon_arr, len(icon)))
+
+    for code, key in CONF_LANG_RAW_IDS.items():
+        path = BUNDLED_LANG_DIR / f"{code}.js.gz"
+        if not path.is_file():
+            raise EsphomeError(f"Bundled file missing: {path} (run the SPA build)")
+        table = path.read_bytes()
+        table_arr = cg.static_const_array(config[key], cg.ArrayInitializer(*table))
+        cg.add(var.add_lang(code, table_arr, len(table)))
 
     # web_server_base wraps every handler registered via add_handler() -- only ota.web_server's
     # /update here; the SPA and captive portal use add_handler_without_auth() -- in Basic auth once
