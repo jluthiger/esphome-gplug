@@ -10,6 +10,8 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 
 ## [Unreleased]
 
+## [0.11.0] – 2026-11-15
+
 ### Added
 
 - Dynamic tariffs (BKW feed-in remuneration, CKW grid usage): choose your utility on the Device tab,
@@ -31,6 +33,13 @@ answer three questions whenever the answer is not "nothing to do": does it need 
 - The README, the user manual, the migration guide and the web installer now say what to do when the
   Wi-Fi setup page does not open by itself after joining `gPlug-Setup`, as on Linux Mint: use
   Firefox's bar to log in to the network, or open `http://192.168.4.1/`.
+
+### Upgrade notes
+
+- Update over the air as usual: no USB reflash (the partition table is unchanged). Wi-Fi, meter
+  settings, history, event log and MQTT settings are kept. Dynamic tariffs stay off until you
+  choose a utility on the Device tab.
+- Home Assistant entities do not change.
 
 ## [0.10.0] – 2026-10-13
 
