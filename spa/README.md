@@ -6,7 +6,7 @@ Preact + htm, no JSX, no framework build step. esbuild bundles everything into o
 ```
 npm install
 npm run presets   # regenerate ../firmware/components/gplug_smi/presets.json from ../gplug/**/script.txt
-npm run build     # -> dist/index.html (for the mock), and ../firmware/components/gplug_smi/spa.html.gz (what the firmware embeds; committed)
+npm run build     # -> dist/ (for the mock), and ../firmware/components/gplug_smi/spa.html.gz + i18n/<lang>.js.gz (what the firmware embeds; committed)
 npm run dev       # mock device API + SPA on http://localhost:8080
 ```
 
@@ -69,17 +69,25 @@ the line. Mock: `MOCK_DETECT=dsmr|dlms|plain|none npm run dev` (`plain`: DLMS wi
 
 ## Languages
 
-German, French, Italian and English, all four in the one bundle the device serves. The page is
-sent to the phone gzipped straight from flash and decompressed by the browser, so extra languages
-cost flash bytes and nothing else -- no RAM on the ESP32 and no work for it. Measured: 26.5 kB
-gzipped for German alone, 35.3 kB for all four. The firmware image grew by the same 8.8 kB and its
-static RAM did not move at all, leaving ~396 kB free in the app slot.
+German, French, Italian and English. German is inside the bundle; the other three are separate
+scripts the device serves at `/i18n/<lang>.js` (gzip from flash, like the page), and the page loads
+the one it shows (issue #53). With all four inline the bundle had reached 63.4 of its 64 kB; one
+table costs ~5 kB gzipped inside the bundle and a page only ever shows one. Measured 2026-11-14:
+bundle 63.4 → 48.2 kB, tables en 6.4 / fr 7.3 / it 6.9 kB on their own. They compress worse alone
+than together, so the image holds ~5 kB more than before.
 
-- `src/i18n/{de,fr,it,en}.js` hold the tables, `src/i18n/index.js` the selection, and
+- `src/i18n/{de,fr,it,en}.js` hold the tables, `src/i18n/index.js` the selection and the loader, and
   `src/strings.js` re-exports both so a component never imports a language directly.
+- `build.mjs` builds each non-German table as a small script that registers itself on
+  `self.gplugI18n` (`dist/i18n/<lang>.js` for the mock, `../firmware/components/gplug_smi/i18n/<lang>.js.gz`
+  for the firmware, committed like the bundle). `index.js` loads it with a `<script>` element:
+  the tables hold functions, so they must run as code, and the es2018 bundle has no module loader.
+- `main.js` waits for the page's table before the first render (`initLang()`), so a French user
+  never sees German first; a German page renders at once. A table that fails to load leaves the
+  page in German rather than blank; the language picker then simply stays where it was.
 - `S` is a proxy that reads through to the active table, with German as the fallback for a key a
-  translation is missing. Switching language is a state change, not a reload: `setLang()` notifies
-  the app root, which re-renders the tree (nothing is memoised, so every `S.x` read is fresh).
+  translation is missing. Switching language is a state change, not a reload: `setLang()` loads the
+  table if needed, then notifies the app root, which re-renders the tree (nothing is memoised, so every `S.x` read is fresh).
 - The choice is stored per browser in `localStorage` under `gplug.lang`; without one, the phone's
   own `navigator.languages` decides, and German is the last resort. `<html lang>` follows.
 - Numbers and dates go through `Intl` with a Swiss locale (`de-CH`, `fr-CH`, `it-CH`, `en-CH`), so
@@ -233,6 +241,7 @@ device in `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (e.g. `http
 |---|---|---|
 | GET | `/api/status` | `{version, fw?, hostname, uptime, build, app, ota_auth, heap, mem:{free, min_free, largest, stack_loop, stack_httpd, stack_mqtt?, sample?}, hardware, meter:{preset, protocol, encrypted, key_hint?, …}, wifi:{connected, ssid?, ip?, rssi?, low_power?}, time:{valid, epoch}, history:{ok, addr, size, sectors, slots, interval, count, seq, oldest_qh, newest_qh, erases, writes, crc_errors}, mqtt?:{state, error, sent, dropped, skipped, last_ago}, tariff?}`. `tariff` (`off`\|`bkw`\|`ckw`, absent before 0.11.0) is the chosen dynamic-tariff provider. `mem.sample` (absent before 0.10.0 and until the device has two heap samples) is the newest `/api/heap` sample, `[up_s, free_kb, min_kb, largest_kb, sockets]`: the closed Memory card's summary. `wifi.low_power` (absent before 0.11.0) is true while the firmware runs the gPlugK power profile; the SPA does not show it. `mqtt` (absent before 0.7.0) drives the MQTT card's badge: `state` `off`\|`connecting`\|`connected`\|`error`, `error` `tcp`\|`refused`\|`auth` for the connection or a `tpl_*` token when the templates stopped compiling after a profile change. `version` is the ESPHome release, `fw` the gPlug release (`gplug.yaml` `version`, absent before 0.6.0-rc.2); `app` is the first 16 hex digits of the running image's ELF SHA-256; the firmware card reads the same bytes at offset `0xB0` of the file it uploads and compares the two after the reboot, because `build` does not move when only embedded assets change. Both config objects are always present: `hardware` is `{}` until the hardware step is saved, `meter.protocol` is `0` (1 DSMR, 2 DLMS) until a profile is; `meter.key_hint` (4 hex digits of SHA-256 of the stored GUEK, only when one is stored, absent before 0.6.0) is shown under the meter step's "use stored key" toggle; the SPA opens the wizard unless `hardware.variant` and `meter.protocol` are set |
 | GET | `/api/presets` | `{variants:[…], presets:[…]}` (see `../firmware/components/gplug_smi/presets.json`) |
+| GET | `/i18n/<lang>.js` | `en`, `fr`, `it`: the language table as a script that sets `self.gplugI18n.<lang>` (see "Languages"); 404 for anything else under `/i18n/`. Absent before 0.11.0, whose bundle holds all four |
 | GET | `/api/wifi/scan` | `[{ssid, rssi, secure}]` |
 | POST | `/api/key/check` | `{key}` → `{match}`. The meter step's "compare with the letter" check under the "use stored key" toggle; offered only when `meter.key_hint` is present (same firmware release). 400 `no stored key` / `key must be 32 hex chars`. Verified on gPlugK 2026-09-25 |
 | POST | `/api/config/wifi` | `{ssid, psk}` |

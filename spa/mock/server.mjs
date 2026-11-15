@@ -742,6 +742,15 @@ createServer(async (req, res) => {
     res.writeHead(200, { "content-type": asset });
     return res.end(readFileSync(join(here, "..", "dist", path)));
   }
+  // Language tables (en/fr/it; German is in the bundle). Like the firmware: 404 for anything else
+  // under /i18n/, never the SPA, which the loader would otherwise run as a script.
+  if (req.method === "GET" && path.startsWith("/i18n/")) {
+    const m = /^\/i18n\/(en|fr|it)\.js$/.exec(path);
+    const f = m && join(here, "..", "dist", "i18n", `${m[1]}.js`);
+    if (!f || !existsSync(f)) { res.writeHead(404); return res.end(); }
+    res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" });
+    return res.end(readFileSync(f));
+  }
   if (req.method === "GET") {
     const f = join(here, "..", "dist", "index.html");
     if (existsSync(f)) {

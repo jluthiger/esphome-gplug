@@ -8,7 +8,8 @@ replacing Tasmota. Two halves that ship as one image:
   `captive_portal`. Configs: `gplug.yaml` (release, pulls components from GitHub), `dev.yaml`
   (same, local components) — always build `dev.yaml`.
 - **Frontend** `spa/`: Preact 10 + htm (no JSX, no framework), esbuild → one gzipped HTML embedded in
-  the firmware as `firmware/components/gplug_smi/spa.html.gz` (**committed**).
+  the firmware as `firmware/components/gplug_smi/spa.html.gz`, plus the en/fr/it tables as
+  `firmware/components/gplug_smi/i18n/<lang>.js.gz` served at `/i18n/<lang>.js` (all **committed**).
 
 Read before non-trivial work: `DESIGN.md` (goal, constraints), `DECISIONS.md` (decision log),
 `firmware/README.md` (component, HTTP API, diag table), `spa/README.md` (screens, device API used),
@@ -38,7 +39,7 @@ are user-confirmed — never do either unprompted. Releases: `/release` (process
 - **API contract has three copies**: firmware handler (`gplug_smi.cpp`), `spa/mock/server.mjs`,
   and the API tables in `firmware/README.md` + `spa/README.md`. Changing a route or JSON field means
   updating all of them in the same change. `/api-change` walks it.
-- **Rebuild the SPA after any `spa/src` change** and commit `spa.html.gz`. CI fails the release on a
+- **Rebuild the SPA after any `spa/src` change** and commit `spa.html.gz` and `i18n/*.js.gz`. CI fails the release on a
   stale bundle (compares decompressed HTML). A Stop hook here refuses to finish while it is stale.
 - **Four languages** (`spa/src/i18n/{de,en,fr,it}.js`): every UI string exists in all four with the
   same type and arity; `de` is the reference. Text via `S.key` from `strings.js`, never hard-coded.

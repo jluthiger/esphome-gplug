@@ -78,7 +78,7 @@ With Claude Code: `/release`. By hand:
    new version and install it.
 5. **Back to development**: `version: "0.4.0-dev"`, `ref: main`, commit and push.
 
-The workflow rebuilds the SPA and refuses to release if the committed `spa.html.gz` is stale, checks
+The workflow rebuilds the SPA and refuses to release if the committed `spa.html.gz` or a language table in `i18n/` is stale, checks
 the release commit, compiles `dev.yaml` and attaches `gplug-<version>.ota.bin` and
 `.factory.bin`. `workflow_dispatch` is a dry run: build artefacts only, no release, no deploy.
 

@@ -12,7 +12,7 @@ affect only when the user asked for a quick check; say which were skipped.
    `cd spa && npm run build`. Note the printed gzip size; flag if > 64 kB.
 2. **Bundle freshness** (what CI checks):
    ```
-   git diff --quiet -- firmware/components/gplug_smi/spa.html.gz || echo "bundle changed: commit it"
+   git diff --quiet -- firmware/components/gplug_smi/spa.html.gz firmware/components/gplug_smi/i18n || echo "bundle changed: commit it"
    ```
    If `spa/src` changed but the bundle did not, the build did not pick the change up — investigate.
 3. **Host tests**: `firmware/test/run.sh`. Report skipped capture tests explicitly; they cover the

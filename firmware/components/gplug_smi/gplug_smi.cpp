@@ -902,6 +902,16 @@ void GplugSmi::handleRequest(AsyncWebServerRequest *req) {
     if (starts_with(url, "/api/frames/")) return handle_frame_detail_(req, url.c_str());
     if (starts_with(url, "/api/")) return send_json_(req, 404, "{\"error\":\"not found\"}");
     if (url == "/manifest.webmanifest") return send_gz_(req, "application/manifest+json", manifest_, manifest_len_);
+    // Language tables: /i18n/<code>.js. Anything else under /i18n/ is a 404, not the SPA fallback:
+    // the SPA loads these with a <script> element, which would try to run the HTML.
+    if (starts_with(url, "/i18n/")) {
+      for (uint8_t i = 0; i < n_langs_; i++) {
+        const LangTable &l = langs_[i];
+        if (url.size() == 11 && memcmp(url.c_str() + 6, l.code, 2) == 0 && memcmp(url.c_str() + 8, ".js", 3) == 0)
+          return send_gz_(req, "text/javascript", l.data, l.len);
+      }
+      return req->send(404, "text/plain", "not found");
+    }
     if (url == "/icon.png") {
       auto *res = req->beginResponse(200, "image/png", icon_, icon_len_);
       res->addHeader("Cache-Control", "max-age=86400");

@@ -46,13 +46,17 @@ jobs:
           set -eu
           npm ci
           npm run build
+          # The bundle and the three language tables beside it (issue #53) ship together.
+          for BUNDLED in firmware/components/gplug_smi/spa.html.gz firmware/components/gplug_smi/i18n/en.js.gz \
+                         firmware/components/gplug_smi/i18n/fr.js.gz firmware/components/gplug_smi/i18n/it.js.gz; do
+            built=$(gzip -dc "../$BUNDLED" | sha256sum | cut -d' ' -f1)
+            committed=$(git show "HEAD:$BUNDLED" | gzip -dc | sha256sum | cut -d' ' -f1)
+            if [ "$built" != "$committed" ]; then
+              echo "::error::$BUNDLED is stale -- run 'cd spa && npm run build' and commit it"
+              exit 1
+            fi
+          done
           BUNDLED=firmware/components/gplug_smi/spa.html.gz
-          built=$(gzip -dc "../$BUNDLED" | sha256sum | cut -d' ' -f1)
-          committed=$(git show "HEAD:$BUNDLED" | gzip -dc | sha256sum | cut -d' ' -f1)
-          if [ "$built" != "$committed" ]; then
-            echo "::error::$BUNDLED is stale -- run 'cd spa && npm run build' and commit it"
-            exit 1
-          fi
           size=$(stat -c %s "../$BUNDLED")
           echo "spa.html.gz: $size bytes"
           if [ "$size" -gt 65536 ]; then

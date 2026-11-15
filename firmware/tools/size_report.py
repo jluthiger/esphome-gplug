@@ -97,6 +97,7 @@ def embedded_sizes():
         gz((comp / "captive_portal/captive.html").read_bytes()): "captive page",
         len((comp / "gplug_smi/icon.png").read_bytes()): "icon",
         gz((comp / "gplug_smi/manifest.webmanifest").read_bytes()): "manifest",
+        **{len((comp / f"gplug_smi/i18n/{c}.js.gz").read_bytes()): f"i18n {c}" for c in ("en", "fr", "it")},
     }
 
 

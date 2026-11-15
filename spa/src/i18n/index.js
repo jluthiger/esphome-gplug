@@ -1,18 +1,17 @@
-// Language selection for the SPA. All four tables ship in the one bundle the device serves
-// (measured at ~3 kB gzip each on top of the ~26 kB app); the page is sent to the phone straight
-// from flash as gzip, so extra languages cost flash bytes and nothing else -- no RAM and no work
-// on the ESP32.
+// Language selection for the SPA. Only German is in the bundle; French, Italian and English are
+// separate scripts the device serves at /i18n/<lang>.js and this module loads on demand (issue
+// #53). With all four inline the bundle sat at 63.4 of its 64 kB; each extra table cost ~5 kB
+// gzipped inside it, and a page only ever shows one. German stays inline as the reference and the
+// fallback: German users make no extra request, and a table that fails to load still leaves a
+// working UI rather than a blank page.
 //
 // Every string goes through the `S` proxy below rather than a direct table import, so switching
 // language is a state change in the running app, not a reload. German is the fallback for a key a
-// translation is missing; build.mjs refuses to build when the key sets differ, so that fallback
-// should never fire on a real device.
+// translation is missing; build.mjs refuses to build when the key sets differ, and the tables are
+// embedded in the same image as the bundle, so that fallback should never fire on a real device.
 import { de } from "./de.js";
-import { en } from "./en.js";
-import { fr } from "./fr.js";
-import { it } from "./it.js";
 
-const TABLES = { de, fr, it, en };
+const TABLES = { de };
 const KEY = "gplug.lang";
 
 // Picker order: the three Swiss national languages the meters are billed in, then English.
@@ -32,23 +31,55 @@ const LOCALES = { de: "de-CH", fr: "fr-CH", it: "it-CH", en: "en-CH" };
 function detect() {
   try {
     const saved = localStorage.getItem(KEY);
-    if (TABLES[saved]) return saved;
+    if (LOCALES[saved]) return saved;
   } catch { /* private mode, ignore */ }
   for (const tag of navigator.languages || [navigator.language || ""]) {
     const code = String(tag).slice(0, 2).toLowerCase();
-    if (TABLES[code]) return code;
+    if (LOCALES[code]) return code;
   }
   return "de";
 }
 
-let lang = detect();
+// A table script assigns itself to `self.gplugI18n[code]` (build.mjs wraps it so). A <script>
+// element rather than fetch() + eval: the tables hold functions, so they have to run as code, and
+// a script tag needs neither eval nor a module loader in the es2018 bundle. Resolves to whether the
+// table is now available; never rejects, so a caller only has to decide what to show without it.
+function load(code) {
+  if (TABLES[code]) return Promise.resolve(true);
+  return new Promise((done) => {
+    const s = document.createElement("script");
+    s.src = `/i18n/${code}.js`;
+    s.onload = s.onerror = () => {
+      s.remove();
+      const t = self.gplugI18n?.[code];
+      if (t) TABLES[code] = t;
+      done(!!t);
+    };
+    document.head.appendChild(s);
+  });
+}
+
+// Until initLang() has run, the page renders in German; main.js waits for it before the first
+// render, so in practice nobody sees that.
+let wanted = detect();
+let lang = "de";
 const listeners = new Set();
 
 export const getLang = () => lang;
 export const getLocale = () => LOCALES[lang];
 
-export function setLang(code) {
-  if (!TABLES[code] || code === lang) return;
+// Loads the detected or saved language once at start. On failure (only possible if the request
+// itself fails) the page stays German instead of not rendering at all.
+export async function initLang() {
+  if (await load(wanted)) lang = wanted;
+  applyLang();
+}
+
+export async function setLang(code) {
+  if (!LOCALES[code]) return;
+  wanted = code;   // set first: tapping back to the current language cancels a load in flight
+  if (code === lang) return;
+  if (!(await load(code)) || wanted !== code) return;   // a later tap won while this one loaded
   lang = code;
   try { localStorage.setItem(KEY, code); } catch { /* private mode, ignore */ }
   applyLang();
@@ -57,7 +88,7 @@ export function setLang(code) {
 
 // <html lang> drives the browser's own hyphenation, spell-check and screen-reader voice; it is
 // wrong out of the box because index.html has to ship with some fixed value.
-export function applyLang() {
+function applyLang() {
   document.documentElement.lang = lang;
 }
 
